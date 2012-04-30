@@ -1,0 +1,70 @@
+#####################################################
+
+EO Introspection - Scanner, Graph Generator
+
+#####################################################
+
+Scanner is a part of EObject introspection module.
+It analyzes source and header C files, which can contain EO-styled class definition,
+   and generates XML - description for each found class
+
+#####################################################
+
+1. Introspecting folder:
+    Scanner runs recursively on defined folders
+    a. > python eo_xml_gen.py --dir=IN_DIR --dir=IN_DIR2 --outdir=OUT_DIR -include=INCLUDE_DIR
+      script searches for dependency xmlfiles in Python env paths.
+      if PYTHONPATH wasn't set, explicit --include=INCLUDE_DIR can be needed
+
+    b. Building classes graph chart:
+      Graph generator runs recursively on defined folders and generates graphviz dot file,
+      which can be used to generate image
+
+      > python eo_graph_gen.py --dir=FOLDER_WITH_XML1 --dir=FOLDER_WITH_XMLS --outfile=OUTFILE.dot
+      > dot -Tpng OUTFILE.dot -o out.png
+      > eog out.png
+
+2. Generating python-bindings: read /eo_py/README
+
+
+1. Creating eobase module:
+   a. Creating new dir - PY_EOBASE
+   b. Introspecting base module folder - EOBASE
+      > python e_scan.py --dir=EOBASE --outdir=PY_EOBASE
+      - eobase.xml will be created in PY_EOBASE
+   c. Creating eobase python sources:
+      > python e_compile.py  --dir=PY_EOBASE --outdir=PY_EOBASE --module=eobase
+      --pkg="elementary eo"
+      To create base module, option --module must be "eobase"
+      - eobase.pxd, eobase.pyx - will be created
+      - eodefault.pxd, eodefault.pyx - will be copied from script folder
+      - setup.py will be created.
+        setup.py can be modified in order to add include paths and libraries,
+        which weren't mentioned in --pkg option
+   d. Compiling python sources into python module.
+      >  python setup.py build_ext --inplace
+      - eodefault.so, eobase.so will be created
+   e. Copy __init__.py to PY_EOBASE
+      Add PYTHONPATH = PY_EOBASE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
