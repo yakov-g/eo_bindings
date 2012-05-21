@@ -153,7 +153,11 @@ class Cparser(object):
 
        for key in macros:
           pos = s.find("#define " + key)
-          if pos != -1:
+          s_tmp = s[s.find(' ') + 1:]
+          s_tmp = s_tmp.replace(" ", "")
+          s_tmp = s_tmp.split('(')[0]
+          if key == s_tmp:
+#          if pos != -1:
              for op_id, f in op_desc:
                pos = s.find(op_id)
                if pos != -1:
@@ -388,7 +392,7 @@ class Cparser(object):
         if True:
           macro_name = macro_name[macro_name.find(" ")+1:].strip(" ")
           for l in lst:
-            if l[:6] == "@param":
+            if l.startswith("@param"):
                s = self.find_token_in_brackets(l, 0, "[]")
                s = s.strip("[]").replace(" ", "")
                s_tmp = []
