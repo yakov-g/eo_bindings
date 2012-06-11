@@ -1,8 +1,8 @@
 # -*- coding: UTF-8 -*-
 
-from lib.eodefault import *
-from lib.eobase import EoBase
-from py_signals import Simple
+from evas_py.eodefault import *
+from eobase import EoBase
+from signals.signals_py import Simple
 
 def cb_del():
   print "OBJECT DELETED"

@@ -412,12 +412,20 @@ building __init__ function
         self.globals = {}
         self.globals["extern_base_id"] = ""
 
+#py_parse() - makes all main job - builds funcs, etc.
+    def py_parse(self):
+
         #the three following parses are for python, so can be moved
         for key in self.cl_data[self.current_class]["functions"]:
+            #print self.current_class
             self.parse_methods(key, self.cl_data[self.current_class]["functions"][key])
 
         self.parse_signals()
         self.parse_init_func()
+
+    def js_parse(self):
+        #the three following parses are for python, so can be moved
+       self.print_data()
 
     def check_parents(self):
        list_of_parents = []
@@ -430,6 +438,283 @@ building __init__ function
        parents_to_find = filter(lambda l: True if l not in self.cl_data else False, list_of_parents)
 
        return parents_to_find
+
+    def build_js_modules(self, module_name, pkg, sourcedir):
+       cl_data_tmp = {}
+       module_file = module_name + ".pyx"
+
+       for k in self.cl_data:
+         self.cl_data[k]["name"] =  normalize_names(self.cl_data[k]["c_name"])
+         self.cl_data[k]["parents"] = normalize_names(self.cl_data[k]["parents"])
+         cl_data_tmp[self.cl_data[k]["name"]] = self.cl_data[k]
+
+       self.cl_data = cl_data_tmp
+       del cl_data_tmp
+
+       if module_name == "eobase":
+         if "EoBase" in self.cl_data:
+           cl_data_tmp = dict(self.cl_data)
+           self.cl_data = {}
+           self.cl_data["EoBase"] = cl_data_tmp["EoBase"]
+           del cl_data_tmp
+         else:
+           print "ERROR: source files for module \"EoBase\" not found"
+           exit(1)
+       else:
+          if "EoBase" in self.cl_data:
+             self.cl_data.pop("EoBase")
+             print("Warning: EoBase module was removed from building tree")
+
+       for k in self.cl_data:
+         self.build_cpp_class(k)
+
+
+       print "build js modules"
+
+
+
+    def build_cpp_class(self, kl_id):
+#creating .pyx file
+
+        ll = []
+        kl_dt = self.cl_data[kl_id]
+        print "\n"
+        print kl_id
+#        print self.print_data()
+
+        kl_dt[".h"] = os.path.join(self.outdir, kl_dt["module"]  + ".h")
+        kl_dt[".cc"] = os.path.join(self.outdir, kl_dt["module"]  + ".cc")
+       
+        print kl_dt[".h"]
+
+        #creating .pxd file
+        f = open (kl_dt[".h"], 'w')
+        pattern = "########################################################"
+        l = "%s\n##\n## generated from from \"%s\"\n##\n%s"%(pattern, kl_dt["source_file"], pattern)
+        f.write(l+'\n\n')
+
+        #inserting cimports
+        ll.append("#ifndef %s\n"%( ("_JS_"+kl_dt["module"]+"_h_").upper() ))
+        ll.append("#define %s\n"%( ("_JS_"+kl_dt["module"]+"_h_").upper() ))
+        ll.append("\n")
+        ll.append("#include \"elm.h\" //kinda supporting functions\n")
+        ll.append("#include \"CElmObject.h\" //base object\n")
+        ll.append("#include \"%s\" //eo-class include file\n"%(kl_dt["includes"][0]))
+
+        for l in kl_dt["parents"]:
+           if l == "EoBase":
+             continue
+           ll.append("#include \"%s.h\" //include generated js-wrapping classes\n"%(self.cl_data[l]["module"]))
+
+
+
+        ll.append("\n")
+        ll.append("namespace elm { //namespace should have the same meaning as module for python\n")
+        ll.append("\n")
+
+        ll.append("using namespace v8;\n")
+        ll.append("\n")
+
+        lst = ["public virtual CElmObject"]
+        for l in kl_dt["parents"]:
+           if l== "EoBase":
+             continue
+           lst.append("public virtual %s"%(l))
+
+        inherit = ", ".join(lst)
+        ll.append("class %s : %s {\n"%(kl_id, inherit))
+
+        priv = []
+        prot = []
+        publ = []
+
+        if kl_dt["type"] == self.string_consts["class_type_regular"]:
+          priv.append("   static Persistent<FunctionTemplate> tmpl;\n")
+          priv.append("\n")
+
+          prot.append("   %s(Local<Object> _jsObject, CElmObject *parent);\n"%(kl_id))
+          prot.append("   static Handle<FunctionTemplate> GetTemplate();\n")
+          prot.append("\n")
+
+          publ.append("   static void Initialize(Handle<Object> target);\n")
+          publ.append("   virtual void DidRealiseElement(Local<Value> obj);\n")
+          publ.append("   friend Handle<Value> CElmObject::New<%s>(const Arguments& args);\n"%(kl_id))
+          publ.append("\n")
+
+
+        ll.append("private:\n")
+        #generating constructors and destructor
+        ll += priv
+
+        ll.append("protected:\n")
+        #generating constructors and destructor
+        ll.append("   %s();\n"%(kl_id))
+        ll += prot
+        ll.append("   virtual ~%s();\n"%(kl_id))
+
+        ll.append("public:\n")
+        #generating constructors and destructor
+        ll += publ
+
+        ll.append("\n")
+
+        for line in ll:
+          f.write(line)
+
+
+
+        #inserting externs from H
+        l = "cdef extern from \"%s\":"%(kl_dt["includes"][0])
+        f.write(l+'\n\n')
+
+        if kl_dt["extern_base_id"] != "":
+          l = '  %s %s'%("Eo_Op", kl_dt["extern_base_id"])
+          f.write(l+'\n\n')
+        enum_lines = []
+        enum_lines.append("  ctypedef enum:")
+        for v in kl_dt["op_ids"]:
+          #inserting extern enums from H into temp list
+          if len(enum_lines) > 1 :
+            enum_lines[-1] = enum_lines[-1] + ','
+          enum_lines.append('    ' + v)
+          continue
+
+        for v in kl_dt["ev_ids"]:
+          l = '  %s %s'%("Eo_Event_Description *", v)
+          f.write(l+'\n')
+        f.write('\n')
+
+        if len(enum_lines) > 1:
+            for l in enum_lines:
+                f.write(l+'\n')
+            f.write('\n')
+
+        for v in kl_dt["extern_funcs"]:
+            l = '  %s %s'%(v[1], v[0])
+            f.write(l+'\n')
+        f.write('\n')
+
+
+        l = "}; //end class"
+        f.write(l+'\n\n')
+        l = "} //end namespace elm"
+        f.write(l+'\n\n')
+        l = "#endif"
+        f.write(l+'\n\n')
+
+        f.close()
+
+
+        """
+        f = open (kl_dt[".pxi"], 'w')
+        pattern = "########################################################"
+        l = '%s\n##\n## generated from from \"%s\"\n##\n%s'%(pattern, kl_dt["source_file"], pattern)
+        f.write(l+'\n\n')
+
+        #inserting cimports
+        l = "cimport %s"%kl_dt["module"]
+        f.write(l+'\n')
+        l = "cimport %s"%kl_dt["basemodule"]
+        f.write(l+'\n\n')
+
+        #defining class
+        parents = []
+        if len(kl_dt["parents"]) != 0:
+          parents = kl_dt["parents"]
+
+
+        if kl_dt["name"] == "EoBase":
+           parents = []
+           parents.append(self.basemodule["name"])
+           l = "from %s import %s"%(self.basemodule["module"], self.basemodule["name"])
+           f.write(l + "\n")
+
+        if "EoBase" in parents:
+          l = "from %s import %s"%("eobase", "EoBase")
+          f.write(l + "\n")
+
+        l = "from %s import %s"%(self.basemodule["module"], "pytext_to_utf8")
+        f.write(l + "\n")
+
+        f.write("\n")
+
+        #defining _id function
+        if kl_dt["extern_base_id"] != "":
+          l = 'cdef int %s(int sub_id):'%(kl_dt["sub_id_function"])          
+          f.write(l+'\n')
+          l = '  return %s.%s + sub_id'%(kl_dt["module"],
+                                         kl_dt["extern_base_id"])          
+          f.write(l+'\n\n')
+        parents = ",".join(self.reorder_parents(parents))
+        #defining class
+        l = 'class %s(%s):'%(kl_dt["name"], parents)
+        f.write(l+'\n\n')
+
+        #defining event globals
+        for v in kl_dt["ev_ids"]:
+          pos = v.find("EV_")
+          if pos == -1:
+            continue
+          name = v[pos + 3:]
+          l = "  %s = <long>%s.%s"%(name, kl_dt["module"], v)
+          f.write(l + '\n')
+        f.write('\n')
+
+        methods_parsed = kl_dt["methods_parsed"]
+        #inserting class methods
+        for key in methods_parsed:
+            func = methods_parsed[key]
+            for l in func:
+               f.write('  '+l+'\n')
+        f.close()
+        del methods_parsed
+
+        #creating .pxd file
+        f = open (kl_dt[".pxd"], 'w')
+        pattern = "########################################################"
+        l = "%s\n##\n## generated from from \"%s\"\n##\n%s"%(pattern, kl_dt["source_file"], pattern)
+        f.write(l+'\n\n')
+
+        #inserting cimports
+        l = "from %s cimport *"%(kl_dt["basemodule"])
+        f.write(l+'\n\n')
+
+        #inserting externs from H
+        l = "cdef extern from \"%s\":"%(kl_dt["includes"][0])
+        f.write(l+'\n\n')
+
+        if kl_dt["extern_base_id"] != "":
+          l = '  %s %s'%("Eo_Op", kl_dt["extern_base_id"])
+          f.write(l+'\n\n')
+        enum_lines = []
+        enum_lines.append("  ctypedef enum:")
+        for v in kl_dt["op_ids"]:
+          #inserting extern enums from H into temp list
+          if len(enum_lines) > 1 :
+            enum_lines[-1] = enum_lines[-1] + ','
+          enum_lines.append('    ' + v)
+          continue
+
+        for v in kl_dt["ev_ids"]:
+          l = '  %s %s'%("Eo_Event_Description *", v)
+          f.write(l+'\n')
+        f.write('\n')
+
+        if len(enum_lines) > 1:
+            for l in enum_lines:
+                f.write(l+'\n')
+            f.write('\n')
+
+        for v in kl_dt["extern_funcs"]:
+            l = '  %s %s'%(v[1], v[0])
+            f.write(l+'\n')
+        f.write('\n')
+
+        f.close()
+
+"""
+
+
 
     def build_python_modules(self, module_name, pkg, sourcedir):
        cl_data_tmp = {}
@@ -519,7 +804,7 @@ building __init__ function
 
        cont = True
        while cont:
-         cont = False 
+         cont = False
          for k in cl_parents:
            can_add = True
            for p in cl_parents[k]:
@@ -558,6 +843,10 @@ building __init__ function
           exit(1)
        except shutil.Error as er:
           print "Warning: %s"%er
+
+
+
+
 
 
     def build_module(self, kl_id):

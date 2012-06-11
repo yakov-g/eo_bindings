@@ -2,16 +2,21 @@
 
 import sys
 
-from evas.eodefault import py_elm_init, elem_run
+from evas_py.eodefault import py_elm_init, elem_run
 from eobase import EoBase
 from py_evas import ElwWin, ElwBox, ElwButton, ElwBoxedbutton, EvasObject
 
+
+def my_alert(ob):
+  ob.alert("Hello")
 
 print "Initializing Elementary..."
 print "Init res:", py_elm_init(sys.argv)
 print ""
 
 p_but = None
+p_box = None
+p_bb = None
 
 def cb_add():
   print "cb_add"
@@ -23,7 +28,12 @@ def cb_del():
   print "cb_del"
 
 def cb_clicked():
-  p_but.alert("ALERT WORKS!!!")
+  print ElwBoxedbutton.__mro__
+  #p_but.alert("ALERT WORKS!!!")
+  my_alert(p_but)
+  my_alert(p_bb)
+  #p_box.alert("BOX ALERT WORKS!!!")
+#  p_bb.alert("BBB ALERT WORKS!!!")
   print "cb_clicked"
 
 def cb_clicked2():
@@ -124,6 +134,7 @@ bb, cc = ba.floats(b, c)
 print "b == bb %s, c == cc %s"%( b == bb, c == cc)
 
 bb = ElwBoxedbutton(w);
+p_bb = bb
 bb.visibility_set(1)
 bb.position_set(100, 100)
 bb.position_set(100, 100)
@@ -154,6 +165,7 @@ but2.color_set(240, 240, 240, 255)
 but2.text_set("2nd button in box")
 
 box = ElwBox(w)
+p_box = box
 box.position_set(250, 250) 
 box.size_set(50, 25) 
 box.visibility_set(1) 
@@ -180,6 +192,7 @@ pb.event_callback_priority_add(ElwButton.CLICKED, 0, cb_clicked)
 
 ebb = ElwBoxedbutton(w)
 
+ebb.visibility_set(1)
 ebb.visibility_set(1)
 ebb.position_set(200, 150)
 ebb.size_set(70, 50)
