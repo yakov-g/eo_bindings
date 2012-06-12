@@ -1,9 +1,6 @@
-########################################################
-##
-## generated from from "/tmp/evas_py/l/elwbutton.xml"
-##
-########################################################
-
+/**
+ * generated from "/tmp/evas_py/l/elwbutton.xml"
+ */
 #ifndef _JS_ELWBUTTON_H_
 #define _JS_ELWBUTTON_H_
 
@@ -26,27 +23,36 @@ protected:
    ElwButton(Local<Object> _jsObject, CElmObject *parent);
    static Handle<FunctionTemplate> GetTemplate();
 
+   struct {
+      Persistent<Value> _event_ev_clicked;
+   } cb;
+
    virtual ~ElwButton();
+
 public:
    static void Initialize(Handle<Object> target);
    virtual void DidRealiseElement(Local<Value> obj);
    friend Handle<Value> CElmObject::New<ElwButton>(const Arguments& args);
 
 
-cdef extern from "elw_button.h":
+   Handle<Value> ev_clicked_get() const;
+   void ev_clicked_set(Handle<Value> val);
+   void ev_clicked(void *event_info);
+   staic Eina_Bool ev_clicked_wrapper(void *data, Eo *obj, const Eo_Event_Description *desc, void *event_info);
 
-  Eo_Op ELW_BUTTON_BASE_ID
-
-  Eo_Event_Description * EV_CLICKED
-
-  ctypedef enum:
-    ELW_BUTTON_SUB_ID_TEXT_SET
-
-  Eo_Class* elw_button_class_get()
+   Handle<Value> text_set(const Arguments&);
 
 }; //end class
+
+/* properties callbacks */
+
+/* properties(events) callbacks */
+   Handle<Value> Callback_ev_clicked_get(Local<String>, const AccessorInfo &info);
+   void Callback_ev_clicked_set(Local<String>, Local<Value> val, const AccessorInfo &info);
+
+/* methods callbacks */
+   Handle<Value> Callback_text_set(const Arguments&);
 
 } //end namespace elm
 
 #endif
-

@@ -1,9 +1,6 @@
-########################################################
-##
-## generated from from "/tmp/evas_py/l/elwbox.xml"
-##
-########################################################
-
+/**
+ * generated from "/tmp/evas_py/l/elwbox.xml"
+ */
 #ifndef _JS_ELWBOX_H_
 #define _JS_ELWBOX_H_
 
@@ -27,25 +24,25 @@ protected:
    static Handle<FunctionTemplate> GetTemplate();
 
    virtual ~ElwBox();
+
 public:
    static void Initialize(Handle<Object> target);
    virtual void DidRealiseElement(Local<Value> obj);
    friend Handle<Value> CElmObject::New<ElwBox>(const Arguments& args);
 
 
-cdef extern from "elw_box.h":
 
-  Eo_Op ELW_BOX_BASE_ID
-
-
-  ctypedef enum:
-    ELW_BOX_SUB_ID_PACK_END
-
-  Eo_Class* elw_box_class_get()
+   Handle<Value> pack_end(const Arguments&);
 
 }; //end class
+
+/* properties callbacks */
+
+/* properties(events) callbacks */
+
+/* methods callbacks */
+   Handle<Value> Callback_pack_end(const Arguments&);
 
 } //end namespace elm
 
 #endif
-

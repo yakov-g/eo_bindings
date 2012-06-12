@@ -1,9 +1,6 @@
-########################################################
-##
-## generated from from "/tmp/evas_py/l/elwalert.xml"
-##
-########################################################
-
+/**
+ * generated from "/tmp/evas_py/l/elwalert.xml"
+ */
 #ifndef _JS_ELWALERT_H_
 #define _JS_ELWALERT_H_
 
@@ -20,21 +17,21 @@ private:
 protected:
    ElwAlert();
    virtual ~ElwAlert();
+
 public:
 
-cdef extern from "elw_alert.h":
 
-  Eo_Op ELW_ALERT_BASE_ID
-
-
-  ctypedef enum:
-    ELW_ALERT_SUB_ID_ALERT
-
-  Eo_Class* elw_alert_interface_get()
+   Handle<Value> alert(const Arguments&);
 
 }; //end class
+
+/* properties callbacks */
+
+/* properties(events) callbacks */
+
+/* methods callbacks */
+   Handle<Value> Callback_alert(const Arguments&);
 
 } //end namespace elm
 
 #endif
-

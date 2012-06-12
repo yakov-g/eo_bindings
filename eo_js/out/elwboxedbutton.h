@@ -1,9 +1,6 @@
-########################################################
-##
-## generated from from "/tmp/evas_py/l/elwboxedbutton.xml"
-##
-########################################################
-
+/**
+ * generated from "/tmp/evas_py/l/elwboxedbutton.xml"
+ */
 #ifndef _JS_ELWBOXEDBUTTON_H_
 #define _JS_ELWBOXEDBUTTON_H_
 
@@ -27,20 +24,23 @@ protected:
    static Handle<FunctionTemplate> GetTemplate();
 
    virtual ~ElwBoxedbutton();
+
 public:
    static void Initialize(Handle<Object> target);
    virtual void DidRealiseElement(Local<Value> obj);
    friend Handle<Value> CElmObject::New<ElwBoxedbutton>(const Arguments& args);
 
 
-cdef extern from "elw_boxedbutton.h":
 
-
-  Eo_Class* elw_boxedbutton_class_get()
 
 }; //end class
+
+/* properties callbacks */
+
+/* properties(events) callbacks */
+
+/* methods callbacks */
 
 } //end namespace elm
 
 #endif
-

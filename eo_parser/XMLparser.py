@@ -98,7 +98,7 @@ class XMLparser(object):
 
         if name == "method":
             self.current_func = attrs["name"]
-            self.functions.setdefault(self.current_func, {"op_id":attrs["op_id"]})
+            self.functions.setdefault(self.current_func, {"op_id":attrs["op_id"], "c_macro":attrs["c_macro"]})
 
         elif name == "signal":
             self.signals.append((attrs["name"], attrs["op_id"]))
@@ -423,9 +423,36 @@ building __init__ function
         self.parse_signals()
         self.parse_init_func()
 
-    def js_parse(self):
-        #the three following parses are for python, so can be moved
-       self.print_data()
+
+
+    def js_parse(self, kl_id):
+
+       l_tmp = []
+   
+       funcs = self.cl_data[kl_id]["functions"]
+       for l in funcs:
+          i = l.rfind("_")
+          if i != -1:
+            l_tmp.append(l[:i])
+       l_tmp = list(set(l_tmp))
+
+       properties = []
+       methods = []
+       for key in funcs:
+         i = key.rfind("_")
+         if i != -1:
+           l = key[:i]
+         else:
+           methods.append(key)
+           continue
+
+         if l + "_set" in funcs and l + "_get" in funcs:
+            properties.append(l)
+         else:
+            methods.append(key)
+       self.cl_data[kl_id]["properties"] = list(set(properties))
+       self.cl_data[kl_id]["methods"] = methods
+
 
     def check_parents(self):
        list_of_parents = []
@@ -477,23 +504,38 @@ building __init__ function
 #creating .pyx file
 
         ll = []
+        c_f = []
         kl_dt = self.cl_data[kl_id]
         print "\n"
         print kl_id
-#        print self.print_data()
+
+        prnts = self.get_parents(kl_id)
+        print prnts
+
+
 
         kl_dt[".h"] = os.path.join(self.outdir, kl_dt["module"]  + ".h")
         kl_dt[".cc"] = os.path.join(self.outdir, kl_dt["module"]  + ".cc")
-       
+
+        c_f.append("/**\n * generated from \"%s\"\n */\n"%(kl_dt["source_file"]))
+        c_f.append("#include \"%s\"\n"%(kl_dt["module"] + ".h"))
+        c_f.append("namespace elm {\n\n")
+        c_f.append("using namespace v8;\n\n")
+
+        for p in kl_dt["properties"]:
+           c_f.append("EO_GENERATE_PROPERTY_CALLBACKS(%s, %s);\n"%(kl_id, p))
+        c_f.append("\n")
+
+        for m in kl_dt["methods"]:
+           c_f.append("EO_GENERATE_METHOD_CALLBACKS(%s, %s);\n"%(kl_id, m))
+        c_f.append("\n")
+
         print kl_dt[".h"]
 
-        #creating .pxd file
+        #creating .h file
         f = open (kl_dt[".h"], 'w')
-        pattern = "########################################################"
-        l = "%s\n##\n## generated from from \"%s\"\n##\n%s"%(pattern, kl_dt["source_file"], pattern)
-        f.write(l+'\n\n')
+        ll.append("/**\n * generated from \"%s\"\n */\n"%(kl_dt["source_file"]))
 
-        #inserting cimports
         ll.append("#ifndef %s\n"%( ("_JS_"+kl_dt["module"]+"_h_").upper() ))
         ll.append("#define %s\n"%( ("_JS_"+kl_dt["module"]+"_h_").upper() ))
         ll.append("\n")
@@ -505,8 +547,6 @@ building __init__ function
            if l == "EoBase":
              continue
            ll.append("#include \"%s.h\" //include generated js-wrapping classes\n"%(self.cl_data[l]["module"]))
-
-
 
         ll.append("\n")
         ll.append("namespace elm { //namespace should have the same meaning as module for python\n")
@@ -533,6 +573,12 @@ building __init__ function
           priv.append("\n")
 
           prot.append("   %s(Local<Object> _jsObject, CElmObject *parent);\n"%(kl_id))
+
+          c_f.append("%s::%s(Local<Object> _jsObject, CElmObject *parent)\n"%(kl_id, kl_id))
+          c_f.append(" : CElmObject(_jsObject, eo_add(%s , parent ? parent->GetEo() : NULL))\n"%(kl_dt["macro"]))
+          c_f.append("{\n   jsObject->SetPointerInInternalField(0, static_cast<CElmObject*>(this));\n}\n")
+
+
           prot.append("   static Handle<FunctionTemplate> GetTemplate();\n")
           prot.append("\n")
 
@@ -542,6 +588,15 @@ building __init__ function
           publ.append("\n")
 
 
+        if len(kl_dt["ev_ids"]):
+          prot.append("   struct {\n")
+          for e in kl_dt["ev_ids"]:
+             ev = e.lower()
+             prot.append("      Persistent<Value> _event_%s;\n"%(ev))
+          prot.append("   } cb;\n")
+          prot.append("\n")
+
+
         ll.append("private:\n")
         #generating constructors and destructor
         ll += priv
@@ -549,60 +604,110 @@ building __init__ function
         ll.append("protected:\n")
         #generating constructors and destructor
         ll.append("   %s();\n"%(kl_id))
+        c_f.append("%s::%s(){}\n\n"%(kl_id, kl_id));
+        c_f.append("%s::~%s(){} //need to add destruction of cb variables\n\n"%(kl_id, kl_id));
         ll += prot
         ll.append("   virtual ~%s();\n"%(kl_id))
 
+        ll.append("\n")
         ll.append("public:\n")
-        #generating constructors and destructor
         ll += publ
+        for p in kl_dt["properties"]:
+           #generating headers of  setter/getter in class (h file)
+           ll.append("   Handle<Value> %s_get() const;\n"%(p))
+           ll.append("   void %s_set(Handle<Value> val);\n"%(p))
+
+          #generating setter/getter in cc file
+           c_f.append("Handle<Value> %s::%s_get() const\n"%(kl_id, p))
+           c_f.append("{\n")
+           c_f.append("   eo_do(eobj, %s);\n"%(kl_dt["functions"][p + "_get"]["c_macro"]))
+           c_f.append("  return Undefined();//need to put proper values\n")
+           c_f.append("}\n")
+           c_f.append("\n")
+
+           c_f.append("void %s::%s_set(Handle<Value> val)\n"%(kl_id, p))
+           c_f.append("{\n")
+           c_f.append("   eo_do(eobj, %s);\n"%(kl_dt["functions"][p + "_set"]["c_macro"]))
+           c_f.append("}\n")
+           c_f.append("\n")
 
         ll.append("\n")
+
+        for e in kl_dt["ev_ids"]:
+           #generating headers of events in class (h file)
+           ev = e.lower()
+           ev_prefix = "_event_" + ev
+           ll.append("   Handle<Value> %s_get() const;\n"%(ev))
+           ll.append("   void %s_set(Handle<Value> val);\n"%(ev))
+           ll.append("   void %s(void *event_info);\n"%(ev))
+           ll.append("   staic Eina_Bool %s_wrapper(void *data, Eo *obj, const Eo_Event_Description *desc, void *event_info);\n"%(ev))
+
+           c_f.append("void %s::%s_set(Handle<value> v)\n"%(kl_id, ev))
+           c_f.append("{\n")
+           c_f.append("  if (!cb.%s.IsEmpty())\n\
+                         {\n\
+                            cb.%s.Dispose();\n\
+                            cb.%s.Clear();\n\
+                         }\n"%(ev_prefix, ev_prefix, ev_prefix))
+           c_f.append("}\n")
+           c_f.append("\n")
+        ll.append("\n")
+
+        for m in kl_dt["methods"]:
+           ll.append("   Handle<Value> %s(const Arguments&);\n"%(m))
+
+           c_f.append("Handle<Value> %s::%s(const Arguments& args)\n"%(kl_id, m))
+           c_f.append("{\n")
+           c_f.append("   eo_do(eobj, %s);\n"%(kl_dt["functions"][m]["c_macro"]))
+           c_f.append("  return Undefined();//need to put proper values\n")
+           c_f.append("}\n")
+           c_f.append("\n")
+        ll.append("\n")
+
+
+        ll.append("}; //end class\n");
+        ll.append("\n")
+
+        ll.append("/* properties callbacks */\n");
+        for p in kl_dt["properties"]:
+           ll.append("   Handle<Value> Callback_%s_get(Local<String>, const AccessorInfo &info);\n"%(p))
+           ll.append("   void Callback_%s_set(Local<String>, Local<Value> val, const AccessorInfo &info);\n"%(p))
+
+        ll.append("\n")
+        ll.append("/* properties(events) callbacks */\n");
+        for e in kl_dt["ev_ids"]:
+           ev = e.lower()
+           ll.append("   Handle<Value> Callback_%s_get(Local<String>, const AccessorInfo &info);\n"%(ev))
+           ll.append("   void Callback_%s_set(Local<String>, Local<Value> val, const AccessorInfo &info);\n"%(ev))
+
+        ll.append("\n")
+        ll.append("/* methods callbacks */\n");
+        for p in kl_dt["methods"]:
+           ll.append("   Handle<Value> Callback_%s(const Arguments&);\n"%(p))
+
+
+        ll.append("\n")
+        ll.append("} //end namespace elm\n")
+        c_f.append("} //end namespace elm\n")
+        ll.append("\n")
+        ll.append("#endif\n")
 
         for line in ll:
           f.write(line)
 
-
-
-        #inserting externs from H
-        l = "cdef extern from \"%s\":"%(kl_dt["includes"][0])
-        f.write(l+'\n\n')
-
-        if kl_dt["extern_base_id"] != "":
-          l = '  %s %s'%("Eo_Op", kl_dt["extern_base_id"])
-          f.write(l+'\n\n')
-        enum_lines = []
-        enum_lines.append("  ctypedef enum:")
-        for v in kl_dt["op_ids"]:
-          #inserting extern enums from H into temp list
-          if len(enum_lines) > 1 :
-            enum_lines[-1] = enum_lines[-1] + ','
-          enum_lines.append('    ' + v)
-          continue
-
-        for v in kl_dt["ev_ids"]:
-          l = '  %s %s'%("Eo_Event_Description *", v)
-          f.write(l+'\n')
-        f.write('\n')
-
-        if len(enum_lines) > 1:
-            for l in enum_lines:
-                f.write(l+'\n')
-            f.write('\n')
-
-        for v in kl_dt["extern_funcs"]:
-            l = '  %s %s'%(v[1], v[0])
-            f.write(l+'\n')
-        f.write('\n')
-
-
-        l = "}; //end class"
-        f.write(l+'\n\n')
-        l = "} //end namespace elm"
-        f.write(l+'\n\n')
-        l = "#endif"
-        f.write(l+'\n\n')
-
         f.close()
+
+
+
+        f = open (kl_dt[".cc"], 'w')
+        for line in c_f:
+          f.write(line)
+        f.close()
+
+
+
+
+
 
 
         """
@@ -669,48 +774,6 @@ building __init__ function
         f.close()
         del methods_parsed
 
-        #creating .pxd file
-        f = open (kl_dt[".pxd"], 'w')
-        pattern = "########################################################"
-        l = "%s\n##\n## generated from from \"%s\"\n##\n%s"%(pattern, kl_dt["source_file"], pattern)
-        f.write(l+'\n\n')
-
-        #inserting cimports
-        l = "from %s cimport *"%(kl_dt["basemodule"])
-        f.write(l+'\n\n')
-
-        #inserting externs from H
-        l = "cdef extern from \"%s\":"%(kl_dt["includes"][0])
-        f.write(l+'\n\n')
-
-        if kl_dt["extern_base_id"] != "":
-          l = '  %s %s'%("Eo_Op", kl_dt["extern_base_id"])
-          f.write(l+'\n\n')
-        enum_lines = []
-        enum_lines.append("  ctypedef enum:")
-        for v in kl_dt["op_ids"]:
-          #inserting extern enums from H into temp list
-          if len(enum_lines) > 1 :
-            enum_lines[-1] = enum_lines[-1] + ','
-          enum_lines.append('    ' + v)
-          continue
-
-        for v in kl_dt["ev_ids"]:
-          l = '  %s %s'%("Eo_Event_Description *", v)
-          f.write(l+'\n')
-        f.write('\n')
-
-        if len(enum_lines) > 1:
-            for l in enum_lines:
-                f.write(l+'\n')
-            f.write('\n')
-
-        for v in kl_dt["extern_funcs"]:
-            l = '  %s %s'%(v[1], v[0])
-            f.write(l+'\n')
-        f.write('\n')
-
-        f.close()
 
 """
 
@@ -1011,4 +1074,19 @@ building __init__ function
 
       return lst
 
+
+    def get_parents(self, kl):
+       prnts = self.cl_data[kl]["parents"]
+
+       l = []
+       for p in prnts:
+          if p != "EoBase":
+           l = l + self.get_parents(p)
+
+       l = list(set(l + prnts))
+
+       if "EoBase" in l:
+         l.pop(l.index("EoBase"))
+
+       return l
 

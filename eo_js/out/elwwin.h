@@ -1,9 +1,6 @@
-########################################################
-##
-## generated from from "/tmp/evas_py/l/elwwin.xml"
-##
-########################################################
-
+/**
+ * generated from "/tmp/evas_py/l/elwwin.xml"
+ */
 #ifndef _JS_ELWWIN_H_
 #define _JS_ELWWIN_H_
 
@@ -26,20 +23,23 @@ protected:
    static Handle<FunctionTemplate> GetTemplate();
 
    virtual ~ElwWin();
+
 public:
    static void Initialize(Handle<Object> target);
    virtual void DidRealiseElement(Local<Value> obj);
    friend Handle<Value> CElmObject::New<ElwWin>(const Arguments& args);
 
 
-cdef extern from "elw_win.h":
 
-
-  Eo_Class* elw_win_class_get()
 
 }; //end class
+
+/* properties callbacks */
+
+/* properties(events) callbacks */
+
+/* methods callbacks */
 
 } //end namespace elm
 
 #endif
-

@@ -71,7 +71,11 @@ def main():
 
   for f in xml_files:
     xp.parse(f)
-    xp.js_parse()
+
+  for kl in xp.cl_data:
+     xp.js_parse(kl)
+
+#  xp.print_data()
 
   parents_to_find =  xp.check_parents()
   verbose_print("Warning: need to find parent classes %s"%parents_to_find)
@@ -124,23 +128,7 @@ def main():
   del xp
 
 
-def some_func():
-  print "some func"
-  lst = ["ID_COLOR_SET", "ID_COLOR_GET", "ID_SIZE_SET", "ID_SIZE_GET", "ID_CHILD_ADD", "METHOD"]
-
-  lst_set = []
-  for l in lst:
-     i = l.rfind("_")
-     if i != -1:
-       lst_set.append(l[:i])
-
-  lst_set = list(set(lst_set))
-  for l in lst_set:
-    if l+"_SET" in lst and l+"_GET" in lst:
-       print l
-  exit()
 
 if __name__ == "__main__":
-#  some_func()
   main()
 

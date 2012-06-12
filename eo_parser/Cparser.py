@@ -188,8 +188,10 @@ class Cparser(object):
                      pos += len(self.string_consts["typecheck"])
                      pos = s.find(self.string_consts["typecheck"], pos)
 
-                     self.cl_data[cl_id]["funcs"][f]["params"] = params
                      i += 1
+
+                  self.cl_data[cl_id]["funcs"][f]["params"] = params
+                  self.cl_data[cl_id]["funcs"][f]["c_macro"] = key
 
   def parse_ev_desc(self, cl_id):
     if self.ev_desc not in self.cl_data[cl_id]:
@@ -296,7 +298,8 @@ class Cparser(object):
         SubElement(op_tag, "sub_id", {"name":cl_data["funcs"][k]["op_id"]})
 
         m = SubElement(m_tag, "method", {"name" : k,
-                                      "op_id":cl_data["funcs"][k]["op_id"]})
+                                      "op_id":cl_data["funcs"][k]["op_id"],
+                                      "c_macro":cl_data["funcs"][k]["c_macro"]})
 
         #defining parameter type
         if "params" in cl_data["funcs"][k]:

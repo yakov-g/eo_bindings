@@ -1,9 +1,6 @@
-########################################################
-##
-## generated from from "/tmp/evas_py/l/evasobject.xml"
-##
-########################################################
-
+/**
+ * generated from "/tmp/evas_py/l/evasobject.xml"
+ */
 #ifndef _JS_EVASOBJECT_H_
 #define _JS_EVASOBJECT_H_
 
@@ -20,33 +17,45 @@ private:
 protected:
    EvasObject();
    virtual ~EvasObject();
+
 public:
-
-cdef extern from "evas_obj.h":
-
-  Eo_Op EVAS_OBJ_BASE_ID
+   Handle<Value> color_get() const;
+   void color_set(Handle<Value> val);
 
 
-  ctypedef enum:
-    EVAS_OBJ_SUB_ID_COLOR_SET,
-    EVAS_OBJ_SUB_ID_LONGLONGS,
-    EVAS_OBJ_SUB_ID_PAR_BY_REF,
-    EVAS_OBJ_SUB_ID_COLOR_GET,
-    EVAS_OBJ_SUB_ID_LONGS,
-    EVAS_OBJ_SUB_ID_VISIBILITY_SET,
-    EVAS_OBJ_SUB_ID_INTS,
-    EVAS_OBJ_SUB_ID_CHILD_ADD,
-    EVAS_OBJ_SUB_ID_SIZE_SET,
-    EVAS_OBJ_SUB_ID_NO_PAR,
-    EVAS_OBJ_SUB_ID_POSITION_SET,
-    EVAS_OBJ_SUB_ID_GEOMETRY_GET,
-    EVAS_OBJ_SUB_ID_FLOATS
-
-  Eo_Class* evas_object_class_get()
+   Handle<Value> longlongs(const Arguments&);
+   Handle<Value> visibility_set(const Arguments&);
+   Handle<Value> longs(const Arguments&);
+   Handle<Value> par_by_ref(const Arguments&);
+   Handle<Value> child_add(const Arguments&);
+   Handle<Value> ints(const Arguments&);
+   Handle<Value> no_par(const Arguments&);
+   Handle<Value> position_set(const Arguments&);
+   Handle<Value> geometry_get(const Arguments&);
+   Handle<Value> size_set(const Arguments&);
+   Handle<Value> floats(const Arguments&);
 
 }; //end class
+
+/* properties callbacks */
+   Handle<Value> Callback_color_get(Local<String>, const AccessorInfo &info);
+   void Callback_color_set(Local<String>, Local<Value> val, const AccessorInfo &info);
+
+/* properties(events) callbacks */
+
+/* methods callbacks */
+   Handle<Value> Callback_longlongs(const Arguments&);
+   Handle<Value> Callback_visibility_set(const Arguments&);
+   Handle<Value> Callback_longs(const Arguments&);
+   Handle<Value> Callback_par_by_ref(const Arguments&);
+   Handle<Value> Callback_child_add(const Arguments&);
+   Handle<Value> Callback_ints(const Arguments&);
+   Handle<Value> Callback_no_par(const Arguments&);
+   Handle<Value> Callback_position_set(const Arguments&);
+   Handle<Value> Callback_geometry_get(const Arguments&);
+   Handle<Value> Callback_size_set(const Arguments&);
+   Handle<Value> Callback_floats(const Arguments&);
 
 } //end namespace elm
 
 #endif
-
