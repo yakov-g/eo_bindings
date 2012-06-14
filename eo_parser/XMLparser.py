@@ -30,7 +30,7 @@ class XMLparser(object):
         self.typedefs = {"Evas_Coord" : "int",
                          "Evas_Angle":"int",
                          "Evas_Font_Size" : "int",
-                         "Eina_Bool" : "unsigned char",
+                         "Eina_Bool" : "bool",
                          "Eo_Callback_Priority": "short"}
 
         self.primary_types = {"Eo**" : "Eo*",
@@ -39,28 +39,30 @@ class XMLparser(object):
 
         self.internal_types = {
                                 "void*": ["void*", "object"],
-                                "char*": ["char*", "object"],
-                                "Eo*":  ["Eo*", self.basemodule["name"]],
-                                "short" : ["int", "int"],
-                                "int": ["int", "int"],
-                                "int*": ["int", "int"],
-                                "long": ["long", "long"],
-                                "long*": ["long", "long"],
+                                "char*": ["char*", "object", "ToString"],
+                                "Eo*":  ["Eo*", self.basemodule["name"], "ToObject"],
+                                "short" : ["int", "int", "ToInt32"],
+                                "int": ["int", "int", "ToInt32"],
+                                "int*": ["int", "int", "ToInt32"],
+                                "long": ["long", "long", "ToNumber"],
+                                "long*": ["long", "long", "ToNumber"],
                                 "long long" : ["long long", "long long"],
                                 "long long*" : ["long long", "long long"],
-                                "unsigned char": ["unsigned char", "int"],
-                                "unsigned char*" : ["unsigned char","int"],
-                                "unsigned int": ["unsigned int", "unsigned int"],
-                                "unsigned int*": ["unsigned int", "unsigned int"],
-                                "unsigned long": ["unsigned long", "unsigned long"],
+                                "unsigned char": ["unsigned char", "int", "ToInt32"],
+                                "unsigned char*" : ["unsigned char","int", "ToInt32"],
+                                "bool" : ["unsigned char","int", "ToBoolean"],
+                                "bool*" : ["unsigned char","int", "ToBoolean"],
+                                "unsigned int": ["unsigned int", "unsigned int", "ToUint32"],
+                                "unsigned int*": ["unsigned int", "unsigned int", "ToUint32"],
+                                "unsigned long": ["unsigned long", "unsigned long", "ToUint32"],
                                 "unsigned long*": ["unsigned long", "unsigned long"],
                                 "unsigned long long": ["unsigned long long", "unsigned long long"],
                                 "unsigned long long*": ["unsigned long long", "unsigned long long"],
                                 "float": ["float", "float"],
                                 "double": ["double", "double" ],
                                 "long double": ["long double", "long double"],
-                                "float*": ["float", "float"],
-                                "double*": ["double", "double" ],
+                                "float*": ["float", "float", "ToNumber"],
+                                "double*": ["double", "double", "ToNumber" ],
                                 "long double*": ["long double", "long double"],
                                 "Eo_Event_Description*":["long","long"],
                                 "Eo_Event_Cb":["Eo_Event_Cb","object"],
@@ -165,7 +167,7 @@ building __init__ function
         self.cl_data[self.current_class]["methods_parsed"]["__init__"] = function_lines
 
 
-
+#changing types according to typedefs: Evas_Coord -> int
     def cast(self, _in):
       t = _in
       for k in self.typedefs:
@@ -506,12 +508,7 @@ building __init__ function
         ll = []
         c_f = []
         kl_dt = self.cl_data[kl_id]
-        print "\n"
         print kl_id
-
-        prnts = self.get_parents(kl_id)
-        print prnts
-
 
 
         kl_dt[".h"] = os.path.join(self.outdir, kl_dt["module"]  + ".h")
@@ -530,7 +527,7 @@ building __init__ function
            c_f.append("EO_GENERATE_METHOD_CALLBACKS(%s, %s);\n"%(kl_id, m))
         c_f.append("\n")
 
-        print kl_dt[".h"]
+
 
         #creating .h file
         f = open (kl_dt[".h"], 'w')
@@ -539,7 +536,7 @@ building __init__ function
         ll.append("#ifndef %s\n"%( ("_JS_"+kl_dt["module"]+"_h_").upper() ))
         ll.append("#define %s\n"%( ("_JS_"+kl_dt["module"]+"_h_").upper() ))
         ll.append("\n")
-        ll.append("#include \"elm.h\" //kinda supporting functions\n")
+        ll.append("#include \"elm.h\" //macro defines, common functions\n")
         ll.append("#include \"CElmObject.h\" //base object\n")
         ll.append("#include \"%s\" //eo-class include file\n"%(kl_dt["includes"][0]))
 
@@ -567,7 +564,8 @@ building __init__ function
         priv = []
         prot = []
         publ = []
-
+        tmpl = ""
+ 
         if kl_dt["type"] == self.string_consts["class_type_regular"]:
           priv.append("   static Persistent<FunctionTemplate> tmpl;\n")
           priv.append("\n")
@@ -583,9 +581,46 @@ building __init__ function
           prot.append("\n")
 
           publ.append("   static void Initialize(Handle<Object> target);\n")
+
+          c_f.append("void %s::Initialize(Handle<Object> target)\n"%kl_id)
+          c_f.append("{\n")
+          c_f.append("   target->Set(String::NewSymbol(\"%s\") , GetTemplate()->GetFunction());\n"%kl_id)
+          c_f.append("}\n")
+
+
+
           publ.append("   virtual void DidRealiseElement(Local<Value> obj);\n")
+
+          c_f.append("void %s::DidRealiseElement(Local<Value> obj)\n {}\n"%kl_id)
+
           publ.append("   friend Handle<Value> CElmObject::New<%s>(const Arguments& args);\n"%(kl_id))
           publ.append("\n")
+
+
+
+          #generating list of all parents, to get all properties and methods
+          lst = self.get_parents(kl_id)
+          lst.insert(0, kl_id)
+
+          methods = []
+          properties = []
+          for p in lst:
+            methods += self.cl_data[p]["methods"]
+            properties += self.cl_data[p]["properties"]
+
+          l_tmp = []
+          l_tmp.append("%s"%kl_id)
+          l_tmp.append("%s"%"PROPERTY(elements)")
+          for p in properties:
+            l_tmp.append("   PROPERTY(%s)"%p)
+          for m in methods:
+            l_tmp.append("   METHOD(%s)"%m)
+          tmpl = ",\n".join(l_tmp)
+          tmpl = "GENERATE_TEMPLATE(%s);"%tmpl
+          c_f.append("\n")
+          del l_tmp
+          del methods
+          del properties
 
 
         if len(kl_dt["ev_ids"]):
@@ -620,14 +655,58 @@ building __init__ function
           #generating setter/getter in cc file
            c_f.append("Handle<Value> %s::%s_get() const\n"%(kl_id, p))
            c_f.append("{\n")
-           c_f.append("   eo_do(eobj, %s);\n"%(kl_dt["functions"][p + "_get"]["c_macro"]))
-           c_f.append("  return Undefined();//need to put proper values\n")
+#           c_f.append("   eo_do(eobj, %s);\n"%(kl_dt["functions"][p + "_get"]["c_macro"]))
+           c_f.append("   return Undefined();//need to put proper values\n")
            c_f.append("}\n")
            c_f.append("\n")
 
            c_f.append("void %s::%s_set(Handle<Value> val)\n"%(kl_id, p))
            c_f.append("{\n")
-           c_f.append("   eo_do(eobj, %s);\n"%(kl_dt["functions"][p + "_set"]["c_macro"]))
+
+           pass_params = []
+           if len(kl_dt["functions"][p+"_set"]["parameters"]) > 1:
+             c_f.append("   Local<Object> __o = val->ToObject();\n")
+
+             for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_set"]["parameters"]):
+               c_t_tmp = self.cast(c_t)
+               c_t_internal = self.internal_types[c_t_tmp][0]
+               js_type = self.internal_types[c_t_tmp][2]
+
+               if d != "in":
+                 print "Warning wrong directiong: property: %s; parameter: %s; direction: %"%(p, n, d)
+               else:
+                 c_f.append("  %s %s;\n"%(c_t_internal, n))
+                 if js_type == "ToString":
+                    c_f.append("  %s = strdup(*String::Utf8Value(__o->Get(String::NewSymbol(\"%s\"))->%s()));\n"%(n, n, js_type))
+                 else:
+                   c_f.append("  %s = __o->Get(String::NewSymbol(\"%s\"))->%s()->Value();\n"%(n, n, js_type))
+
+                 if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
+                   pass_params.append('&' + n)
+                 else:
+                   pass_params.append(n)
+
+
+           elif len(kl_dt["functions"][p+"_set"]["parameters"]) == 1:
+             (n, c_t, d) =  kl_dt["functions"][p+"_set"]["parameters"][0]
+             c_t_tmp = self.cast(c_t)
+             c_t_internal = self.internal_types[c_t_tmp][0]
+             js_type = self.internal_types[c_t_tmp][2]
+
+             if d != "in":
+               print "Warning wrong directiong: property: %s; parameter: %s; direction: %"%(p, n, d)
+             else:
+               c_f.append("  %s %s;\n"%(c_t_internal, n))
+               if js_type == "ToString":
+                 c_f.append("  %s = strdup(*String::Utf8Value(val->%s()));\n"%(n, js_type))
+               else:
+                 c_f.append("  %s = val->%s()->Value();\n"%(n, js_type))
+               if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
+                 pass_params.append('&' + n)
+               else:
+                 pass_params.append(n)
+
+           c_f.append("   eo_do(eobj, %s(%s));\n"%(kl_dt["functions"][p + "_set"]["c_macro"], ", ".join(pass_params)))
            c_f.append("}\n")
            c_f.append("\n")
 
@@ -640,15 +719,51 @@ building __init__ function
            ll.append("   Handle<Value> %s_get() const;\n"%(ev))
            ll.append("   void %s_set(Handle<Value> val);\n"%(ev))
            ll.append("   void %s(void *event_info);\n"%(ev))
-           ll.append("   staic Eina_Bool %s_wrapper(void *data, Eo *obj, const Eo_Event_Description *desc, void *event_info);\n"%(ev))
+           ll.append("   static Eina_Bool %s_wrapper(void *data, Eo *obj, const Eo_Event_Description *desc, void *event_info);\n"%(ev))
 
-           c_f.append("void %s::%s_set(Handle<value> v)\n"%(kl_id, ev))
+
+
+
+           #event function
+           c_f.append("void %s::%s(void *event_info) //parse of event_info need to be added \n"%(kl_id, ev))
            c_f.append("{\n")
+           c_f.append("  Handle<Function> callback(Function::Cast(*cb.%s));\n"%ev_prefix)
+           c_f.append("  Handle<Value> args[1] = {jsObject};\n")
+           c_f.append("  callback->Call(jsObject, 1, args);\n")
+           c_f.append("}\n")
+           c_f.append("\n")
+
+           #event function wrapper
+           c_f.append("Eina_Bool %s::%s_wrapper(void *data, Eo *obj, const Eo_Event_Description *desc, void *event_info)\n"%(kl_id, ev))
+           c_f.append("{\n\
+                           HandleScope scope;\n\
+                           static_cast<%s*>(data)->%s(event_info);\n\
+                           return EINA_TRUE;\n\
+                       }\n"%(kl_id, ev))
+           c_f.append("\n")
+
+
+
+           #event function get
+           c_f.append("Handle<Value> %s::%s_get() const\n"%(kl_id, ev))
+           c_f.append("{\n\
+                           return cb.%s;\n\
+                       }\n"%ev_prefix)
+           c_f.append("\n")
+
+           #event function set
+           c_f.append("void %s::%s_set(Handle<Value> val)\n"%(kl_id, ev))
+           c_f.append("{\n")
+           c_f.append("  if (!val->IsFunction())\n\
+                           return;\n")
            c_f.append("  if (!cb.%s.IsEmpty())\n\
                          {\n\
                             cb.%s.Dispose();\n\
                             cb.%s.Clear();\n\
-                         }\n"%(ev_prefix, ev_prefix, ev_prefix))
+                            eo_do(eobj, eo_event_callback_del(%s, %s_wrapper, this));\n\
+                         }\n"%(ev_prefix, ev_prefix, ev_prefix, e, ev))
+           c_f.append("  cb.%s = Persistent<Value>::New(val);\n\
+                         eo_do(eobj, eo_event_callback_add(%s, %s_wrapper, this));\n"%(ev_prefix, e, ev))
            c_f.append("}\n")
            c_f.append("\n")
         ll.append("\n")
@@ -658,9 +773,35 @@ building __init__ function
 
            c_f.append("Handle<Value> %s::%s(const Arguments& args)\n"%(kl_id, m))
            c_f.append("{\n")
-           c_f.append("   eo_do(eobj, %s);\n"%(kl_dt["functions"][m]["c_macro"]))
+           c_f.append("   HandleScope scope;\n")
+
+
+           pass_params = []
+           if len(kl_dt["functions"][m]["parameters"]) == 1:
+
+             c_f.append("   Local<Value> __v = args[0];\n")
+             (n, c_t, d) =  kl_dt["functions"][m]["parameters"][0]
+             c_t_tmp = self.cast(c_t)
+             c_t_internal = self.internal_types[c_t_tmp][0]
+             js_type = self.internal_types[c_t_tmp][2]
+
+             if d != "in":
+               print "Warning wrong directiong: property: %s; parameter: %s; direction: %"%(p, n, d)
+             else:
+               c_f.append("  %s %s;\n"%(c_t_internal, n))
+               if js_type == "ToString":
+                 c_f.append("  %s = strdup(*String::Utf8Value(val->%s()));\n"%(n, js_type))
+               else:
+                 c_f.append("  %s = val->%s()->Value();\n"%(n, js_type))
+               if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
+                 pass_params.append('&' + n)
+               else:
+                 pass_params.append(n)
+#           c_f.append("   eo_do(eobj, %s);\n"%(kl_dt["functions"][m]["c_macro"]))
+
            c_f.append("  return Undefined();//need to put proper values\n")
            c_f.append("}\n")
+           
            c_f.append("\n")
         ll.append("\n")
 
@@ -688,6 +829,8 @@ building __init__ function
 
         ll.append("\n")
         ll.append("} //end namespace elm\n")
+
+        c_f.append("%s\n"%tmpl)
         c_f.append("} //end namespace elm\n")
         ll.append("\n")
         ll.append("#endif\n")
@@ -1074,19 +1217,16 @@ building __init__ function
 
       return lst
 
-
     def get_parents(self, kl):
-       prnts = self.cl_data[kl]["parents"]
+      prnts = self.cl_data[kl]["parents"]
 
-       l = []
-       for p in prnts:
-          if p != "EoBase":
-           l = l + self.get_parents(p)
+      l = []
+      for p in prnts:
+        if p != "EoBase":
+          l = l + self.get_parents(p)
 
-       l = list(set(l + prnts))
+      l = list(set(l + prnts))
+      l = filter(lambda el: el != "EoBase", l)
 
-       if "EoBase" in l:
-         l.pop(l.index("EoBase"))
-
-       return l
+      return l
 

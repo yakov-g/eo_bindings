@@ -75,7 +75,7 @@ def main():
   for kl in xp.cl_data:
      xp.js_parse(kl)
 
-#  xp.print_data()
+  xp.print_data()
 
   parents_to_find =  xp.check_parents()
   verbose_print("Warning: need to find parent classes %s"%parents_to_find)

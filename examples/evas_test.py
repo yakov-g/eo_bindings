@@ -76,8 +76,8 @@ ba.event_callback_priority_add(ElwButton.CLICKED, 0, cb_clicked2)
 
 a,b,c,d = ba.color_get()
 print "color : ", a, b, c, d
-xx,yy,ww,hh = ba.geometry_get(1567890)
-print "geometry : ", xx, yy, ww, hh
+xx,yy,ww,hh = ba.size_get(1567890)
+print "size : ", xx, yy, ww, hh
 ba.no_par()
 ba.par_by_ref(-2147483648, 87, -2147483649)
 #ba.par_by_ref(-2147483648, 87, -9223372036854775808)
@@ -254,7 +254,9 @@ bb2.text_set("BB")
 bb2.some_box_function()
 """
 
-
+print but.size_get(123)
+print but.text_get()
+print but.visibility_get()
 print "Running Elementary..."
 elem_run()
 
