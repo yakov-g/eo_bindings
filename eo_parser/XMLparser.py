@@ -46,8 +46,8 @@ class XMLparser(object):
                                 "int*": ["int", "int", "ToInt32"],
                                 "long": ["long", "long", "ToNumber"],
                                 "long*": ["long", "long", "ToNumber"],
-                                "long long" : ["long long", "long long"],
-                                "long long*" : ["long long", "long long"],
+                                "long long" : ["long long", "long long", "ToNumber"],
+                                "long long*" : ["long long", "long long", "ToNumber"],
                                 "unsigned char": ["unsigned char", "int", "ToInt32"],
                                 "unsigned char*" : ["unsigned char","int", "ToInt32"],
                                 "bool" : ["unsigned char","int", "ToBoolean"],
@@ -55,17 +55,17 @@ class XMLparser(object):
                                 "unsigned int": ["unsigned int", "unsigned int", "ToUint32"],
                                 "unsigned int*": ["unsigned int", "unsigned int", "ToUint32"],
                                 "unsigned long": ["unsigned long", "unsigned long", "ToUint32"],
-                                "unsigned long*": ["unsigned long", "unsigned long"],
-                                "unsigned long long": ["unsigned long long", "unsigned long long"],
-                                "unsigned long long*": ["unsigned long long", "unsigned long long"],
-                                "float": ["float", "float"],
-                                "double": ["double", "double" ],
-                                "long double": ["long double", "long double"],
+                                "unsigned long*": ["unsigned long", "unsigned long", "ToNumber"],
+                                "unsigned long long": ["unsigned long long", "unsigned long long", "ToNumber"],
+                                "unsigned long long*": ["unsigned long long", "unsigned long long", "ToNumber"],
+                                "float": ["float", "float", "ToNumber"],
+                                "double": ["double", "double", "ToNumber" ],
+                                "long double": ["long double", "long double", "ToNumber"],
                                 "float*": ["float", "float", "ToNumber"],
                                 "double*": ["double", "double", "ToNumber" ],
-                                "long double*": ["long double", "long double"],
-                                "Eo_Event_Description*":["long","long"],
-                                "Eo_Event_Cb":["Eo_Event_Cb","object"],
+                                "long double*": ["long double", "long double", "ToNumber"],
+                                "Eo_Event_Description*":["long","long", "ToNumber"],
+                                "Eo_Event_Cb":["Eo_Event_Cb","object", "ToNumber"],
                                 "eo_base_data_free_func" : ["", ""]
                                 }
 
@@ -100,14 +100,15 @@ class XMLparser(object):
 
         if name == "method":
             self.current_func = attrs["name"]
-            self.functions.setdefault(self.current_func, {"op_id":attrs["op_id"], "c_macro":attrs["c_macro"]})
+            self.functions.setdefault(self.current_func, {"op_id":attrs["op_id"], "c_macro":attrs["c_macro"], "parameters":[]})
 
         elif name == "signal":
             self.signals.append((attrs["name"], attrs["op_id"]))
 
         elif name == "parameter":
             func_att = self.functions[self.current_func]
-            par_att = func_att.setdefault('parameters', [])
+            #par_att = func_att.setdefault('parameters', [])
+            par_att = func_att["parameters"]
             par_att.append((attrs["name"], attrs["c_typename"], attrs["direction"]))
 
         elif name == "include":
@@ -527,6 +528,10 @@ building __init__ function
            c_f.append("EO_GENERATE_METHOD_CALLBACKS(%s, %s);\n"%(kl_id, m))
         c_f.append("\n")
 
+        for e in kl_dt["ev_ids"]:
+           c_f.append("EO_GENERATE_PROPERTY_CALLBACKS(%s, %s);\n"%(kl_id, e.lower()))
+        c_f.append("\n")
+
 
 
         #creating .h file
@@ -604,15 +609,19 @@ building __init__ function
 
           methods = []
           properties = []
+          event_ids = []
           for p in lst:
             methods += self.cl_data[p]["methods"]
             properties += self.cl_data[p]["properties"]
+            event_ids += self.cl_data[p]["ev_ids"]
 
           l_tmp = []
           l_tmp.append("%s"%kl_id)
           l_tmp.append("%s"%"PROPERTY(elements)")
           for p in properties:
             l_tmp.append("   PROPERTY(%s)"%p)
+          for e in event_ids:
+            l_tmp.append("   PROPERTY(%s)"%e.lower())
           for m in methods:
             l_tmp.append("   METHOD(%s)"%m)
           tmpl = ",\n".join(l_tmp)
@@ -777,6 +786,39 @@ building __init__ function
 
 
            pass_params = []
+           ret_params = []
+           for i, (n, c_t, d) in enumerate(kl_dt["functions"][m]["parameters"]):
+             c_t_tmp = self.cast(c_t)
+             c_t_internal = self.internal_types[c_t_tmp][0]
+             js_type = self.internal_types[c_t_tmp][2]
+
+             if d == "in":
+               c_f.append("   Local<Value> _%s = args[%d];\n"%(n, i))
+               c_f.append("   %s %s;\n"%(c_t_internal, n))
+
+               if js_type == "ToString":
+                 c_f.append("  %s = strdup(*String::Utf8Value(_%s->%s()));\n"%(n, n, js_type))
+               elif js_type == "ToObject":
+                 c_f.append("   %s = static_cast<CElmObject*>(_%s->ToObject()->GetPointerFromInternalField(0))->GetEo();\n"%(n, n))
+               else:
+                 c_f.append("  %s = _%s->%s()->Value();\n"%(n, n, js_type))
+               if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
+                 pass_params.append('&' + n)
+               else:
+                 pass_params.append(n)
+             elif d == "out":
+               c_f.append("   %s %s;\n"%(c_t_internal, n))
+               pass_params.append('&' + n)
+               
+               js_type = js_type.replace("ToBoolean", "Boolean")
+               js_type = js_type.replace("ToString", "String")
+               js_type = js_type.replace("ToUint32", "Number")
+               js_type = js_type.replace("ToInt32", "Number")
+               js_type = js_type.replace("ToNumber", "Number")
+               ret_params.append((n, js_type))
+                
+           """
+           pass_params = []
            if len(kl_dt["functions"][m]["parameters"]) == 1:
 
              c_f.append("   Local<Value> __v = args[0];\n")
@@ -788,18 +830,30 @@ building __init__ function
              if d != "in":
                print "Warning wrong directiong: property: %s; parameter: %s; direction: %"%(p, n, d)
              else:
-               c_f.append("  %s %s;\n"%(c_t_internal, n))
+               c_f.append("   %s %s;\n"%(c_t_internal, n))
                if js_type == "ToString":
-                 c_f.append("  %s = strdup(*String::Utf8Value(val->%s()));\n"%(n, js_type))
+                 c_f.append("  %s = strdup(*String::Utf8Value(__v->%s()));\n"%(n, js_type))
+               elif js_type == "ToObject":
+                 c_f.append("   %s = static_cast<CElmObject*>(__v->ToObject()->GetPointerFromInternalField(0))->GetEo();\n"%(n))
                else:
-                 c_f.append("  %s = val->%s()->Value();\n"%(n, js_type))
+                 c_f.append("  %s = __v->%s()->Value();\n"%(n, js_type))
                if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
                  pass_params.append('&' + n)
                else:
                  pass_params.append(n)
-#           c_f.append("   eo_do(eobj, %s);\n"%(kl_dt["functions"][m]["c_macro"]))
+"""
+           c_f.append("   eo_do(eobj, %s(%s));\n"%(kl_dt["functions"][m]["c_macro"], ", ".join(pass_params)))
+          
 
-           c_f.append("  return Undefined();//need to put proper values\n")
+           if len(ret_params) > 0:
+             c_f.append("   Local<Object> obj__ = Object::New();\n")
+             for p, t in ret_params:
+                c_f.append("   obj__->Set(String::NewSymbol(\"%s\"), %s::New(%s));\n"%(p, t, p))
+             
+             c_f.append("   return scope.Close(obj__);//need to put proper values\n")
+           else:
+             c_f.append("   return Undefined();\n")
+
            c_f.append("}\n")
            
            c_f.append("\n")
