@@ -664,8 +664,39 @@ building __init__ function
           #generating setter/getter in cc file
            c_f.append("Handle<Value> %s::%s_get() const\n"%(kl_id, p))
            c_f.append("{\n")
+           c_f.append("   HandleScope scope;\n")
 #           c_f.append("   eo_do(eobj, %s);\n"%(kl_dt["functions"][p + "_get"]["c_macro"]))
-           c_f.append("   return Undefined();//need to put proper values\n")
+
+
+
+           pass_params = []
+           ret_params = []
+           for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_get"]["parameters"]):
+             c_t_tmp = self.cast(c_t)
+             c_t_internal = self.internal_types[c_t_tmp][0]
+             js_type = self.internal_types[c_t_tmp][2]
+
+             if d == "out":
+               c_f.append("   %s %s;\n"%(c_t_internal, n))
+               pass_params.append('&' + n)
+
+               js_type = js_type.replace("ToBoolean", "Boolean")
+               js_type = js_type.replace("ToString", "String")
+               js_type = js_type.replace("ToUint32", "Number")
+               js_type = js_type.replace("ToInt32", "Number")
+               js_type = js_type.replace("ToNumber", "Number")
+               ret_params.append((n, js_type))
+
+           c_f.append("   eo_do(eobj, %s(%s));\n"%(kl_dt["functions"][p+"_get"]["c_macro"], ", ".join(pass_params)))
+
+           if len(ret_params) > 0:
+             c_f.append("   Local<Object> obj__ = Object::New();\n")
+             for par, t in ret_params:
+                c_f.append("   obj__->Set(String::NewSymbol(\"%s\"), %s::New(%s));\n"%(par, t, par))
+             c_f.append("   return scope.Close(obj__);//need to put proper values\n")
+           else:
+             c_f.append("   return Undefined();\n")
+
            c_f.append("}\n")
            c_f.append("\n")
 
@@ -673,6 +704,7 @@ building __init__ function
            c_f.append("{\n")
 
            pass_params = []
+           add_end_func = []
            if len(kl_dt["functions"][p+"_set"]["parameters"]) > 1:
              c_f.append("   Local<Object> __o = val->ToObject();\n")
 
@@ -708,6 +740,7 @@ building __init__ function
                c_f.append("  %s %s;\n"%(c_t_internal, n))
                if js_type == "ToString":
                  c_f.append("  %s = strdup(*String::Utf8Value(val->%s()));\n"%(n, js_type))
+                 add_end_func.append("  free(%s);"%n)
                else:
                  c_f.append("  %s = val->%s()->Value();\n"%(n, js_type))
                if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
@@ -716,6 +749,8 @@ building __init__ function
                  pass_params.append(n)
 
            c_f.append("   eo_do(eobj, %s(%s));\n"%(kl_dt["functions"][p + "_set"]["c_macro"], ", ".join(pass_params)))
+           c_f += add_end_func
+           add_end_func = []
            c_f.append("}\n")
            c_f.append("\n")
 
@@ -809,53 +844,25 @@ building __init__ function
              elif d == "out":
                c_f.append("   %s %s;\n"%(c_t_internal, n))
                pass_params.append('&' + n)
-               
+
                js_type = js_type.replace("ToBoolean", "Boolean")
                js_type = js_type.replace("ToString", "String")
                js_type = js_type.replace("ToUint32", "Number")
                js_type = js_type.replace("ToInt32", "Number")
                js_type = js_type.replace("ToNumber", "Number")
                ret_params.append((n, js_type))
-                
-           """
-           pass_params = []
-           if len(kl_dt["functions"][m]["parameters"]) == 1:
 
-             c_f.append("   Local<Value> __v = args[0];\n")
-             (n, c_t, d) =  kl_dt["functions"][m]["parameters"][0]
-             c_t_tmp = self.cast(c_t)
-             c_t_internal = self.internal_types[c_t_tmp][0]
-             js_type = self.internal_types[c_t_tmp][2]
-
-             if d != "in":
-               print "Warning wrong directiong: property: %s; parameter: %s; direction: %"%(p, n, d)
-             else:
-               c_f.append("   %s %s;\n"%(c_t_internal, n))
-               if js_type == "ToString":
-                 c_f.append("  %s = strdup(*String::Utf8Value(__v->%s()));\n"%(n, js_type))
-               elif js_type == "ToObject":
-                 c_f.append("   %s = static_cast<CElmObject*>(__v->ToObject()->GetPointerFromInternalField(0))->GetEo();\n"%(n))
-               else:
-                 c_f.append("  %s = __v->%s()->Value();\n"%(n, js_type))
-               if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
-                 pass_params.append('&' + n)
-               else:
-                 pass_params.append(n)
-"""
            c_f.append("   eo_do(eobj, %s(%s));\n"%(kl_dt["functions"][m]["c_macro"], ", ".join(pass_params)))
-          
 
            if len(ret_params) > 0:
              c_f.append("   Local<Object> obj__ = Object::New();\n")
              for p, t in ret_params:
                 c_f.append("   obj__->Set(String::NewSymbol(\"%s\"), %s::New(%s));\n"%(p, t, p))
-             
              c_f.append("   return scope.Close(obj__);//need to put proper values\n")
            else:
              c_f.append("   return Undefined();\n")
 
            c_f.append("}\n")
-           
            c_f.append("\n")
         ll.append("\n")
 
