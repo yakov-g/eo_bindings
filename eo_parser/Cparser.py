@@ -31,6 +31,7 @@ class Cparser(object):
                           "class_type_regular" : "EO_CLASS_TYPE_REGULAR",
                           "class_desc_ops" : "EO_CLASS_DESCRIPTION_OPS",
                           "class_new_func" : "EO_DEFINE_CLASS",
+                          "class_new_func_static" : "EO_DEFINE_CLASS_STATIC",
                           "op_desc" : "EO_OP_DESCRIPTION",
                           "op_desc_sent" : "EO_OP_DESCRIPTION_SENTINEL",
                           "sub_id" : "SUB_ID_",
@@ -62,17 +63,27 @@ class Cparser(object):
 
 #looking for EO_DEFINE_CLASS in all file to get _class_get function
 #and parents
-    pos_start = allfile.find(self.string_consts["class_new_func"], func_pos)
-    if pos_start == -1:
+
+    static_class = False
+    pos_start = allfile.find(self.string_consts["class_new_func_static"], func_pos)
+    if pos_start != -1:
+      static_class = True
+
+    if not static_class:
+      pos_start = allfile.find(self.string_consts["class_new_func"], func_pos)
+      if pos_start == -1:
       #verbose_print("Warning: %s wasn't found in %s"%(self.string_consts["class_new_func"], filename))
-      return
+        return
 
     d = self.find_token_in_brackets(allfile, pos_start, "()")
     d = self.strip_replace(d, "() ")
     d = d.replace("\n", "")
     lst = d.split(",")
     current_class = lst[0]
-    lst = lst[2:-1]
+    if static_class:
+      lst = lst[3:-1]
+    else:
+      lst = lst[2:-1]
 
 
     lst = filter(lambda l: False if l == "NULL" else True, lst)
@@ -102,7 +113,7 @@ class Cparser(object):
     self.parse_cl_desc(current_class)
     #parsing event_desc
     self.parse_ev_desc(current_class)
-    #parsing op_desc   
+    #parsing op_desc
     self.parse_op_desc(current_class)
 
 
@@ -221,15 +232,16 @@ class Cparser(object):
        lst_tmp.append(l.strip(" ").strip("\""))
 
     lst = lst_tmp
+
     self.cl_data[cl_id][self.cl_desc] = lst
 
     cl_name = lst[0]
     self.cl_data[cl_id]["c_name"] = cl_name
     self.cl_data[cl_id]["module"] = normalize_names(cl_name).lower()
     self.cl_data[cl_id]["type"] = lst[1]
-    self.cl_data[cl_id]["constructor"] = lst[5]
-    self.cl_data[cl_id]["destructor"] = lst[6]
-    self.cl_data[cl_id]["class_constructor"] = lst[7]
+#    self.cl_data[cl_id]["constructor"] = lst[5]
+ #   self.cl_data[cl_id]["destructor"] = lst[6]
+    self.cl_data[cl_id]["class_constructor"] = lst[5]
 
     class_desc_ops = lst[2]
     pos = class_desc_ops.find(self.string_consts["class_desc_ops"])
@@ -238,6 +250,10 @@ class Cparser(object):
       s = s.strip("()")
       s = s.split(',')[0]
       s = s.strip("& ")
+      if s == "NULL" and cl_name == "Eo Base":
+#FIXME: hardcoded EO_BASE_BASE_ID
+        print cl_name, "Warning: hardcoded EO_BASE_BASE_ID"
+        s = "EO_BASE_BASE_ID"
       self.cl_data[cl_id]["base_id"] = s
 
 
@@ -281,7 +297,7 @@ class Cparser(object):
                                       "c_name" : cl_data["c_name"],
                                       "parent":cl_parent,
                                       "extensions":cl_brothers,
-                                      "macro":cl_id,        
+                                      "macro":cl_id,
                                       "get_function": cl_data["get_function"],
                                       "type" : cl_data["type"],
                                       "instantiateable" : instantiateable})

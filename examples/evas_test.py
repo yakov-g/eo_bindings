@@ -2,7 +2,7 @@
 
 import sys
 
-from evas_py.eodefault import py_elm_init, elem_run
+from base.eodefault import py_elm_init, elem_run
 from eobase import EoBase
 from py_evas import ElwWin, ElwBox, ElwButton, ElwBoxedbutton, EvasObject
 
@@ -83,6 +83,7 @@ ba.par_by_ref(-2147483648, 87, -2147483649)
 #ba.par_by_ref(-2147483648, 87, -9223372036854775808)
 #ba.par_by_ref(-2147483648, 87, 9223372036854775807)
 
+"""
 ba.ints(0, 0)
 print "\n\n ===  Testing int ==="
 a = 4294967295
@@ -90,11 +91,17 @@ b = -2147483648
 aa = bb = 0
 aa,bb = ba.ints(a, b)
 print "a == aa %s, b == bb %s"%(a == aa, b == bb)
+"""
+
+(a, b) = ba.ints(1, 2, 3)
+print a, b
+
+
 
 a = 0
 b = 2147483647
 aa = bb = 0
-aa,bb = ba.ints(a, b)
+aa,bb = ba.ints(a, b, 0)
 print "a == aa %s, b == bb %s"%(a == aa, b == bb)
 
 
