@@ -446,6 +446,8 @@ building __init__ function
        l_tmp = list(set(l_tmp))
 
        properties = []
+       properties_set = []
+       properties_get = []
        methods = []
        for key in funcs:
          i = key.rfind("_")
@@ -457,10 +459,16 @@ building __init__ function
 
          if l + "_set" in funcs and l + "_get" in funcs:
             properties.append(l)
+         elif l + "_set" in funcs:
+            properties_set.append(l)
+         elif l + "_get" in funcs:
+            properties_get.append(l)
          else:
             methods.append(key)
        self.cl_data[kl_id]["properties"] = list(set(properties))
        self.cl_data[kl_id]["methods"] = methods
+       self.cl_data[kl_id]["properties_set"] = properties_set
+       self.cl_data[kl_id]["properties_get"] = properties_get
 
 
     def check_parents(self):
@@ -518,16 +526,26 @@ building __init__ function
         print kl_id
 
 
-        kl_dt[".h"] = os.path.join(self.outdir, kl_dt["module"]  + ".h")
-        kl_dt[".cc"] = os.path.join(self.outdir, kl_dt["module"]  + ".cc")
+        kl_dt[".h"] = os.path.join(self.outdir, "_" + kl_dt["module"]  + ".h")
+        kl_dt[".cc"] = os.path.join(self.outdir, "_" + kl_dt["module"]  + ".cc")
 
         c_f.append("/**\n * generated from \"%s\"\n */\n"%(kl_dt["source_file"]))
-        c_f.append("#include \"%s\"\n"%(kl_dt["module"] + ".h"))
+        c_f.append("#include \"%s\"\n"%( os.path.split(kl_dt[".h"])[1] ))
         c_f.append("namespace elm {\n\n")
         c_f.append("using namespace v8;\n\n")
 
         for p in kl_dt["properties"]:
            c_f.append("EO_GENERATE_PROPERTY_CALLBACKS(%s, %s);\n"%(kl_id, p))
+        c_f.append("\n")
+
+        for p in kl_dt["properties_set"]:
+           c_f.append("EO_GENERATE_PROPERTY_SET_CALLBACK(%s, %s);\n"%(kl_id, p))
+           c_f.append("EO_GENERATE_PROPERTY_GET_EMPTY_CALLBACK(%s, %s);\n"%(kl_id, p))
+        c_f.append("\n")
+
+        for p in kl_dt["properties_get"]:
+           c_f.append("EO_GENERATE_PROPERTY_SET_EMPTY_CALLBACK(%s, %s);\n"%(kl_id, p))
+           c_f.append("EO_GENERATE_PROPERTY_GET_CALLBACK(%s, %s);\n"%(kl_id, p))
         c_f.append("\n")
 
         for m in kl_dt["methods"]:
@@ -554,7 +572,7 @@ building __init__ function
         for l in kl_dt["parents"]:
            if l == "EoBase":
              continue
-           ll.append("#include \"%s.h\" //include generated js-wrapping classes\n"%(self.cl_data[l]["module"]))
+           ll.append("#include \"_%s.h\" //include generated js-wrapping classes\n"%(self.cl_data[l]["module"]))
 
         ll.append("\n")
         ll.append("namespace elm { //namespace should have the same meaning as module for python\n")
@@ -619,6 +637,8 @@ building __init__ function
           for p in lst:
             methods += self.cl_data[p]["methods"]
             properties += self.cl_data[p]["properties"]
+            properties += self.cl_data[p]["properties_set"]
+            properties += self.cl_data[p]["properties_get"]
             event_ids += self.cl_data[p]["ev_ids"]
 
           l_tmp = []
@@ -636,7 +656,6 @@ building __init__ function
           del l_tmp
           del methods
           del properties
-
 
         if len(kl_dt["ev_ids"]):
           prot.append("   struct {\n")
@@ -695,7 +714,12 @@ building __init__ function
 
            c_f.append("   eo_do(eobj, %s(%s));\n"%(kl_dt["functions"][p+"_get"]["c_macro"], ", ".join(pass_params)))
 
-           if len(ret_params) > 0:
+
+           if len(ret_params) == 1:
+             for par, t in ret_params:
+               c_f.append("   return scope.Close(%s::New(%s));//need to put proper values\n"%(t, par))
+
+           elif len(ret_params) > 1:
              c_f.append("   Local<Object> obj__ = Object::New();\n")
              for par, t in ret_params:
                 c_f.append("   obj__->Set(String::NewSymbol(\"%s\"), %s::New(%s));\n"%(par, t, par))
@@ -708,6 +732,7 @@ building __init__ function
 
            c_f.append("void %s::%s_set(Handle<Value> val)\n"%(kl_id, p))
            c_f.append("{\n")
+
 
            pass_params = []
            add_end_func = []
@@ -761,6 +786,129 @@ building __init__ function
            c_f.append("\n")
 
         ll.append("\n")
+
+        for p in kl_dt["properties_set"]:
+           #generating headers of  setter/getter in class (h file)
+           ll.append("   void %s_set(Handle<Value> val);\n"%(p))
+
+          #generating setter/getter in cc file
+
+           c_f.append("void %s::%s_set(Handle<Value> val)\n"%(kl_id, p))
+           c_f.append("{\n")
+
+           pass_params = []
+           add_end_func = []
+           if len(kl_dt["functions"][p+"_set"]["parameters"]) > 1:
+             c_f.append("   Local<Object> __o = val->ToObject();\n")
+
+             for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_set"]["parameters"]):
+               c_t_tmp = self.cast(c_t)
+               c_t_internal = self.internal_types[c_t_tmp][0]
+               js_type = self.internal_types[c_t_tmp][2]
+
+               if d != "in":
+                 print "Warning wrong directiong: property: %s; parameter: %s; direction: %"%(p, n, d)
+               else:
+                 c_f.append("  %s %s;\n"%(c_t_internal, n))
+                 #FIXME: case when we are working with EO
+                 if js_type == "ToString":
+                    c_f.append("  %s = strdup(*String::Utf8Value(__o->Get(String::NewSymbol(\"%s\"))->%s()));\n"%(n, n, js_type))
+                 else:
+                   c_f.append("  %s = __o->Get(String::NewSymbol(\"%s\"))->%s()->Value();\n"%(n, n, js_type))
+
+                 if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
+                   pass_params.append('&' + n)
+                 else:
+                   pass_params.append(n)
+
+
+           elif len(kl_dt["functions"][p+"_set"]["parameters"]) == 1:
+             (n, c_t, d) =  kl_dt["functions"][p+"_set"]["parameters"][0]
+             c_t_tmp = self.cast(c_t)
+             c_t_internal = self.internal_types[c_t_tmp][0]
+             js_type = self.internal_types[c_t_tmp][2]
+
+             if d != "in":
+               print "Warning wrong direction: property: %s; parameter: %s; direction: %"%(p, n, d)
+             else:
+               c_f.append("  %s %s;\n"%(c_t_internal, n))
+               #FIXME: case for EO
+               if js_type == "ToString":
+                 c_f.append("  %s = strdup(*String::Utf8Value(val->%s()));\n"%(n, js_type))
+                 add_end_func.append("  free(%s);"%n)
+               else:
+                 c_f.append("  %s = val->%s()->Value();\n"%(n, js_type))
+               if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
+                 pass_params.append('&' + n)
+               else:
+                 pass_params.append(n)
+
+           c_f.append("   eo_do(eobj, %s(%s));\n"%(kl_dt["functions"][p + "_set"]["c_macro"], ", ".join(pass_params)))
+           c_f += add_end_func
+           add_end_func = []
+           c_f.append("}\n")
+           c_f.append("\n")
+
+        ll.append("\n")
+
+
+
+
+
+        for p in kl_dt["properties_get"]:
+           #generating headers of  setter/getter in class (h file)
+           ll.append("   Handle<Value> %s_get() const;\n"%(p))
+
+          #generating setter/getter in cc file
+           c_f.append("Handle<Value> %s::%s_get() const\n"%(kl_id, p))
+           c_f.append("{\n")
+           c_f.append("   HandleScope scope;\n")
+
+           pass_params = []
+           ret_params = []
+           for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_get"]["parameters"]):
+             c_t_tmp = self.cast(c_t)
+             c_t_internal = self.internal_types[c_t_tmp][0]
+             js_type = self.internal_types[c_t_tmp][2]
+
+             if d == "out":
+               c_f.append("   %s %s;\n"%(c_t_internal, n))
+               pass_params.append('&' + n)
+
+               js_type = self.js_types[js_type]
+               ret_params.append((n, js_type))
+
+           c_f.append("   eo_do(eobj, %s(%s));\n"%(kl_dt["functions"][p+"_get"]["c_macro"], ", ".join(pass_params)))
+
+
+           if len(ret_params) == 1:
+             for par, t in ret_params:
+#FIXME: case then we work with EO
+               c_f.append("   return scope.Close(%s::New(%s));//need to put proper values\n"%(t, par))
+
+           elif len(ret_params) > 1:
+             c_f.append("   Local<Object> obj__ = Object::New();\n")
+             for par, t in ret_params:
+                c_f.append("   obj__->Set(String::NewSymbol(\"%s\"), %s::New(%s));\n"%(par, t, par))
+             c_f.append("   return scope.Close(obj__);//need to put proper values\n")
+           else:
+             c_f.append("   return Undefined();\n")
+
+           c_f.append("}\n")
+           c_f.append("\n")
+
+        ll.append("\n")
+
+
+
+
+
+
+
+
+
+
+
 
         for e in kl_dt["ev_ids"]:
            #generating headers of events in class (h file)
@@ -891,9 +1039,10 @@ building __init__ function
         ll.append("\n")
 
         ll.append("/* properties callbacks */\n");
-        for p in kl_dt["properties"]:
+        for p in kl_dt["properties"] + kl_dt["properties_set"] + kl_dt["properties_get"]:
            ll.append("   Handle<Value> Callback_%s_get(Local<String>, const AccessorInfo &info);\n"%(p))
            ll.append("   void Callback_%s_set(Local<String>, Local<Value> val, const AccessorInfo &info);\n"%(p))
+
 
         ll.append("\n")
         ll.append("/* properties(events) callbacks */\n");

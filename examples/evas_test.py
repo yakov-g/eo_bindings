@@ -4,7 +4,7 @@ import sys
 
 from base.eodefault import py_elm_init, elem_run
 from eobase import EoBase
-from py_evas import ElwWin, ElwBox, ElwButton, ElwBoxedbutton, EvasObject
+from evas.py_evas import ElwWin, ElwBox, ElwButton, ElwBoxedbutton, EvasObject
 
 
 def my_alert(ob):

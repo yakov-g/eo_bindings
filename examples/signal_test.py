@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 
-from evas_py.eodefault import *
+from base.eodefault import *
 from eobase import EoBase
 from signals.signals_py import Simple
 
@@ -62,16 +62,20 @@ sobj.event_callback_priority_add(Simple.A_CHANGED, 0, cb_a_changed)
 
 sobj.a_set(5)
 
+
 print "deleting event on CHANGING"
 res = sobj.event_callback_del(Simple.A_CHANGED, cb_a_changed)
-res = sobj.event_callback_del_lazy(Simple.A_CHANGED, cb_a_changed)
-print res
+print "Res:", res
 
 print "explicitly calling ON_CHANGE"
 res = sobj.event_callback_call(Simple.A_CHANGED, (123,123))
-print res
+print "Res:", res
 
 sobj.a_set(8)
+#sobj.b_set(8)
+
+#res = sobj.c_get()
+#print "Res:", res
 
 del sobj
 

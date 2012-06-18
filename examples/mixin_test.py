@@ -3,7 +3,7 @@
 
 import sys
 
-from evas_py.eodefault import *
+from base.eodefault import *
 from mixin.mixin_py import Simple
 
 
@@ -14,9 +14,9 @@ sobj.a_set(1)
 sobj.b_set(2)
 sobj.a_get()
 sobj.b_get()
-#sobj.ab_sum_get()
-#sobj.ab_sum_get()
-#sobj.ab_sum_get()
+sobj.ab_sum_get()
+sobj.ab_sum_get()
+sobj.ab_sum_get()
 
 super(Simple,sobj).ab_sum_get()
 
