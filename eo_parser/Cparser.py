@@ -164,6 +164,9 @@ class Cparser(object):
 
        for key in macros:
           pos = s.find("#define " + key)
+          if pos == -1:
+            continue
+
           s_tmp = s[s.find(' ') + 1:]
           s_tmp = s_tmp.replace(" ", "")
           s_tmp = s_tmp.split('(')[0]
@@ -171,9 +174,9 @@ class Cparser(object):
 #          if pos != -1:
              for op_id, f in op_desc:
                pos = s.find(op_id)
-               if pos != -1:
-                  params = []
+               if pos != -1 and s[pos : s.find(")", pos)] == op_id:
 
+                  params = []
                   params_direction =  macros[key]
                   pos = s.find(self.string_consts["typecheck"], pos)
                   i = 0

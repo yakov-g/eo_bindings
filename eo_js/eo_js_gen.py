@@ -75,7 +75,7 @@ def main():
   for kl in xp.cl_data:
      xp.js_parse(kl)
 
-  xp.print_data()
+#  xp.print_data()
 
   parents_to_find =  xp.check_parents()
   verbose_print("Warning: need to find parent classes %s"%parents_to_find)
@@ -96,6 +96,8 @@ def main():
     for f in xml_files:
       xp_incl.parse(f)
 
+    for kl in xp_incl.cl_data:
+      xp_incl.js_parse(kl)
 
     for k in xp_incl.cl_data:
       kl_dt = xp_incl.cl_data[k]
@@ -112,16 +114,7 @@ def main():
       print "ERROR: XML files weren't found for %s classes... Aborting"%(",".join(parents_to_find))
       exit(1)
 
-  for d in xmldir:
-    d_tmp = os.path.join(d, "eodefault.pxd")
-    if os.path.exists(d_tmp):
-      sourcedir = d
-      break
-
-  if sourcedir == "":
-    print "ERROR: no include files were found... Aborting... (Use: --include=INCLUDE_DIR)"
-    exit(1)
-  xp.build_js_modules(args.module, args.pkg, sourcedir)
+  xp.build_js_modules(args.module, args.pkg)
 
 #  os.system("cd %s && python setup.py build_ext --inplace && rm -rf *.c build/"%outdir)
 

@@ -27,6 +27,9 @@ def cb_add2():
 def cb_del():
   print "cb_del"
 
+def thaw_ba():
+  p_but.event_thaw()
+
 def cb_clicked():
   print ElwBoxedbutton.__mro__
   #p_but.alert("ALERT WORKS!!!")
@@ -58,6 +61,7 @@ bt.event_callback_priority_add(EoBase.CALLBACK_DEL, 0, cb_del)
 print "adding clicked"
 bt.event_callback_priority_add(ElwButton.CLICKED, -100, cb_clicked)
 bt.event_callback_priority_add(ElwButton.CLICKED, -200, cb_clicked2)
+bt.event_callback_priority_add(ElwButton.CLICKED, -200, thaw_ba)
 
 del w
 w = bt.parent_get()
@@ -76,7 +80,8 @@ ba.event_callback_priority_add(ElwButton.CLICKED, 0, cb_clicked2)
 
 a,b,c,d = ba.color_get()
 print "color : ", a, b, c, d
-xx,yy,ww,hh = ba.size_get()
+ww,hh = ba.size_get()
+xx,yy = ba.position_get()
 print "size : ", xx, yy, ww, hh
 ba.no_par()
 ba.par_by_ref(-2147483648, 87, -2147483649)
@@ -265,5 +270,9 @@ print but.size_get()
 print but.text_get()
 print but.visibility_get()
 print "Running Elementary..."
+
+ba.event_global_freeze()
+
+
 elem_run()
 

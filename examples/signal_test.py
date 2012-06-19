@@ -71,7 +71,10 @@ print "explicitly calling ON_CHANGE"
 res = sobj.event_callback_call(Simple.A_CHANGED, (123,123))
 print "Res:", res
 
-sobj.a_set(8)
+
+sobj.event_global_freeze()
+
+sobj.a_set(89)
 #sobj.b_set(8)
 
 #res = sobj.c_get()

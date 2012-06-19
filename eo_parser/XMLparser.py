@@ -432,39 +432,56 @@ building __init__ function
         self.parse_signals()
         self.parse_init_func()
 
-
-
     def js_parse(self, kl_id):
 
-       l_tmp = []
-   
        funcs = self.cl_data[kl_id]["functions"]
-       for l in funcs:
-          i = l.rfind("_")
-          if i != -1:
-            l_tmp.append(l[:i])
-       l_tmp = list(set(l_tmp))
+
+       self.cl_data[kl_id]["js_cpp_h"] = os.path.join(self.outdir, "_" + self.cl_data[kl_id]["module"]  + ".h")
+       self.cl_data[kl_id]["js_cpp_cc"] = os.path.join(self.outdir, "_" + self.cl_data[kl_id]["module"]  + ".cc")
+
+       if kl_id == "Eo Base":
+         self.cl_data[kl_id]["properties"] = self.cl_data[kl_id]["methods"] = \
+         self.cl_data[kl_id]["properties_set"] = self.cl_data[kl_id]["properties_get"] = []
+
+       eo_base_ops = ["EO_BASE_SUB_ID_EVENT_FREEZE", "EO_BASE_SUB_ID_EVENT_FREEZE_GET", "EO_BASE_SUB_ID_EVENT_THAW"]
+
 
        properties = []
        properties_set = []
        properties_get = []
        methods = []
-       for key in funcs:
-         i = key.rfind("_")
-         if i != -1:
-           l = key[:i]
-         else:
-           methods.append(key)
-           continue
+       prop_tmp = []
 
-         if l + "_set" in funcs and l + "_get" in funcs:
+       for l in funcs:
+         if kl_id == "Eo Base":
+           if funcs[l]["op_id"] not in eo_base_ops:
+              continue
+         i = l.rfind("_")
+         if i != -1:
+           s = l[i + 1:]
+           if s != "set" and s != "get":
+             methods.append(l)
+           else:
+             prop_tmp.append(l)
+         else:
+           methods.append(l)
+
+       for key in prop_tmp:
+        # if kl_id == "Eo Base":
+        #   if funcs[key]["op_id"] not in eo_base_ops:
+        #     continue
+
+         l = key[:-4]
+
+         if l + "_set" in prop_tmp and l + "_get" in prop_tmp and l not in methods:
             properties.append(l)
-         elif l + "_set" in funcs:
+         elif l + "_set" in prop_tmp and l not in methods:
             properties_set.append(l)
-         elif l + "_get" in funcs:
+         elif l + "_get" in prop_tmp and l not in methods:
             properties_get.append(l)
          else:
             methods.append(key)
+
        self.cl_data[kl_id]["properties"] = list(set(properties))
        self.cl_data[kl_id]["methods"] = methods
        self.cl_data[kl_id]["properties_set"] = properties_set
@@ -483,14 +500,17 @@ building __init__ function
 
        return parents_to_find
 
-    def build_js_modules(self, module_name, pkg, sourcedir):
+    def build_js_modules(self, module_name, pkg):
        cl_data_tmp = {}
-       module_file = module_name + ".pyx"
 
        for k in self.cl_data:
          self.cl_data[k]["name"] =  normalize_names(self.cl_data[k]["c_name"])
          self.cl_data[k]["parents"] = normalize_names(self.cl_data[k]["parents"])
          cl_data_tmp[self.cl_data[k]["name"]] = self.cl_data[k]
+
+     #    self.cl_data[k]["js_cpp_h"] = os.path.join(self.outdir, "_" + self.cl_data[k]["module"]  + ".h")
+     #    self.cl_data[k]["js_cpp_cc"] = os.path.join(self.outdir, "_" + self.cl_data[k]["module"]  + ".cc")
+
 
        self.cl_data = cl_data_tmp
        del cl_data_tmp
@@ -511,26 +531,23 @@ building __init__ function
 
        for k in self.cl_data:
          self.build_cpp_class(k)
-
-
        print "build js modules"
 
-
-
     def build_cpp_class(self, kl_id):
-#creating .pyx file
 
         ll = []
         c_f = []
         kl_dt = self.cl_data[kl_id]
-        print kl_id
+        print "build_cpp_cl", kl_id
 
+#        kl_dt[".h"] = os.path.join(self.outdir, "_" + kl_dt["module"]  + ".h")
+#        kl_dt[".cc"] = os.path.join(self.outdir, "_" + kl_dt["module"]  + ".cc")
 
-        kl_dt[".h"] = os.path.join(self.outdir, "_" + kl_dt["module"]  + ".h")
-        kl_dt[".cc"] = os.path.join(self.outdir, "_" + kl_dt["module"]  + ".cc")
+        if kl_id == "EoBase":
+          kl_dt["properties"]=filter(lambda x: x != "data", kl_dt["properties"])
 
         c_f.append("/**\n * generated from \"%s\"\n */\n"%(kl_dt["source_file"]))
-        c_f.append("#include \"%s\"\n"%( os.path.split(kl_dt[".h"])[1] ))
+        c_f.append("#include \"%s\"\n"%(os.path.split(kl_dt["js_cpp_h"])[1] ))
         c_f.append("namespace elm {\n\n")
         c_f.append("using namespace v8;\n\n")
 
@@ -556,10 +573,8 @@ building __init__ function
            c_f.append("EO_GENERATE_PROPERTY_CALLBACKS(%s, %s);\n"%(kl_id, e.lower()))
         c_f.append("\n")
 
-
-
         #creating .h file
-        f = open (kl_dt[".h"], 'w')
+        f = open (kl_dt["js_cpp_h"], 'w')
         ll.append("/**\n * generated from \"%s\"\n */\n"%(kl_dt["source_file"]))
 
         ll.append("#ifndef %s\n"%( ("_JS_"+kl_dt["module"]+"_h_").upper() ))
@@ -569,10 +584,14 @@ building __init__ function
         ll.append("#include \"CElmObject.h\" //base object\n")
         ll.append("#include \"%s\" //eo-class include file\n"%(kl_dt["includes"][0]))
 
+
         for l in kl_dt["parents"]:
-           if l == "EoBase":
-             continue
-           ll.append("#include \"_%s.h\" //include generated js-wrapping classes\n"%(self.cl_data[l]["module"]))
+          if l in self.cl_data:
+            parent_data = self.cl_data[l]
+          else:
+            parent_data = self.cl_incl[l]
+
+          ll.append("#include \"%s\" //include generated js-wrapping classes\n"%( os.path.split(parent_data["js_cpp_h"])[1]))
 
         ll.append("\n")
         ll.append("namespace elm { //namespace should have the same meaning as module for python\n")
@@ -583,8 +602,6 @@ building __init__ function
 
         lst = ["public virtual CElmObject"]
         for l in kl_dt["parents"]:
-           if l== "EoBase":
-             continue
            lst.append("public virtual %s"%(l))
 
         inherit = ", ".join(lst)
@@ -594,7 +611,7 @@ building __init__ function
         prot = []
         publ = []
         tmpl = ""
- 
+
         if kl_dt["type"] == self.string_consts["class_type_regular"]:
           priv.append("   static Persistent<FunctionTemplate> tmpl;\n")
           priv.append("\n")
@@ -616,16 +633,14 @@ building __init__ function
           c_f.append("   target->Set(String::NewSymbol(\"%s\") , GetTemplate()->GetFunction());\n"%kl_id)
           c_f.append("}\n")
 
-
-
           publ.append("   virtual void DidRealiseElement(Local<Value> obj);\n")
 
-          c_f.append("void %s::DidRealiseElement(Local<Value> obj)\n {}\n"%kl_id)
+          c_f.append("void %s::DidRealiseElement(Local<Value> obj)\n {\n\
+                      (void) obj; \n\
+                      }\n"%kl_id)
 
           publ.append("   friend Handle<Value> CElmObject::New<%s>(const Arguments& args);\n"%(kl_id))
           publ.append("\n")
-
-
 
           #generating list of all parents, to get all properties and methods
           lst = self.get_parents(kl_id)
@@ -635,11 +650,15 @@ building __init__ function
           properties = []
           event_ids = []
           for p in lst:
-            methods += self.cl_data[p]["methods"]
-            properties += self.cl_data[p]["properties"]
-            properties += self.cl_data[p]["properties_set"]
-            properties += self.cl_data[p]["properties_get"]
-            event_ids += self.cl_data[p]["ev_ids"]
+            if p in self.cl_data:
+              parent_data = self.cl_data[p]
+            else:
+              parent_data = self.cl_incl[p]
+            methods += parent_data["methods"]
+            properties += parent_data["properties"]
+            properties += parent_data["properties_set"]
+            properties += parent_data["properties_get"]
+            event_ids += parent_data["ev_ids"]
 
           l_tmp = []
           l_tmp.append("%s"%kl_id)
@@ -690,30 +709,24 @@ building __init__ function
            c_f.append("Handle<Value> %s::%s_get() const\n"%(kl_id, p))
            c_f.append("{\n")
            c_f.append("   HandleScope scope;\n")
-#           c_f.append("   eo_do(eobj, %s);\n"%(kl_dt["functions"][p + "_get"]["c_macro"]))
-
-
+#          c_f.append("   eo_do(eobj, %s);\n"%(kl_dt["functions"][p + "_get"]["c_macro"]))
 
            pass_params = []
            ret_params = []
            for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_get"]["parameters"]):
              c_t_tmp = self.cast(c_t)
              c_t_internal = self.internal_types[c_t_tmp][0]
+
              js_type = self.internal_types[c_t_tmp][2]
 
              if d == "out":
                c_f.append("   %s %s;\n"%(c_t_internal, n))
                pass_params.append('&' + n)
 
-               js_type = js_type.replace("ToBoolean", "Boolean")
-               js_type = js_type.replace("ToString", "String")
-               js_type = js_type.replace("ToUint32", "Number")
-               js_type = js_type.replace("ToInt32", "Number")
-               js_type = js_type.replace("ToNumber", "Number")
+               js_type = self.js_types[js_type]
                ret_params.append((n, js_type))
 
            c_f.append("   eo_do(eobj, %s(%s));\n"%(kl_dt["functions"][p+"_get"]["c_macro"], ", ".join(pass_params)))
-
 
            if len(ret_params) == 1:
              for par, t in ret_params:
@@ -732,7 +745,6 @@ building __init__ function
 
            c_f.append("void %s::%s_set(Handle<Value> val)\n"%(kl_id, p))
            c_f.append("{\n")
-
 
            pass_params = []
            add_end_func = []
@@ -758,7 +770,6 @@ building __init__ function
                  else:
                    pass_params.append(n)
 
-
            elif len(kl_dt["functions"][p+"_set"]["parameters"]) == 1:
              (n, c_t, d) =  kl_dt["functions"][p+"_set"]["parameters"][0]
              c_t_tmp = self.cast(c_t)
@@ -774,6 +785,7 @@ building __init__ function
                  add_end_func.append("  free(%s);"%n)
                else:
                  c_f.append("  %s = val->%s()->Value();\n"%(n, js_type))
+
                if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
                  pass_params.append('&' + n)
                else:
@@ -807,7 +819,7 @@ building __init__ function
                js_type = self.internal_types[c_t_tmp][2]
 
                if d != "in":
-                 print "Warning wrong directiong: property: %s; parameter: %s; direction: %"%(p, n, d)
+                 print "Warning wrong direction: property: %s; parameter: %s; direction: %"%(p, n, d)
                else:
                  c_f.append("  %s %s;\n"%(c_t_internal, n))
                  #FIXME: case when we are working with EO
@@ -900,16 +912,6 @@ building __init__ function
         ll.append("\n")
 
 
-
-
-
-
-
-
-
-
-
-
         for e in kl_dt["ev_ids"]:
            #generating headers of events in class (h file)
            ev = e.lower()
@@ -918,7 +920,6 @@ building __init__ function
            ll.append("   void %s_set(Handle<Value> val);\n"%(ev))
            ll.append("   void %s(void *event_info);\n"%(ev))
            ll.append("   static Eina_Bool %s_wrapper(void *data, Eo *obj, const Eo_Event_Description *desc, void *event_info);\n"%(ev))
-
 
            #event function
            c_f.append("void %s::%s(void *event_info) //parse of event_info need to be added \n"%(kl_id, ev))
@@ -935,6 +936,8 @@ building __init__ function
                            HandleScope scope;\n\
                            static_cast<%s*>(data)->%s(event_info);\n\
                            return EINA_TRUE;\n\
+                           (void) obj;\n\
+                           (void) desc;\n\
                        }\n"%(kl_id, ev))
            c_f.append("\n")
 
@@ -1013,16 +1016,16 @@ building __init__ function
                  c_f.append("   %s = _%s->%s()->Value();\n"%(n, n, js_type))
 
                pass_params.append('&' + n)
-
                js_type = self.js_types[js_type]
                ret_params.append((n, js_type))
 
-
-
-
            c_f.append("   eo_do(eobj, %s(%s));\n"%(kl_dt["functions"][m]["c_macro"], ", ".join(pass_params)))
 
-           if len(ret_params) > 0:
+           if len(ret_params) == 1:
+             for par, t in ret_params:
+#FIXME: case then we work with EO
+               c_f.append("   return scope.Close(%s::New(%s));//need to put proper values\n"%(t, par))
+           elif len(ret_params) > 1:
              c_f.append("   Local<Object> obj__ = Object::New();\n")
              for p, t in ret_params:
                 c_f.append("   obj__->Set(String::NewSymbol(\"%s\"), %s::New(%s));\n"%(p, t, p))
@@ -1070,85 +1073,10 @@ building __init__ function
 
         f.close()
 
-
-
-        f = open (kl_dt[".cc"], 'w')
+        f = open (kl_dt["js_cpp_cc"], 'w')
         for line in c_f:
           f.write(line)
         f.close()
-
-
-
-
-
-
-
-        """
-        f = open (kl_dt[".pxi"], 'w')
-        pattern = "########################################################"
-        l = '%s\n##\n## generated from from \"%s\"\n##\n%s'%(pattern, kl_dt["source_file"], pattern)
-        f.write(l+'\n\n')
-
-        #inserting cimports
-        l = "cimport %s"%kl_dt["module"]
-        f.write(l+'\n')
-        l = "cimport %s"%kl_dt["basemodule"]
-        f.write(l+'\n\n')
-
-        #defining class
-        parents = []
-        if len(kl_dt["parents"]) != 0:
-          parents = kl_dt["parents"]
-
-
-        if kl_dt["name"] == "EoBase":
-           parents = []
-           parents.append(self.basemodule["name"])
-           l = "from %s import %s"%(self.basemodule["module"], self.basemodule["name"])
-           f.write(l + "\n")
-
-        if "EoBase" in parents:
-          l = "from %s import %s"%("eobase", "EoBase")
-          f.write(l + "\n")
-
-        l = "from %s import %s"%(self.basemodule["module"], "pytext_to_utf8")
-        f.write(l + "\n")
-
-        f.write("\n")
-
-        #defining _id function
-        if kl_dt["extern_base_id"] != "":
-          l = 'cdef int %s(int sub_id):'%(kl_dt["sub_id_function"])          
-          f.write(l+'\n')
-          l = '  return %s.%s + sub_id'%(kl_dt["module"],
-                                         kl_dt["extern_base_id"])          
-          f.write(l+'\n\n')
-        parents = ",".join(self.reorder_parents(parents))
-        #defining class
-        l = 'class %s(%s):'%(kl_dt["name"], parents)
-        f.write(l+'\n\n')
-
-        #defining event globals
-        for v in kl_dt["ev_ids"]:
-          pos = v.find("EV_")
-          if pos == -1:
-            continue
-          name = v[pos + 3:]
-          l = "  %s = <long>%s.%s"%(name, kl_dt["module"], v)
-          f.write(l + '\n')
-        f.write('\n')
-
-        methods_parsed = kl_dt["methods_parsed"]
-        #inserting class methods
-        for key in methods_parsed:
-            func = methods_parsed[key]
-            for l in func:
-               f.write('  '+l+'\n')
-        f.close()
-        del methods_parsed
-
-
-"""
 
 
 
@@ -1201,9 +1129,6 @@ building __init__ function
        lines.append("e_library_dirs = []")
        lines.append("e_libraries = []")
        lines.append("")
-#       if module_name == "eobase":
-#         lines.append("os.system(\"rm __init__.py*\")")
-#       lines.append("")
 
        lines.append("setup(")
        lines.append("  cmdclass = {'build_ext': build_ext},")
@@ -1215,13 +1140,6 @@ building __init__ function
        lines.append("  Extension(\"%s\", ['%s'], include_dirs = e_include_dirs, library_dirs = e_library_dirs, libraries = e_libraries, extra_compile_args = e_compile_args, extra_link_args = e_link_args),"%(module_name, module_name + ".pyx"))
 
        lines.append("   ])\n")
-
- #      if module_name == "eobase":
- #        lines.append("f = open('__init__.py', 'w')")
- #        lines.append("f.write('import eodefault\\n')")
- #        lines.append("f.write('eodefault.init()\\n')")
- #        lines.append("f.close()")
-
        lines.append("\n")
 
 
@@ -1328,10 +1246,10 @@ building __init__ function
 
         #defining _id function
         if kl_dt["extern_base_id"] != "":
-          l = 'cdef int %s(int sub_id):'%(kl_dt["sub_id_function"])          
+          l = 'cdef int %s(int sub_id):'%(kl_dt["sub_id_function"])
           f.write(l+'\n')
           l = '  return %s.%s + sub_id'%(kl_dt["module"],
-                                         kl_dt["extern_base_id"])          
+                                         kl_dt["extern_base_id"])
           f.write(l+'\n\n')
         parents = ",".join(self.reorder_parents(parents))
         #defining class
@@ -1456,7 +1374,7 @@ building __init__ function
           l = l + self.get_parents(p)
 
       l = list(set(l + prnts))
-      l = filter(lambda el: el != "EoBase", l)
+#      l = filter(lambda el: el != "EoBase", l)
 
       return l
 
