@@ -144,7 +144,7 @@ class Cparser(object):
       func_name = op_id[op_id.find(sub_id_str)+len(sub_id_str):].lower()
       lst.append((op_id, func_name))
 
-      self.cl_data[cl_id]["funcs"][func_name] = {"op_id" : op_id}
+      self.cl_data[cl_id]["funcs"][func_name] = {"op_id" : op_id, "c_macro" : ""}
       pos = in_data.find(key_str, pos + 1)
 
     self.cl_data[cl_id][self.op_desc] = lst
@@ -315,6 +315,7 @@ class Cparser(object):
 
     for k in cl_data["funcs"]:
         SubElement(op_tag, "sub_id", {"name":cl_data["funcs"][k]["op_id"]})
+
 
         m = SubElement(m_tag, "method", {"name" : k,
                                       "op_id":cl_data["funcs"][k]["op_id"],

@@ -456,7 +456,6 @@ building __init__ function
         for key in self.cl_data[kl_id]["functions"]:
             #print self.current_class
             op_id = self.cl_data[kl_id]["functions"][key]["op_id"]
-            print "py_parse:", op_id
 
             if kl_id == "Eo Base":
               if op_id not in eo_base_ops:
@@ -477,7 +476,7 @@ building __init__ function
        self.cl_data[kl_id]["properties"] = self.cl_data[kl_id]["methods"] = \
        self.cl_data[kl_id]["properties_set"] = self.cl_data[kl_id]["properties_get"] = []
 
-       eo_base_ops = ["EO_BASE_SUB_ID_EVENT_FREEZE", "EO_BASE_SUB_ID_EVENT_FREEZE_GET", "EO_BASE_SUB_ID_EVENT_THAW"]
+       eo_base_ops = ["EO_BASE_SUB_ID_EVENT_FREEZE", "EO_BASE_SUB_ID_EVENT_FREEZE_GET", "EO_BASE_SUB_ID_EVENT_THAW", "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE", "EO_BASE_SUB_ID_EVENT_GLOBAL_THAW"]
 
        properties = []
        properties_set = []
@@ -571,13 +570,32 @@ building __init__ function
         ll = []
         c_f = []
         kl_dt = self.cl_data[kl_id]
+
+
+      
+        lst = self.get_parents(kl_id)
+        lst.insert(0, kl_id)
+
+        methods = []
+        properties = []
+        event_ids = []
+        for p in lst:
+          if p in self.cl_data:
+            parent_data = self.cl_data[p]
+          else:
+            parent_data = self.cl_incl[p]
+          methods += parent_data["methods"]
+          properties += parent_data["properties"]
+          properties += parent_data["properties_set"]
+          properties += parent_data["properties_get"]
+          event_ids += parent_data["ev_ids"]
+
+
+
         print "build_cpp_cl", kl_id
 
 #        kl_dt[".h"] = os.path.join(self.outdir, "_" + kl_dt["module"]  + ".h")
 #        kl_dt[".cc"] = os.path.join(self.outdir, "_" + kl_dt["module"]  + ".cc")
-
-        if kl_id == "EoBase":
-          kl_dt["properties"]=filter(lambda x: x != "data", kl_dt["properties"])
 
         c_f.append("/**\n * generated from \"%s\"\n */\n"%(kl_dt["source_file"]))
         c_f.append("#include \"%s\"\n"%(os.path.split(kl_dt["js_cpp_h"])[1] ))
@@ -599,6 +617,9 @@ building __init__ function
         c_f.append("\n")
 
         for m in kl_dt["methods"]:
+#FIXME
+           if m in ["event_global_freeze", "event_global_thaw"]:
+             continue
            c_f.append("EO_GENERATE_METHOD_CALLBACKS(%s, %s);\n"%(kl_id, m))
         c_f.append("\n")
 
@@ -643,6 +664,7 @@ building __init__ function
         priv = []
         prot = []
         publ = []
+        init_f = []
         tmpl = ""
 
         if kl_dt["type"] == self.string_consts["class_type_regular"]:
@@ -661,10 +683,36 @@ building __init__ function
 
           publ.append("   static void Initialize(Handle<Object> target);\n")
 
+          """
           c_f.append("void %s::Initialize(Handle<Object> target)\n"%kl_id)
           c_f.append("{\n")
           c_f.append("   target->Set(String::NewSymbol(\"%s\") , GetTemplate()->GetFunction());\n"%kl_id)
+          print "ini", kl_id
+          for m in methods:
+#FIXME
+            
+            print kl_id, m
+            if m in ["event_global_freeze", "event_global_thaw"]:
+              c_f.append("EO_REGISTER_STATIC_METHOD(%s);\n"% m)
           c_f.append("}\n")
+"""
+
+
+
+          init_f.append("void %s::Initialize(Handle<Object> target)\n"%kl_id)
+          init_f.append("{\n")
+          init_f.append("   target->Set(String::NewSymbol(\"%s\") , GetTemplate()->GetFunction());\n"%kl_id)
+          print "ini", kl_id
+          for m in methods:
+#FIXME
+            
+            print kl_id, m
+            if m in ["event_global_freeze", "event_global_thaw"]:
+              init_f.append("EO_REGISTER_STATIC_METHOD(%s);\n"% m)
+          init_f.append("}\n")
+
+
+
 
           publ.append("   virtual void DidRealiseElement(Local<Value> obj);\n")
 
@@ -675,7 +723,8 @@ building __init__ function
           publ.append("   friend Handle<Value> CElmObject::New<%s>(const Arguments& args);\n"%(kl_id))
           publ.append("\n")
 
-          #generating list of all parents, to get all properties and methods
+#generating list of all parents, to get all properties and methods
+          """
           lst = self.get_parents(kl_id)
           lst.insert(0, kl_id)
 
@@ -693,6 +742,11 @@ building __init__ function
             properties += parent_data["properties_get"]
             event_ids += parent_data["ev_ids"]
 
+
+          print kl_id, properties
+          print kl_id, methods
+          """
+
           l_tmp = []
           l_tmp.append("%s"%kl_id)
           l_tmp.append("%s"%"PROPERTY(elements)")
@@ -701,12 +755,15 @@ building __init__ function
           for e in event_ids:
             l_tmp.append("   PROPERTY(%s)"%e.lower())
           for m in methods:
+             #FIXME
+            if m in ["event_global_freeze", "event_global_thaw"]:
+               continue
             l_tmp.append("   METHOD(%s)"%m)
           tmpl = ",\n".join(l_tmp)
           tmpl = "GENERATE_TEMPLATE(%s);"%tmpl
           c_f.append("\n")
           del l_tmp
-          del methods
+        #  del methods
           del properties
 
         if len(kl_dt["ev_ids"]):
@@ -998,13 +1055,31 @@ building __init__ function
            c_f.append("\n")
         ll.append("\n")
 
+        print methods
+        if kl_id != "EoBase":
+           for m in ["event_global_freeze", "event_global_thaw"]:
+             print "GENERATING!"
+             c_f.append("static Handle<Value> %s(const Arguments& args)\n"%m)
+             c_f.append("{\n")
+             c_f.append("  eo_class_do(%s, eo_%s());\n"%(kl_dt["macro"],m))
+             c_f.append(" return Undefined();\n")
+             c_f.append("}\n")
+             continue
+
         for m in kl_dt["methods"]:
+           if m in ["event_global_freeze", "event_global_thaw"]:
+             c_f.append("Handle<Value> %s(const Arguments& args)\n"%m)
+             c_f.append("{\n")
+             c_f.append("  eo_class_do(%s, eo_%s());\n"%(kl_dt["macro"],m))
+             c_f.append(" return Undefined();\n")
+             c_f.append("}\n")
+             continue
+
            ll.append("   Handle<Value> %s(const Arguments&);\n"%(m))
 
            c_f.append("Handle<Value> %s::%s(const Arguments& args)\n"%(kl_id, m))
            c_f.append("{\n")
            c_f.append("   HandleScope scope;\n")
-
 
            pass_params = []
            ret_params = []
@@ -1097,6 +1172,7 @@ building __init__ function
         ll.append("} //end namespace elm\n")
 
         c_f.append("%s\n"%tmpl)
+        c_f += init_f
         c_f.append("} //end namespace elm\n")
         ll.append("\n")
         ll.append("#endif\n")
