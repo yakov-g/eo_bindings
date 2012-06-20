@@ -18,40 +18,42 @@ p_but = None
 p_box = None
 p_bb = None
 
-def cb_add():
+def cb_add(o):
   print "cb_add"
 
-def cb_add2():
+def cb_add2(o):
   print "cb_add2"
 
-def cb_del():
+def cb_del(o):
   print "cb_del"
 
-def thaw_ba():
+def thaw_ba(o):
+  print "size:", o.size_get()
   p_but.event_thaw()
 
-def cb_clicked():
-  print ElwBoxedbutton.__mro__
+def cb_clicked(o):
+  #print ElwBoxedbutton.__mro__
   #p_but.alert("ALERT WORKS!!!")
+  print "cb_clicked; o:", o.text_get()
   my_alert(p_but)
   my_alert(p_bb)
   #p_box.alert("BOX ALERT WORKS!!!")
 #  p_bb.alert("BBB ALERT WORKS!!!")
-  print "cb_clicked"
+  
 
-def cb_clicked2():
-  print "cb_clicked2"
+def cb_clicked2(o):
+  print "cb_clicked2; o:", o.text_get()
   #return CALLBACK_STOP
 
 w1 = ElwWin(None)
-w1.size_set(400, 400)
+w1.size_set(270, 350)
 w1.visibility_set(1)
 
 w = w1
 
 bt = ElwButton(w)
-bt.position_set(65, 25)
-bt.size_set(80, 60)
+bt.position_set(30, 30)
+bt.size_set(210, 60)
 bt.color_set(159, 245, 255, 255)
 bt.text_set("שלום")
 bt.visibility_set(1)
@@ -70,8 +72,8 @@ print type(w)
 ba = ElwButton(w);
 p_but = ba
 ba.visibility_set(1)
-ba.position_set(10, 100)
-ba.size_set(70, 50)
+ba.position_set(30, 100)
+ba.size_set(100, 50)
 ba.color_set(255, 0, 255, 255)
 ba.text_set("(B) ADD cb")
 
@@ -100,8 +102,6 @@ print "a == aa %s, b == bb %s"%(a == aa, b == bb)
 
 (a, b) = ba.ints(1, 2, 3)
 print a, b
-
-
 
 a = 0
 b = 2147483647
@@ -148,9 +148,9 @@ print "b == bb %s, c == cc %s"%( b == bb, c == cc)
 bb = ElwBoxedbutton(w);
 p_bb = bb
 bb.visibility_set(1)
-bb.position_set(100, 100)
+bb.position_set(140, 100)
 
-bb.size_set(70, 50)
+bb.size_set(100, 50)
 bb.color_set(255, 0, 5, 255)
 
 bb.text_set(u"Красная кнопка")
@@ -164,22 +164,22 @@ bb.event_callback_priority_add(ElwButton.CLICKED, 0, cb_clicked)
 #===========================
 but = ElwButton(w)
 but.visibility_set(1)
-but.position_set(250, 100)
-but.size_set(90, 50)
+#but.position_set(250, 100)
+but.size_set(90, 20)
 but.color_set(255, 0, 255, 255)
 but.text_set("1st button in box")
 
 but2 = ElwButton(w)
 but2.visibility_set(1)
-but2.position_set(270, 150)
-but2.size_set(90, 50)
-but2.color_set(240, 240, 240, 255)
+#but2.position_set(270, 150)
+#but2.size_set(90, 50)
+but2.color_set(255, 255, 0, 255)
 but2.text_set("2nd button in box")
 
 box = ElwBox(w)
 p_box = box
-box.position_set(250, 250) 
-box.size_set(50, 25) 
+box.position_set(140, 170) 
+box.size_set(50, 150) 
 box.visibility_set(1) 
 box.pack_end(but)
 box.pack_end(but2)
@@ -195,8 +195,8 @@ box.pack_end(but2)
 #===========================
 pb = ElwButton(w)
 pb.visibility_set(1)
-pb.position_set(310, 150)
-pb.size_set(70, 50)
+#pb.position_set(310, 150)
+#pb.size_set(70, 50)
 pb.color_set(240, 240, 245, 255)
 pb.text_set("But in BB")
 pb.event_callback_priority_add(ElwButton.CLICKED, 0, cb_clicked)
@@ -206,8 +206,8 @@ ebb = ElwBoxedbutton(w)
 
 ebb.visibility_set(1)
 ebb.visibility_set(1)
-ebb.position_set(200, 150)
-ebb.size_set(70, 50)
+ebb.position_set(30, 170)
+ebb.size_set(100, 50)
 ebb.color_set(100, 85, 255, 255)
 ebb.text_set("BoxedButton")
 
@@ -251,7 +251,7 @@ print f, type(f)
 ebb.data_set("object",pb)
 f = ebb.data_get("object")
 print f, type(f)
-f.text_set("neeew name")
+#f.text_set("neeew name")
 
 
 #f = ebb.data_del("object")
@@ -271,7 +271,13 @@ print but.text_get()
 print but.visibility_get()
 print "Running Elementary..."
 
-ba.event_global_freeze()
+EoBase.event_global_freeze()
+EoBase.event_global_freeze()
+print EoBase.event_global_freeze_get()
+EoBase.event_global_thaw()
+EoBase.event_global_thaw()
+
+ba.event_freeze()
 
 
 elem_run()

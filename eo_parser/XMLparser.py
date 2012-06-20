@@ -197,15 +197,14 @@ building __init__ function
 
 
         if kl == "Eo Base":
+          if_ret = False
           if fparams["op_id"] == "EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD":
             function_lines.append("def event_callback_priority_add(self, long _desc, int _priority, object _cb):")
             function_lines.append("  if not callable(_cb):")
             function_lines.append("    raise TypeError(\"func must be callable\")")
             function_lines.append("  cdef Eo_Event_Cb cb = <Eo_Event_Cb> eodefault._object_callback")
             function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD), _desc, _priority, cb, <void*>_cb)")
-            function_lines.append("\n")
-            self.cl_data[self.current_class]["methods_parsed"][fname] = function_lines
-            return
+            if_ret = True
           elif fparams["op_id"] == "EO_BASE_SUB_ID_EVENT_CALLBACK_DEL":
             function_lines.append("def event_callback_del(self, long _desc, object _func):")
             function_lines.append("  cdef Eo_Event_Cb func = <Eo_Event_Cb> eodefault._object_callback")
@@ -213,27 +212,48 @@ building __init__ function
 
             function_lines.append("\n")
             self.cl_data[self.current_class]["methods_parsed"][fname] = function_lines
-            return
+            if_ret = True
           elif fparams["op_id"] == "EO_BASE_SUB_ID_EVENT_CALLBACK_DEL_LAZY":
             function_lines.append("def event_callback_del_lazy(self, long _desc, object _func):")
             function_lines.append("  cdef Eo_Event_Cb func = <Eo_Event_Cb> eodefault._object_callback")
             function_lines.append("  cdef void * user_data")
             function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_CALLBACK_DEL_LAZY), _desc, func, &user_data)")
             function_lines.append("  return None if user_data == NULL else <object>user_data")
-            function_lines.append("\n")
-            self.cl_data[self.current_class]["methods_parsed"][fname] = function_lines
-            return
+            if_ret = True
+
           elif fparams["op_id"] == "EO_BASE_SUB_ID_DATA_SET":
             function_lines.append("def data_set(self, object _key, object _data):")
             function_lines.append("  _key = pytext_to_utf8(_key)")
             function_lines.append("  cdef char* key = <char*> _key")
             function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_DATA_SET), key, <void*>_data, NULL)")
+            if_ret = True
 
+          elif fparams["op_id"] == "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE":
+            function_lines.append("@staticmethod")
+            function_lines.append("def event_global_freeze():")
+            function_lines.append("  eodefault.eo_class_do(eobase.eo_base_class_get(), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE))");
+            if_ret = True
+
+          elif fparams["op_id"] == "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE_GET":
+            function_lines.append("@staticmethod")
+            function_lines.append("def event_global_freeze_get():")
+            function_lines.append("  cdef int fcount");
+            function_lines.append("  eodefault.eo_class_do(eobase.eo_base_class_get(), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE_GET), &fcount)");
+            function_lines.append("  fcount_ = <object>fcount");
+            function_lines.append("  return (fcount_)");
+
+            if_ret = True
+
+          elif fparams["op_id"] == "EO_BASE_SUB_ID_EVENT_GLOBAL_THAW":
+            function_lines.append("@staticmethod")
+            function_lines.append("def event_global_thaw():")
+            function_lines.append("  eodefault.eo_class_do(eobase.eo_base_class_get(), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_GLOBAL_THAW))");
+            if_ret = True
+
+          if if_ret:
             function_lines.append("\n")
             self.cl_data[self.current_class]["methods_parsed"][fname] = function_lines
             return
-
-
 
         """
         self.properties.setdefault(kl, {})
@@ -422,15 +442,30 @@ building __init__ function
         self.globals["extern_base_id"] = ""
 
 #py_parse() - makes all main job - builds funcs, etc.
-    def py_parse(self):
+
+    def py_parse(self, kl_id):
 
         #the three following parses are for python, so can be moved
-        for key in self.cl_data[self.current_class]["functions"]:
+        eo_base_ops = ["EO_BASE_SUB_ID_EVENT_FREEZE", "EO_BASE_SUB_ID_EVENT_FREEZE_GET", \
+                       "EO_BASE_SUB_ID_EVENT_THAW", "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE", "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE_GET",\
+                       "EO_BASE_SUB_ID_EVENT_GLOBAL_THAW", "EO_BASE_SUB_ID_DATA_SET", \
+                       "EO_BASE_SUB_ID_DATA_GET", "EO_BASE_SUB_ID_DATA_DEL", \
+                       "EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD", "EO_BASE_SUB_ID_EVENT_CALLBACK_DEL", \
+                       "EO_BASE_SUB_ID_EVENT_CALLBACK_CALL"]
+
+        for key in self.cl_data[kl_id]["functions"]:
             #print self.current_class
-            self.parse_methods(key, self.cl_data[self.current_class]["functions"][key])
+            op_id = self.cl_data[kl_id]["functions"][key]["op_id"]
+            print "py_parse:", op_id
+
+            if kl_id == "Eo Base":
+              if op_id not in eo_base_ops:
+                continue
+            self.parse_methods(key, self.cl_data[kl_id]["functions"][key])
 
         self.parse_signals()
         self.parse_init_func()
+
 
     def js_parse(self, kl_id):
 
@@ -439,12 +474,10 @@ building __init__ function
        self.cl_data[kl_id]["js_cpp_h"] = os.path.join(self.outdir, "_" + self.cl_data[kl_id]["module"]  + ".h")
        self.cl_data[kl_id]["js_cpp_cc"] = os.path.join(self.outdir, "_" + self.cl_data[kl_id]["module"]  + ".cc")
 
-       if kl_id == "Eo Base":
-         self.cl_data[kl_id]["properties"] = self.cl_data[kl_id]["methods"] = \
-         self.cl_data[kl_id]["properties_set"] = self.cl_data[kl_id]["properties_get"] = []
+       self.cl_data[kl_id]["properties"] = self.cl_data[kl_id]["methods"] = \
+       self.cl_data[kl_id]["properties_set"] = self.cl_data[kl_id]["properties_get"] = []
 
        eo_base_ops = ["EO_BASE_SUB_ID_EVENT_FREEZE", "EO_BASE_SUB_ID_EVENT_FREEZE_GET", "EO_BASE_SUB_ID_EVENT_THAW"]
-
 
        properties = []
        properties_set = []
@@ -455,7 +488,7 @@ building __init__ function
        for l in funcs:
          if kl_id == "Eo Base":
            if funcs[l]["op_id"] not in eo_base_ops:
-              continue
+             continue
          i = l.rfind("_")
          if i != -1:
            s = l[i + 1:]

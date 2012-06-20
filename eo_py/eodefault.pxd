@@ -66,6 +66,7 @@ cdef extern from "Eo.h":
 
 
     Eina_Bool eo_do(Eo *obj, ...)
+    Eina_Bool eo_class_do(Eo_Class *klass, ...)
 
 
 cdef extern from "Elementary.h":

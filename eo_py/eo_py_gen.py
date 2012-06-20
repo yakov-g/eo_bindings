@@ -71,7 +71,10 @@ def main():
 
   for f in xml_files:
     xp.parse(f)
-    xp.py_parse()
+
+  for kl in xp.cl_data:
+     xp.py_parse(kl)
+
 
   parents_to_find =  xp.check_parents()
   verbose_print("Warning: need to find parent classes %s"%parents_to_find)

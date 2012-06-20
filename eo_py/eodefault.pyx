@@ -132,8 +132,13 @@ cdef Eina_Bool _object_callback(void *data, Eo *o,
    cdef EoDefault obj
    cdef void *p
 
+#passing "this" object to callback function
+   cdef void * c_py_obj
+   eodefault.eo_do(o, eodefault.EO_BASE_BASE_ID+eodefault.EO_BASE_SUB_ID_DATA_GET, <const_char_ptr>EoDefault.PY_EO_NAME, &c_py_obj)
+   py_obj = <object>c_py_obj
+
    f = <object>data
-   res = f()
+   res = f(py_obj)
 
    if res == CALLBACK_STOP:
      return EINA_FALSE

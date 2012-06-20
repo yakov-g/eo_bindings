@@ -4,22 +4,22 @@ from base.eodefault import *
 from eobase import EoBase
 from signals.signals_py import Simple
 
-def cb_del():
+def cb_del(o):
   print "OBJECT DELETED"
 
-def cb_free():
+def cb_free(o):
   print "OBJECT FREED"
 
-def cb_a_changed():
+def cb_a_changed(o):
   print "A_CHANGED"
 
-def cb_a_changed_stop():
+def cb_a_changed_stop(o):
   print "A_CHANGED_STOP"
   return CALLBACK_STOP
 
-def cb_add():
+def cb_add(o):
   print "CALBACK_ADD"
-def cb_del():
+def cb_del(o):
   print "CALBACK_DEL"
 
 
