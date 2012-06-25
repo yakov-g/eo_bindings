@@ -78,6 +78,7 @@ class XMLparser(object):
         self.string_consts = {"class_type_mixin" : "EO_CLASS_TYPE_MIXIN",
                               "class_type_regular" : "EO_CLASS_TYPE_REGULAR",
                           }
+        self.python_reserved = {"pass" }
 
 
         self.outdir = ""
@@ -115,7 +116,10 @@ class XMLparser(object):
             func_att = self.functions[self.current_func]
             #par_att = func_att.setdefault('parameters', [])
             par_att = func_att["parameters"]
-            par_att.append((attrs["name"], attrs["c_typename"], attrs["direction"]))
+            name = attrs["name"]
+            if name in self.python_reserved:
+              name += "__"
+            par_att.append((name, attrs["c_typename"], attrs["direction"]))
 
         elif name == "include":
             self.includes.append(attrs["name"])
@@ -141,16 +145,15 @@ class XMLparser(object):
     """
 building __init__ function
 """
-    def parse_init_func(self):
+    def parse_init_func(self, kl_id):
 
-        kl = self.current_class
-        kl_dt = self.cl_data[kl]
+        kl_dt = self.cl_data[kl_id]
 
         function_lines = []
         l = "def __init__(self, EoDefault parent):"
         function_lines.append(l)
 
-        l = "  instantiateable = %s"%(self.class_data["instantiateable"])
+        l = "  instantiateable = %s"%(kl_dt["instantiateable"])
         function_lines.append(l)
 
         l = "  if not instantiateable:"
@@ -160,7 +163,7 @@ building __init__ function
         l = "    exit(1)"
         function_lines.append(l)
 
-        if self.class_data["instantiateable"] == "True":
+        if kl_dt["instantiateable"] == "True":
           l = "  klass = <long>%s.%s()"%(kl_dt["module"], kl_dt["get_function"])
           function_lines.append(l)
           l = "  self.%s(klass, parent)"%self._funcs["instance_set2"]
@@ -171,7 +174,7 @@ building __init__ function
 
 
         function_lines.append("")
-        self.cl_data[self.current_class]["methods_parsed"]["__init__"] = function_lines
+        self.cl_data[kl_id]["methods_parsed"]["__init__"] = function_lines
 
 
 #changing types according to typedefs: Evas_Coord -> int
@@ -186,17 +189,15 @@ building __init__ function
           t = t.replace(k, self.primary_types[k])
       return t
 
-    def parse_methods(self, fname, fparams):
-        kl = self.current_class
-        kl_dt = self.cl_data[kl]
+    def parse_methods(self, kl_id, fname):
+        kl_dt = self.cl_data[kl_id]
+        fparams = kl_dt["functions"][fname]
         in_params = []
         pass_params =[]
         ret_params = []
         function_lines = []
 
-
-
-        if kl == "Eo Base":
+        if kl_id == "Eo Base":
           if_ret = False
           if fparams["op_id"] == "EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD":
             function_lines.append("def event_callback_priority_add(self, long _desc, int _priority, object _cb):")
@@ -211,7 +212,7 @@ building __init__ function
             function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_CALLBACK_DEL), _desc, func, <void*>_func)")
 
             function_lines.append("\n")
-            self.cl_data[self.current_class]["methods_parsed"][fname] = function_lines
+            self.cl_data[kl_id]["methods_parsed"][fname] = function_lines
             if_ret = True
           elif fparams["op_id"] == "EO_BASE_SUB_ID_EVENT_CALLBACK_DEL_LAZY":
             function_lines.append("def event_callback_del_lazy(self, long _desc, object _func):")
@@ -252,7 +253,7 @@ building __init__ function
 
           if if_ret:
             function_lines.append("\n")
-            self.cl_data[self.current_class]["methods_parsed"][fname] = function_lines
+            self.cl_data[kl_id]["methods_parsed"][fname] = function_lines
             return
 
         """
@@ -320,7 +321,6 @@ building __init__ function
               else:
                 pass_params.append(n)
 
-
             elif d == "out":
               l = "  cdef %s %s"%(c_t_internal, n)
               pass_params.append('&' + n)
@@ -366,11 +366,10 @@ building __init__ function
           function_lines.append(l)
 
         function_lines.append("")
-        self.cl_data[self.current_class]["methods_parsed"][fname] = function_lines
+        self.cl_data[kl_id]["methods_parsed"][fname] = function_lines
 
-    def parse_signals(self):
-        kl = self.current_class
-        kl_dt = self.cl_data[kl]
+    def parse_signals(self, kl_id):
+        kl_dt = self.cl_data[kl_id]
         for n, sig_id in kl_dt["signals"]:
           function_lines = []
           if n[-4:] == "_add":
@@ -390,7 +389,7 @@ building __init__ function
              function_lines.append(l)
 
           function_lines.append("")
-          self.cl_data[self.current_class]["methods_parsed"][n] = function_lines
+          self.cl_data[kl_id]["methods_parsed"][n] = function_lines
 
 
     def parse(self, fName):
@@ -410,8 +409,8 @@ building __init__ function
         parent_list.append(self.class_data["parent"])
         parent_list += self.class_data["extensions"].split(",")
 
-        self.current_class = self.class_data["c_name"]
-        self.cl_data[self.current_class] = \
+        kl_id = self.class_data["c_name"]
+        self.cl_data[kl_id] = \
            {
               "c_name" : self.class_data["c_name"],
               "macro" : self.class_data["macro"],
@@ -460,10 +459,10 @@ building __init__ function
             if kl_id == "Eo Base":
               if op_id not in eo_base_ops:
                 continue
-            self.parse_methods(key, self.cl_data[kl_id]["functions"][key])
+            self.parse_methods(kl_id, key)
 
-        self.parse_signals()
-        self.parse_init_func()
+        self.parse_signals(kl_id)
+        self.parse_init_func(kl_id)
 
 
     def js_parse(self, kl_id):
@@ -563,7 +562,6 @@ building __init__ function
 
        for k in self.cl_data:
          self.build_cpp_class(k)
-       print "build js modules"
 
     def build_cpp_class(self, kl_id):
 
@@ -571,8 +569,6 @@ building __init__ function
         c_f = []
         kl_dt = self.cl_data[kl_id]
 
-
-      
         lst = self.get_parents(kl_id)
         lst.insert(0, kl_id)
 
@@ -590,9 +586,6 @@ building __init__ function
           properties += parent_data["properties_get"]
           event_ids += parent_data["ev_ids"]
 
-
-
-        print "build_cpp_cl", kl_id
 
 #        kl_dt[".h"] = os.path.join(self.outdir, "_" + kl_dt["module"]  + ".h")
 #        kl_dt[".cc"] = os.path.join(self.outdir, "_" + kl_dt["module"]  + ".cc")
@@ -677,7 +670,6 @@ building __init__ function
           c_f.append(" : CElmObject(_jsObject, eo_add(%s , parent ? parent->GetEo() : NULL))\n"%(kl_dt["macro"]))
           c_f.append("{\n   jsObject->SetPointerInInternalField(0, static_cast<CElmObject*>(this));\n}\n")
 
-
           prot.append("   static Handle<FunctionTemplate> GetTemplate();\n")
           prot.append("\n")
 
@@ -690,28 +682,20 @@ building __init__ function
           print "ini", kl_id
           for m in methods:
 #FIXME
-            
             print kl_id, m
             if m in ["event_global_freeze", "event_global_thaw"]:
               c_f.append("EO_REGISTER_STATIC_METHOD(%s);\n"% m)
           c_f.append("}\n")
 """
 
-
-
           init_f.append("void %s::Initialize(Handle<Object> target)\n"%kl_id)
           init_f.append("{\n")
           init_f.append("   target->Set(String::NewSymbol(\"%s\") , GetTemplate()->GetFunction());\n"%kl_id)
-          print "ini", kl_id
           for m in methods:
 #FIXME
-            
-            print kl_id, m
             if m in ["event_global_freeze", "event_global_thaw"]:
               init_f.append("EO_REGISTER_STATIC_METHOD(%s);\n"% m)
           init_f.append("}\n")
-
-
 
 
           publ.append("   virtual void DidRealiseElement(Local<Value> obj);\n")
@@ -741,7 +725,6 @@ building __init__ function
             properties += parent_data["properties_set"]
             properties += parent_data["properties_get"]
             event_ids += parent_data["ev_ids"]
-
 
           print kl_id, properties
           print kl_id, methods
@@ -953,10 +936,6 @@ building __init__ function
 
         ll.append("\n")
 
-
-
-
-
         for p in kl_dt["properties_get"]:
            #generating headers of  setter/getter in class (h file)
            ll.append("   Handle<Value> %s_get() const;\n"%(p))
@@ -1055,10 +1034,8 @@ building __init__ function
            c_f.append("\n")
         ll.append("\n")
 
-        print methods
         if kl_id != "EoBase":
            for m in ["event_global_freeze", "event_global_thaw"]:
-             print "GENERATING!"
              c_f.append("static Handle<Value> %s(const Arguments& args)\n"%m)
              c_f.append("{\n")
              c_f.append("  eo_class_do(%s, eo_%s());\n"%(kl_dt["macro"],m))
@@ -1306,9 +1283,6 @@ building __init__ function
           exit(1)
        except shutil.Error as er:
           print "Warning: %s"%er
-
-
-
 
 
 

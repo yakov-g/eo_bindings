@@ -116,7 +116,6 @@ class Cparser(object):
     #parsing op_desc
     self.parse_op_desc(current_class)
 
-
 #parsing Eo_Op_Description
   def parse_op_desc(self, cl_id):
     if self.op_desc not in self.cl_data[cl_id]:
@@ -151,6 +150,7 @@ class Cparser(object):
 
 #looking for parameters types in *.h
   def parse_op_func_params(self, cl_id):
+
     if self.op_desc not in self.cl_data[cl_id]:
        return
 
@@ -158,54 +158,47 @@ class Cparser(object):
     defines = self.cl_data[cl_id]["defines"]
     macros = self.cl_data[cl_id]["macro"]
 
+    for op, f in op_desc:
+       for d in defines:
+         pos = d.find(op)
+         if pos != -1 and d[pos : d.find(")", pos)] == op:
+           s_tmp = d[d.find(' ') + 1:]
+           s_tmp = s_tmp.replace(" ", "")
+           s_tmp = s_tmp.split('(')[0]
+           if s_tmp not in macros:
+             print "Warning: no description for %s"%s_tmp
+           else:
 
-    for l in defines:
-       s = l
+             params = []
+             params_direction =  macros[s_tmp]
+             pos = d.find(self.string_consts["typecheck"], pos)
+             i = 0
+             while pos != -1:
+                tok = self.find_token_in_brackets(d, pos, "()")
+                tok = tok.strip("()")
+                lst = tok.split(',')
+                lst[0] = lst[0].replace("const", "")
+                lst[0] = " ".join(lst[0].split())
+                lst[0] = lst[0].replace(" *", "*")
+                lst[1] = lst[1].replace(" ", "")
+                if len(lst) == 2:
+                   try:
+                     tok =  ",".join(list(params_direction[i]))
+                     params.append((lst[1], lst[0], tok))
+                   except IndexError:
+                     print "Warning: error in description %s in  %s"%(s_tmp,self.cl_data[cl_id]["h_file"])
 
-       for key in macros:
-          pos = s.find("#define " + key)
-          if pos == -1:
-            continue
+                else:
+                   print "ERROR: check parameters in EO_TYPECHECK"
+                   exit(1)
 
-          s_tmp = s[s.find(' ') + 1:]
-          s_tmp = s_tmp.replace(" ", "")
-          s_tmp = s_tmp.split('(')[0]
-          if key == s_tmp:
-#          if pos != -1:
-             for op_id, f in op_desc:
-               pos = s.find(op_id)
-               if pos != -1 and s[pos : s.find(")", pos)] == op_id:
+                pos += len(self.string_consts["typecheck"])
+                pos = d.find(self.string_consts["typecheck"], pos)
 
-                  params = []
-                  params_direction =  macros[key]
-                  pos = s.find(self.string_consts["typecheck"], pos)
-                  i = 0
-                  while pos != -1:
-                     d = self.find_token_in_brackets(s, pos, "()")
-                     d = d.strip("()")
-                     lst = d.split(',')
-                     lst[0] = lst[0].replace("const", "")
-                     lst[0] = " ".join(lst[0].split())
-                     lst[0] = lst[0].replace(" *", "*")
-                     lst[1] = lst[1].replace(" ", "")
-                     if len(lst) == 2:
-                        try:
-                          d =  ",".join(list(params_direction[i]))
-                          params.append((lst[1], lst[0], d))
-                        except IndexError:
-                          print "Warning: error in description %s in  %s"%(key,self.cl_data[cl_id]["h_file"])
+                i += 1
 
-                     else:
-                        print "ERROR: check parameters in EO_TYPECHECK"
-                        exit(1)
-
-                     pos += len(self.string_consts["typecheck"])
-                     pos = s.find(self.string_consts["typecheck"], pos)
-
-                     i += 1
-
-                  self.cl_data[cl_id]["funcs"][f]["params"] = params
-                  self.cl_data[cl_id]["funcs"][f]["c_macro"] = key
+             self.cl_data[cl_id]["funcs"][f]["params"] = params
+             self.cl_data[cl_id]["funcs"][f]["c_macro"] = s_tmp
 
   def parse_ev_desc(self, cl_id):
     if self.ev_desc not in self.cl_data[cl_id]:
@@ -259,7 +252,6 @@ class Cparser(object):
         s = "EO_BASE_BASE_ID"
       self.cl_data[cl_id]["base_id"] = s
 
-
   def build_xml2(self, cl_id):
     self.cl_data[cl_id]["xml_file"] = os.path.join(self.globals["outdir"], self.cl_data[cl_id]["module"] + ".xml")
 
@@ -268,7 +260,6 @@ class Cparser(object):
     module = Element('module')
     module.set('name', cl_data["c_name"])
     SubElement(module, "include", {"name": os.path.split(cl_data["h_file"])[1]})
-
 
     cl_parent = ""
     cl_brothers = []
@@ -286,10 +277,8 @@ class Cparser(object):
       else:
         cl_brothers.append(tmp[l]["c_name"])
 
-
     SubElement(module, "extern_function", {"name":cl_data["get_function"]+"()",
                                            "typename":"Eo_Class*"})
-
 
     cl_brothers = ",".join(cl_brothers)
 
@@ -308,7 +297,6 @@ class Cparser(object):
     op_tag = SubElement(cl, "op_id")
     ev_tag = SubElement(cl, "events")
     m_tag = SubElement(cl, "methods")
-
 
     if cl_data["base_id"] != "NULL":
       SubElement(op_tag, "base_id", {"name":cl_data["base_id"]})

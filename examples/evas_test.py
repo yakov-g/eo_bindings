@@ -17,11 +17,13 @@ def freeze_me(obj):
   global global_obj
   global_obj = obj
   obj.event_freeze()
-  obj.alert("obl: " + obj.text_get() + "; freezing events" + str(obj.event_freeze_get()))
+  obj.alert("obl: " + obj.text_get() + "; freezing events; count: " + str(obj.event_freeze_get()))
 
 
 def thaw_global(obj):
   global global_obj
+  if global_obj.event_freeze_get() == 0:
+    return
   obj.alert("thawing global")
   global_obj.event_thaw()
 

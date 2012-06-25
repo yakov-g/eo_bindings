@@ -72,9 +72,11 @@ def main():
   for f in xml_files:
     xp.parse(f)
 
+
   for kl in xp.cl_data:
      xp.py_parse(kl)
 
+  #xp.print_data()
 
   parents_to_find =  xp.check_parents()
   verbose_print("Warning: need to find parent classes %s"%parents_to_find)
@@ -120,6 +122,7 @@ def main():
   if sourcedir == "":
     print "ERROR: no include files were found... Aborting... (Use: --include=INCLUDE_DIR)"
     exit(1)
+
   xp.build_python_modules(args.module, args.pkg, sourcedir)
 
 #  os.system("cd %s && python setup.py build_ext --inplace && rm -rf *.c build/"%outdir)
