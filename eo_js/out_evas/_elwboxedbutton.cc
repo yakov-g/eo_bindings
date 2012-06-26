@@ -18,7 +18,7 @@ ElwBoxedbutton::ElwBoxedbutton(Local<Object> _jsObject, CElmObject *parent)
 }
 void ElwBoxedbutton::DidRealiseElement(Local<Value> obj)
  {
-                      (void) obj; 
+                      (void) obj;
                       }
 
 ElwBoxedbutton::ElwBoxedbutton(){}

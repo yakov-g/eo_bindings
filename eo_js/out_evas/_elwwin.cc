@@ -18,7 +18,7 @@ ElwWin::ElwWin(Local<Object> _jsObject, CElmObject *parent)
 }
 void ElwWin::DidRealiseElement(Local<Value> obj)
  {
-                      (void) obj; 
+                      (void) obj;
                       }
 
 ElwWin::ElwWin(){}

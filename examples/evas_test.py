@@ -150,13 +150,14 @@ w1 = ElwWin(None)
 w1.size_set(270, 350)
 w1.visibility_set(1)
 
+
 w = w1
 
 bt = ElwButton(w)
 bt.position_set(30, 30)
 bt.size_set(210, 60)
 bt.color_set(159, 245, 255, 255)
-bt.text_set("שלום")
+bt.text_set("Hello")
 bt.visibility_set(1)
 
 bt.event_callback_priority_add(EoBase.CALLBACK_ADD, -100, cb_add)
@@ -178,16 +179,13 @@ ba.color_set(255, 0, 255, 255)
 ba.text_set("(B) ADD cb")
 ba.event_callback_priority_add(ElwButton.CLICKED, 0, cb_clicked)
 
-
-
-
 bb = ElwBoxedbutton(w);
 p_bb = bb
 bb.visibility_set(1)
 bb.position_set(140, 100)
 bb.size_set(100, 50)
 bb.color_set(255, 0, 5, 255)
-bb.text_set(u"Красная кнопка")
+bb.text_set(u"Red button")
 
 try:
   bb.text_set(bb)
@@ -216,7 +214,7 @@ but2.event_callback_priority_add(ElwButton.CLICKED, 0, freeze_me)
 box = ElwBox(w)
 p_box = box
 box.position_set(140, 170) 
-box.size_set(50, 150) 
+box.size_set(50, 50) 
 box.visibility_set(1) 
 box.pack_end(but)
 box.pack_end(but2)
@@ -227,10 +225,9 @@ pb.visibility_set(1)
 #pb.position_set(310, 150)
 #pb.size_set(70, 50)
 pb.color_set(240, 240, 245, 255)
-pb.text_set("But in BB(num)")
+pb.text_set("But in BB")
 pb.event_callback_priority_add(ElwButton.CLICKED, 0, cb_clicked)
 pb.event_callback_priority_add(ElwButton.CLICKED, 0, num_cb)
-
 
 
 ebb = ElwBoxedbutton(w)
@@ -238,21 +235,13 @@ ebb.visibility_set(1)
 ebb.position_set(30, 170)
 ebb.size_set(100, 50)
 ebb.color_set(100, 85, 255, 255)
-ebb.text_set("BoxedButton (data)")
+ebb.text_set("BoxedButton")
 ebb.event_callback_priority_add(ElwButton.CLICKED, 0, cb_clicked)
 ebb.event_callback_priority_add(ElwButton.CLICKED, 0, data_cb)
 ebb.pack_end(pb)
 
 
 print "Running Elementary..."
-
-#ElwButton.event_global_freeze()
-#EoBase.event_global_freeze()
-#print EoBase.event_global_freeze_get()
-#EoBase.event_global_thaw()
-#ElwButton.event_global_thaw()
-
-#ba.event_freeze()
 
 elem_run()
 

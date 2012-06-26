@@ -20,7 +20,7 @@ ElwButton::ElwButton(Local<Object> _jsObject, CElmObject *parent)
 }
 void ElwButton::DidRealiseElement(Local<Value> obj)
  {
-                      (void) obj; 
+                      (void) obj;
                       }
 
 ElwButton::ElwButton(){}
@@ -37,8 +37,8 @@ Handle<Value> ElwButton::text_get() const
 
 void ElwButton::text_set(Handle<Value> val)
 {
-  char* text;
-  text = strdup(*String::Utf8Value(val->ToString()));
+   char* text;
+   text = strdup(*String::Utf8Value(val->ToString()));
    eo_do(eobj, elw_button_text_set(text));
   free(text);}
 

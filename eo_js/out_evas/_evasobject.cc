@@ -45,14 +45,14 @@ Handle<Value> EvasObject::color_get() const
 void EvasObject::color_set(Handle<Value> val)
 {
    Local<Object> __o = val->ToObject();
-  int r;
-  r = __o->Get(String::NewSymbol("r"))->ToInt32()->Value();
-  int g;
-  g = __o->Get(String::NewSymbol("g"))->ToInt32()->Value();
-  int b;
-  b = __o->Get(String::NewSymbol("b"))->ToInt32()->Value();
-  int a;
-  a = __o->Get(String::NewSymbol("a"))->ToInt32()->Value();
+   int r;
+   r = __o->Get(String::NewSymbol("r"))->ToInt32()->Value();
+   int g;
+   g = __o->Get(String::NewSymbol("g"))->ToInt32()->Value();
+   int b;
+   b = __o->Get(String::NewSymbol("b"))->ToInt32()->Value();
+   int a;
+   a = __o->Get(String::NewSymbol("a"))->ToInt32()->Value();
    eo_do(eobj, exevas_obj_color_set(r, g, b, a));
 }
 
@@ -71,10 +71,10 @@ Handle<Value> EvasObject::position_get() const
 void EvasObject::position_set(Handle<Value> val)
 {
    Local<Object> __o = val->ToObject();
-  int x;
-  x = __o->Get(String::NewSymbol("x"))->ToInt32()->Value();
-  int y;
-  y = __o->Get(String::NewSymbol("y"))->ToInt32()->Value();
+   int x;
+   x = __o->Get(String::NewSymbol("x"))->ToInt32()->Value();
+   int y;
+   y = __o->Get(String::NewSymbol("y"))->ToInt32()->Value();
    eo_do(eobj, exevas_obj_position_set(x, y));
 }
 
@@ -88,8 +88,8 @@ Handle<Value> EvasObject::visibility_get() const
 
 void EvasObject::visibility_set(Handle<Value> val)
 {
-  unsigned char v;
-  v = val->ToBoolean()->Value();
+   unsigned char v;
+   v = val->ToBoolean()->Value();
    eo_do(eobj, exevas_obj_visibility_set(v));
 }
 
@@ -108,10 +108,10 @@ Handle<Value> EvasObject::size_get() const
 void EvasObject::size_set(Handle<Value> val)
 {
    Local<Object> __o = val->ToObject();
-  int w;
-  w = __o->Get(String::NewSymbol("w"))->ToInt32()->Value();
-  int h;
-  h = __o->Get(String::NewSymbol("h"))->ToInt32()->Value();
+   int w;
+   w = __o->Get(String::NewSymbol("w"))->ToInt32()->Value();
+   int h;
+   h = __o->Get(String::NewSymbol("h"))->ToInt32()->Value();
    eo_do(eobj, exevas_obj_size_set(w, h));
 }
 

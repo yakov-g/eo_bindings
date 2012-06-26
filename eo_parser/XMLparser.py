@@ -701,7 +701,7 @@ building __init__ function
           publ.append("   virtual void DidRealiseElement(Local<Value> obj);\n")
 
           c_f.append("void %s::DidRealiseElement(Local<Value> obj)\n {\n\
-                      (void) obj; \n\
+                      (void) obj;\n\
                       }\n"%kl_id)
 
           publ.append("   friend Handle<Value> CElmObject::New<%s>(const Arguments& args);\n"%(kl_id))
@@ -832,11 +832,11 @@ building __init__ function
                if d != "in":
                  print "Warning wrong directiong: property: %s; parameter: %s; direction: %"%(p, n, d)
                else:
-                 c_f.append("  %s %s;\n"%(c_t_internal, n))
+                 c_f.append("   %s %s;\n"%(c_t_internal, n))
                  if js_type == "ToString":
-                    c_f.append("  %s = strdup(*String::Utf8Value(__o->Get(String::NewSymbol(\"%s\"))->%s()));\n"%(n, n, js_type))
+                    c_f.append("   %s = strdup(*String::Utf8Value(__o->Get(String::NewSymbol(\"%s\"))->%s()));\n"%(n, n, js_type))
                  else:
-                   c_f.append("  %s = __o->Get(String::NewSymbol(\"%s\"))->%s()->Value();\n"%(n, n, js_type))
+                   c_f.append("   %s = __o->Get(String::NewSymbol(\"%s\"))->%s()->Value();\n"%(n, n, js_type))
 
                  if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
                    pass_params.append('&' + n)
@@ -852,12 +852,12 @@ building __init__ function
              if d != "in":
                print "Warning wrong direction: property: %s; parameter: %s; direction: %"%(p, n, d)
              else:
-               c_f.append("  %s %s;\n"%(c_t_internal, n))
+               c_f.append("   %s %s;\n"%(c_t_internal, n))
                if js_type == "ToString":
-                 c_f.append("  %s = strdup(*String::Utf8Value(val->%s()));\n"%(n, js_type))
+                 c_f.append("   %s = strdup(*String::Utf8Value(val->%s()));\n"%(n, js_type))
                  add_end_func.append("  free(%s);"%n)
                else:
-                 c_f.append("  %s = val->%s()->Value();\n"%(n, js_type))
+                 c_f.append("   %s = val->%s()->Value();\n"%(n, js_type))
 
                if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
                  pass_params.append('&' + n)
@@ -894,12 +894,12 @@ building __init__ function
                if d != "in":
                  print "Warning wrong direction: property: %s; parameter: %s; direction: %"%(p, n, d)
                else:
-                 c_f.append("  %s %s;\n"%(c_t_internal, n))
+                 c_f.append("   %s %s;\n"%(c_t_internal, n))
                  #FIXME: case when we are working with EO
                  if js_type == "ToString":
-                    c_f.append("  %s = strdup(*String::Utf8Value(__o->Get(String::NewSymbol(\"%s\"))->%s()));\n"%(n, n, js_type))
+                    c_f.append("   %s = strdup(*String::Utf8Value(__o->Get(String::NewSymbol(\"%s\"))->%s()));\n"%(n, n, js_type))
                  else:
-                   c_f.append("  %s = __o->Get(String::NewSymbol(\"%s\"))->%s()->Value();\n"%(n, n, js_type))
+                   c_f.append("   %s = __o->Get(String::NewSymbol(\"%s\"))->%s()->Value();\n"%(n, n, js_type))
 
                  if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
                    pass_params.append('&' + n)
@@ -916,13 +916,13 @@ building __init__ function
              if d != "in":
                print "Warning wrong direction: property: %s; parameter: %s; direction: %"%(p, n, d)
              else:
-               c_f.append("  %s %s;\n"%(c_t_internal, n))
+               c_f.append("   %s %s;\n"%(c_t_internal, n))
                #FIXME: case for EO
                if js_type == "ToString":
-                 c_f.append("  %s = strdup(*String::Utf8Value(val->%s()));\n"%(n, js_type))
-                 add_end_func.append("  free(%s);"%n)
+                 c_f.append("   %s = strdup(*String::Utf8Value(val->%s()));\n"%(n, js_type))
+                 add_end_func.append("   free(%s);"%n)
                else:
-                 c_f.append("  %s = val->%s()->Value();\n"%(n, js_type))
+                 c_f.append("   %s = val->%s()->Value();\n"%(n, js_type))
                if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
                  pass_params.append('&' + n)
                else:

@@ -19,7 +19,7 @@ ElwBox::ElwBox(Local<Object> _jsObject, CElmObject *parent)
 }
 void ElwBox::DidRealiseElement(Local<Value> obj)
  {
-                      (void) obj; 
+                      (void) obj;
                       }
 
 ElwBox::ElwBox(){}
