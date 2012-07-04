@@ -2,17 +2,37 @@ import xml.parsers.expat, os, shutil
 from helper import normalize_names
 
 
-class XMLparser(object):
-    def __init__(self):
 
-        self.globals = {}
-        self.cl_data = {}
-        self.cl_incl = {}
-        """
-        self.properties = {}
-        """
 
-        #internal functions, used in eodefault.pyx
+def O_TYPE_CHECK(o, class_type):
+  if not isinstance(o, class_type):
+  #  if type(o) is not class_type:
+     print "Warning: object: %s is not of class: %s"%(o, class_type.__name__)
+     return False
+  else:
+     return True
+
+def class_name_get(_o):
+  return _o.__class__.__name__
+
+class Visitor(object):
+  def visit(self, _p):
+    method_name = "visit_" + class_name_get(_p)
+    method = getattr(self, method_name, False)
+    if callable(method):
+      method(_p)
+    else:
+       print "%s is not callable attribute"%(method_name)
+
+
+class PyVisitor(Visitor):
+
+  def __init__(self):
+
+        self.pxi = {"f_name": "", "head" : [], "ev" : [], "funcs_parsed" : []}
+        self.pxd = {"f_name": "", "head" : [], "ev" : [], }
+
+
         self._funcs = {"instance_set2" : "_eo_instance_set2",
                        "instance_get" : "_eo_instance_get",
                        "do" : "eo_do"}
@@ -24,8 +44,6 @@ class XMLparser(object):
                            "type" :"EO_CLASS_TYPE_REGULAR_NO_INSTANCE",
                            ".pyx" : "eodefault.pyx",
                            ".pxd" : "eodefault.pxd"}
-
-        self.cl_incl["EoDefault"] = self.basemodule
 
         self.typedefs = {"Evas_Coord" : "int",
                          "Evas_Angle":"int",
@@ -41,6 +59,442 @@ class XMLparser(object):
                                 "void*": ["void*", "object"],
                                 "char*": ["char*", "object", "ToString"],
                                 "Eo*":  ["Eo*", self.basemodule["name"], "ToObject"],
+                                "short" : ["int", "int", "ToInt32"],
+                                "int": ["int", "int", "ToInt32"],
+                                "int*": ["int", "int", "ToInt32"],
+                                "long": ["long", "long", "ToNumber"],
+                                "long*": ["long", "long", "ToNumber"],
+                                "long long" : ["long long", "long long", "ToNumber"],
+                                "long long*" : ["long long", "long long", "ToNumber"],
+                                "unsigned char": ["unsigned char", "int", "ToInt32"],
+                                "unsigned char*" : ["unsigned char","int", "ToInt32"],
+                                "bool" : ["unsigned char","int", "ToBoolean"],
+                                "bool*" : ["unsigned char","int", "ToBoolean"],
+                                "unsigned int": ["unsigned int", "unsigned int", "ToUint32"],
+                                "unsigned int*": ["unsigned int", "unsigned int", "ToUint32"],
+                                "unsigned long": ["unsigned long", "unsigned long", "ToUint32"],
+                                "unsigned long*": ["unsigned long", "unsigned long", "ToNumber"],
+                                "unsigned long long": ["unsigned long long", "unsigned long long", "ToNumber"],
+                                "unsigned long long*": ["unsigned long long", "unsigned long long", "ToNumber"],
+                                "float": ["float", "float", "ToNumber"],
+                                "double": ["double", "double", "ToNumber" ],
+                                "long double": ["long double", "long double", "ToNumber"],
+                                "float*": ["float", "float", "ToNumber"],
+                                "double*": ["double", "double", "ToNumber" ],
+                                "long double*": ["long double", "long double", "ToNumber"],
+                                "Eo_Event_Description*":["long","long", "ToNumber"],
+                                "Eo_Event_Cb":["Eo_Event_Cb","object", "ToNumber"],
+                                "eo_base_data_free_func" : ["", ""]
+                                }
+
+
+
+  def cast(self, _in):
+    t = _in
+    for k in self.typedefs:
+      if t.find(k) != -1:
+        t = t.replace(k, self.typedefs[k])
+
+    for k in self.primary_types:
+      if t.find(k) != -1:
+        t = t.replace(k, self.primary_types[k])
+    return t
+
+  def visit_Func(self, _o):
+#     print "func Func: ", _o.name, _o.op_id, _o.c_macro, _o.parameters
+     eo_base_ops = ["EO_BASE_SUB_ID_EVENT_FREEZE", "EO_BASE_SUB_ID_EVENT_FREEZE_GET", \
+                       "EO_BASE_SUB_ID_EVENT_THAW", "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE",
+                       "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE_GET",\
+                       "EO_BASE_SUB_ID_EVENT_GLOBAL_THAW", "EO_BASE_SUB_ID_DATA_SET", \
+                       "EO_BASE_SUB_ID_DATA_GET", "EO_BASE_SUB_ID_DATA_DEL", \
+                       "EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD",
+                       "EO_BASE_SUB_ID_EVENT_CALLBACK_DEL", \
+                       "EO_BASE_SUB_ID_EVENT_CALLBACK_CALL"]
+
+     in_params = []
+     pass_params =[]
+     ret_params = []
+     function_lines = []
+     cl_obj = _o.cl_obj
+
+     if cl_obj.kl_id == "EoBase":
+       if_ret = False
+       if _o.op_id not in eo_base_ops:
+          return
+       if _o.op_id == "EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD":
+         function_lines.append("def event_callback_priority_add(self, long _desc, int _priority, object _cb):")
+         function_lines.append("  if not callable(_cb):")
+         function_lines.append("    raise TypeError(\"func must be callable\")")
+         function_lines.append("  cdef Eo_Event_Cb cb = <Eo_Event_Cb> eodefault._object_callback")
+         function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD), _desc, _priority, cb, <void*>_cb)")
+         if_ret = True
+
+       elif _o.op_id == "EO_BASE_SUB_ID_EVENT_CALLBACK_DEL":
+         function_lines.append("def event_callback_del(self, long _desc, object _func):")
+         function_lines.append("  cdef Eo_Event_Cb func = <Eo_Event_Cb> eodefault._object_callback")
+         function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_CALLBACK_DEL), _desc, func, <void*>_func)")
+
+         function_lines.append("\n")
+         #self.cl_data[kl_id]["methods_parsed"][fname] = function_lines
+         if_ret = True
+       elif _o.op_id == "EO_BASE_SUB_ID_EVENT_CALLBACK_DEL_LAZY":
+         function_lines.append("def event_callback_del_lazy(self, long _desc, object _func):")
+         function_lines.append("  cdef Eo_Event_Cb func = <Eo_Event_Cb> eodefault._object_callback")
+         function_lines.append("  cdef void * user_data")
+         function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_CALLBACK_DEL_LAZY), _desc, func, &user_data)")
+         function_lines.append("  return None if user_data == NULL else <object>user_data")
+         if_ret = True
+
+       elif _o.op_id == "EO_BASE_SUB_ID_DATA_SET":
+         function_lines.append("def data_set(self, object _key, object _data):")
+         function_lines.append("  _key = pytext_to_utf8(_key)")
+         function_lines.append("  cdef char* key = <char*> _key")
+         function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_DATA_SET), key, <void*>_data, NULL)")
+         if_ret = True
+
+       elif _o.op_id == "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE":
+         function_lines.append("@staticmethod")
+         function_lines.append("def event_global_freeze():")
+         function_lines.append("  eodefault.eo_class_do(eobase.eo_base_class_get(), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE))");
+         if_ret = True
+
+       elif _o.op_id == "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE_GET":
+         function_lines.append("@staticmethod")
+         function_lines.append("def event_global_freeze_get():")
+         function_lines.append("  cdef int fcount");
+         function_lines.append("  eodefault.eo_class_do(eobase.eo_base_class_get(), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE_GET), &fcount)");
+         function_lines.append("  fcount_ = <object>fcount");
+         function_lines.append("  return (fcount_)");
+
+         if_ret = True
+
+       elif _o.op_id == "EO_BASE_SUB_ID_EVENT_GLOBAL_THAW":
+         function_lines.append("@staticmethod")
+         function_lines.append("def event_global_thaw():")
+         function_lines.append("  eodefault.eo_class_do(eobase.eo_base_class_get(), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_GLOBAL_THAW))");
+         if_ret = True
+
+       if if_ret:
+         function_lines.append("\n")
+         self.pxi["funcs_parsed"] += function_lines
+         #self.cl_data[kl_id]["methods_parsed"][fname] = function_lines
+         return
+
+       """
+        self.properties.setdefault(kl, {})
+        fid = fparams["op_id"]
+        prop = None
+        if fname[-3:] == "set":
+          prop = self.properties[kl].setdefault(fname[:-4], {"set":False, "get":False})
+          prop["set"] = "True"
+
+          if "parameters" in fparams:
+            for n, c_t, d in fparams["parameters"]:
+              if d != "in":
+                prop["set"] = "True/False"
+        elif fname[-3:] == "get":
+          prop = self.properties[kl].setdefault(fname[:-4], {"set":False, "get":False})
+          prop["get"] = "True"
+
+        """
+
+     if True:#"parameters" in fparams:
+
+       for i, (n, c_t, d) in enumerate(_o.parameters):
+         c_t_tmp = self.cast(c_t)
+
+         py_type = ""
+         c_t_internal = ""
+
+         if c_t_tmp in self.internal_types:
+            c_t_internal = self.internal_types[c_t_tmp][0]
+            py_type = self.internal_types[c_t_tmp][1]
+         else:
+            print "Warning: type: \"%s\" wasn't found in self.internal_types. Functon \"%s\" will not be defined"%(c_t_tmp, fname)
+            return
+
+         if d == "in":
+           in_params.append(py_type + ' _' + n)
+           if c_t_internal == "Eo*":
+             l = "  cdef %s %s = <%s> _%s"%(c_t_internal, n, c_t_internal, n + ".eo")
+           elif c_t_internal == "Eo_Event_Cb":
+             l = "  cdef %s %s = <%s> %s"%(c_t_internal, n, c_t_internal, "eodefault._object_callback")
+#                elif fparams["parameters"][i-1][1] == "eo_event_cb":
+#                  l = ""
+           else:
+             if c_t_internal == "char*" :
+               l = "  _%s = pytext_to_utf8(_%s)"%(n, n)
+               function_lines.append(l)
+             l = "  cdef %s %s = <%s> _%s"%(c_t_internal, n, c_t_internal, n)
+           function_lines.append(l)
+
+
+           if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
+             pass_params.append('&' + n)
+           else:
+             pass_params.append(n)
+
+         elif d == "out":
+           l = "  cdef %s %s"%(c_t_internal, n)
+           pass_params.append('&' + n)
+           ret_params.append((n + '_', c_t_internal))
+           function_lines.append(l);
+
+         elif d == "in,out":
+           in_params.append('_' + n)
+           pass_params.append('&' + n)
+           if c_t_internal == "Eo*":
+             l = "  cdef %s %s = <%s> _%s"%(c_t_internal, n, c_t_internal, n + ".eo")
+           else:
+             l = "  cdef %s %s = <%s> _%s"%(c_t_internal, n, c_t_internal, n)
+           ret_params.append((n + '_', c_t_internal))
+           function_lines.append(l);
+
+     in_params.insert(0, "self")
+     l = "def %s(%s):"% (_o.name, ', '.join(in_params))
+     function_lines.insert(0, l)
+
+     l = '%s(%s.%s)'%(cl_obj.sub_id_function,
+                                   cl_obj.mod_name,
+                                   _o.op_id)
+
+     pass_params.insert(0, l)
+     l = "%s.%s(self)"%(cl_obj.basemodule, self._funcs["instance_get"])
+     pass_params.insert(0, l)
+     l = '  %s.%s(%s)'% (cl_obj.basemodule, self._funcs["do"],', '.join(pass_params))
+     function_lines.append(l);
+
+     ret_params_tmp = []
+     if len(ret_params) > 0:
+       for p, t in ret_params:
+         if t.find('*') != -1:
+           l = '  %s = None if %s == NULL else <object>%s'%(p, p[:-1], p[:-1])
+           function_lines.append(l)
+         else:
+           l = '  %s = <object>%s'% (p, p[:-1])
+           function_lines.append(l)
+         ret_params_tmp.append(p)
+
+       l = '  return (%s)'% (', '.join(ret_params_tmp))
+       function_lines.append(l)
+
+     function_lines.append("")
+     self.pxi["funcs_parsed"] += function_lines
+
+
+
+  def visit_Init(self, _o):
+    cl_obj = _o.cl_obj
+
+    function_lines = []
+    l = "def __init__(self, EoDefault parent):"
+    function_lines.append(l)
+
+    l = "  instantiateable = %s"%(cl_obj.instantiateable)
+    function_lines.append(l)
+
+    l = "  if not instantiateable:"
+    function_lines.append(l)
+    l = "    print \"Class '%s' is not instantiate-able. Aborting.\"%(self.__class__.__name__)"
+
+    function_lines.append(l)
+    l = "    exit(1)"
+    function_lines.append(l)
+
+    if cl_obj.instantiateable == "True":
+      l = "  klass = <long>%s.%s()"%(cl_obj.mod_name, cl_obj.get_function)
+      function_lines.append(l)
+      l = "  self.%s(klass, parent)"%self._funcs["instance_set2"]
+      function_lines.append(l)
+      l = "  self.data_set(EoDefault.PY_EO_NAME, self)"
+      function_lines.append(l)
+    function_lines.append("")
+
+    function_lines.append("")
+
+    self.pxi["funcs_parsed"] += function_lines
+
+
+    self.pxi["f_name"] = cl_obj.mod_name + ".pxi"
+    self.pxd["f_name"] = cl_obj.mod_name  + ".pxd"
+
+    pattern = "########################################################"
+    l = '%s\n##\n## generated from from \"%s\"\n##\n%s'%(pattern, cl_obj.source_file, pattern)
+    self.pxi["head"].append(l + '\n')
+    self.pxd["head"].append(l + '\n')
+
+
+    #inserting cimports
+    l = "cimport %s"%cl_obj.mod_name
+    self.pxi["head"].append(l)
+    l = "cimport %s"%cl_obj.basemodule
+    self.pxi["head"].append(l + '\n')
+
+    #defining class
+    parents = []
+    if len(cl_obj.parents) != 0:
+       parents = cl_obj.parents
+
+    if cl_obj.kl_id == "EoBase":
+       parents = []
+       parents.append(self.basemodule["name"])
+       l = "from %s import %s"%(self.basemodule["module"], self.basemodule["name"])
+       self.pxi["head"].append(l + "\n")
+
+    if "EoBase" in parents:
+       l = "from %s import %s"%("eobase", "EoBase")
+       self.pxi["head"].append(l + "\n")
+
+    l = "from %s import %s"%(self.basemodule["module"], "pytext_to_utf8")
+    self.pxi["head"].append(l + "\n")
+
+    #defining _id function
+    if cl_obj.extern_base_id != "":
+      l = 'cdef int %s(int sub_id):'%(cl_obj.sub_id_function)
+      self.pxi["head"].append(l)
+      l = '  return %s.%s + sub_id'%(cl_obj.mod_name,
+                                         cl_obj.extern_base_id)
+      self.pxi["head"].append(l + '\n')
+
+    #defining class
+
+    parents = ','.join(parents)
+    l = 'class %s(%s):'%(cl_obj.kl_id, parents)
+
+    self.pxi["head"].append(l)
+
+
+        #inserting cimports
+    l = "from %s cimport *"%(cl_obj.basemodule)
+    self.pxd["head"].append(l + '\n')
+
+        #inserting externs from H
+    l = "cdef extern from \"%s\":"%(cl_obj.includes[0])
+    self.pxd["head"].append(l + '\n')
+
+
+    if cl_obj.extern_base_id != "":
+       l = '  %s %s'%("Eo_Op", cl_obj.extern_base_id)
+       self.pxd["head"].append(l + '\n')
+
+
+    enum_lines = []
+    enum_lines.append("  ctypedef enum:")
+    for v in cl_obj.op_ids:
+      #inserting extern enums from H into temp list
+      if len(enum_lines) > 1 :
+        enum_lines[-1] = enum_lines[-1] + ','
+      enum_lines.append('    ' + v)
+
+    if len(enum_lines) > 1:
+        for l in enum_lines:
+            self.pxd["head"].append(l)
+        self.pxd["head"].append('\n')
+
+    for v in cl_obj.extern_funcs:
+        l = '  %s %s'%(v[1], v[0])
+        self.pxd["head"].append(l)
+
+
+
+
+
+
+  def visit_Ev(self, _o):
+    #defining event globals
+    v = _o.ev_id
+    pos = v.find("EV_")
+    if pos == -1:
+      return
+    name = v[pos + 3:]
+    l = "  %s = <long>%s.%s"%(name, _o.cl_obj.mod_name, v)
+    self.pxi["ev"].append(l)
+    l = '  %s %s'%("Eo_Event_Description *", v)
+    self.pxd["ev"].append(l)
+
+
+
+class VAcceptor(object):
+  def accept(self, v):
+    if not O_TYPE_CHECK(v, Visitor):
+      return None
+    v.visit(self)
+
+class Func(VAcceptor):
+   def __init__(self, _name, _op_id, _c_macro, _parameters, _cl_obj):
+     self.name = _name
+     self.op_id = _op_id
+     self.c_macro = _c_macro
+     self.parameters = _parameters
+     self.cl_obj = _cl_obj
+
+class Init(VAcceptor):
+   def __init__(self, _cl_obj):
+     self.cl_obj = _cl_obj
+
+
+class Ev(VAcceptor):
+   def __init__(self, _ev_id, _cl_obj):
+     self.ev_id = _ev_id
+     self.cl_obj = _cl_obj
+
+class Mod(object):
+   def __init__(self):
+     self.kl_id = ""
+     self.c_name = ""
+     self.macro = ""
+     self.eo_type = ""
+     self.get_function = ""
+     self.instantiateable = False
+     self.includes = None
+     self.functions = []
+     self.mod_name = ""
+     self.basemodule = ""
+     self.op_ids = []
+     self.ev_ids = []
+     self.extern_base_id = ""
+     self.extern_functions = []
+     self.sub_id_function = ""
+     self.source_file = ""
+     self.parents = []
+     self.V = None
+
+   def resolve(self):
+     for n, o in self.functions.items():
+       o.accept(self.V)
+
+
+class XMLparser(object):
+    def __init__(self):
+
+        self.globals = {}
+        self.cl_data = {}
+        self.cl_incl = {}
+        self.V = PyVisitor()
+        self.objects = {}
+        self.objects_incl = {}
+
+        """
+        self.properties = {}
+        """
+
+        #internal functions, used in eodefault.pyx
+
+
+        self.typedefs = {"Evas_Coord" : "int",
+                         "Evas_Angle":"int",
+                         "Evas_Font_Size" : "int",
+                         "Eina_Bool" : "bool",
+                         "Eo_Callback_Priority": "short"}
+
+        self.primary_types = {"Eo**" : "Eo*",
+                              "void**" : "void*",
+                              "char**" : "char*"}
+
+        self.internal_types = {
+                                "void*": ["void*", "object"],
+                                "char*": ["char*", "object", "ToString"],
+                                "Eo*":  ["Eo*", "EoDefault", "ToObject"],
                                 "short" : ["int", "int", "ToInt32"],
                                 "int": ["int", "int", "ToInt32"],
                                 "int*": ["int", "int", "ToInt32"],
@@ -92,11 +546,9 @@ class XMLparser(object):
         self.functions = {} #function names with parameters
         self.current_func = ""
         self.methods_parsed = {} #ready function lines
-        self.signals = []
         self.hack_types = ["eo_base_data_free_func"]
 
         self.globals["extern_base_id"] = ""
-
 
     def start_element_handler(self, name, attrs):
         #converting unicode to ascii
@@ -109,8 +561,6 @@ class XMLparser(object):
             self.current_func = attrs["name"]
             self.functions.setdefault(self.current_func, {"op_id":attrs["op_id"], "c_macro":attrs["c_macro"], "parameters":[]})
 
-        elif name == "signal":
-            self.signals.append((attrs["name"], attrs["op_id"]))
 
         elif name == "parameter":
             func_att = self.functions[self.current_func]
@@ -141,40 +591,6 @@ class XMLparser(object):
 
         else:
             pass
-
-    """
-building __init__ function
-"""
-    def parse_init_func(self, kl_id):
-
-        kl_dt = self.cl_data[kl_id]
-
-        function_lines = []
-        l = "def __init__(self, EoDefault parent):"
-        function_lines.append(l)
-
-        l = "  instantiateable = %s"%(kl_dt["instantiateable"])
-        function_lines.append(l)
-
-        l = "  if not instantiateable:"
-        function_lines.append(l)
-        l = "    print \"Class '%s' is not instantiate-able. Aborting.\"%(self.__class__.__name__)"
-        function_lines.append(l)
-        l = "    exit(1)"
-        function_lines.append(l)
-
-        if kl_dt["instantiateable"] == "True":
-          l = "  klass = <long>%s.%s()"%(kl_dt["module"], kl_dt["get_function"])
-          function_lines.append(l)
-          l = "  self.%s(klass, parent)"%self._funcs["instance_set2"]
-          function_lines.append(l)
-          l = "  self.data_set(EoDefault.PY_EO_NAME, self)"
-          function_lines.append(l)
-        function_lines.append("")
-
-
-        function_lines.append("")
-        self.cl_data[kl_id]["methods_parsed"]["__init__"] = function_lines
 
 
 #changing types according to typedefs: Evas_Coord -> int
@@ -286,7 +702,7 @@ building __init__ function
                c_t_internal = self.internal_types[c_t_tmp][0]
                py_type = self.internal_types[c_t_tmp][1]
             else:
-               print "Warning: type: \"%s\" wasn't found in self.internal_types. Functon \"%s\" will not be defined"%(c_t_tmp, fname)
+               print "warning: type: \"%s\" wasn't found in self.internal_types. functon \"%s\" will not be defined"%(c_t_tmp, fname)
                return
 
             if d == "in":
@@ -294,9 +710,9 @@ building __init__ function
                 in_params.append(py_type + ' _' + n)
                 if c_t_internal == "Eo*":
                   l = "  cdef %s %s = <%s> _%s"%(c_t_internal, n, c_t_internal, n + ".eo")
-                elif c_t_internal == "Eo_Event_Cb":
+                elif c_t_internal == "Eo_Event_Eb":
                   l = "  cdef %s %s = <%s> %s"%(c_t_internal, n, c_t_internal, "eodefault._object_callback")
-#                elif fparams["parameters"][i-1][1] == "Eo_Event_Cb":
+#                elif fparams["parameters"][i-1][1] == "eo_event_cb":
 #                  l = ""
                 else:
 
@@ -311,7 +727,7 @@ building __init__ function
                 #function_lines.append(l)
                 l = "  cdef void *%s_tmp = NULL if _%s is None else <void*>_%s"%(n, n, n)
                 function_lines.append(l)
-                #l = "  assert tmp == NULL, \"_%s should be null\""%(n)
+                #l = "  assert tmp == NULL, \"_%s should be NULL\""%(n)
                 #function_lines.append(l)
                 l = "  cdef %s %s = <%s> %s_tmp"%(c_t_tmp, n, c_t_tmp, n)
                 function_lines.append(l)
@@ -368,29 +784,6 @@ building __init__ function
         function_lines.append("")
         self.cl_data[kl_id]["methods_parsed"][fname] = function_lines
 
-    def parse_signals(self, kl_id):
-        kl_dt = self.cl_data[kl_id]
-        for n, sig_id in kl_dt["signals"]:
-          function_lines = []
-          if n[-4:] == "_add":
-             l = "def " + n + "(self, priority, func, *args, **kwargs):"
-             function_lines.append(l)
-             l = "  cdef long id_desc = <long>%s.%s"%(kl_dt["module"], sig_id)
-             function_lines.append(l)
-             l = "  self._object_callback_add(id_desc, priority, None, func, *args, **kwargs)"
-             function_lines.append(l)
-
-          elif n[-4:] == "_del":
-             l = "def " + n + "(self, func):"
-             function_lines.append(l)
-             l = "  cdef long id_desc = <long>%s.%s"%(kl_dt["module"], sig_id)
-             function_lines.append(l)
-             l = "  self._object_callback_del(id_desc, func)"
-             function_lines.append(l)
-
-          function_lines.append("")
-          self.cl_data[kl_id]["methods_parsed"][n] = function_lines
-
 
     def parse(self, fName):
         self.source_file = fName
@@ -419,9 +812,8 @@ building __init__ function
               "instantiateable": self.class_data["instantiateable"],
               "includes" : self.includes,
               "functions" : self.functions,
-              "signals" : self.signals,
               "module" : mod_name,
-              "basemodule" : self.basemodule["module"],
+              "basemodule" : "eodefault",
               "op_ids" : self.op_ids,
               "ev_ids" : self.ev_ids,
               "extern_base_id" : self.globals["extern_base_id"],
@@ -431,8 +823,44 @@ building __init__ function
               "source_file" : self.source_file,
               "parents" : parent_list
             }
+
+        mod_o = Mod()
+        mod_o.kl_id = kl_id
+        mod_o.c_name = self.class_data["c_name"]
+        mod_o.macro = self.class_data["macro"]
+        mod_o.eo_type = self.class_data["type"]
+        mod_o.get_function = self.class_data["get_function"]
+        mod_o.instantiateable = self.class_data["instantiateable"]
+        mod_o.includes = self.includes
+        mod_o.functions = {}
+        mod_o.mod_name = mod_name
+        mod_o.basemodule = "eodefault"
+        mod_o.op_ids = self.op_ids
+        mod_o.ev_ids = self.ev_ids
+        mod_o.extern_base_id = self.globals["extern_base_id"]
+        mod_o.extern_funcs = self.extern_funcs
+        mod_o.sub_id_function = self.globals["sub_id_function"]
+        mod_o.source_file = self.source_file
+        mod_o.parents = parent_list
+        mod_o.V = PyVisitor()
+
+
+        for i in self.functions:
+          mod_o.functions[i] = Func(i, self.functions[i]["op_id"], self.functions[i]["c_macro"], self.functions[i]["parameters"], mod_o)
+
+
+        for i in self.ev_ids:
+          mod_o.functions[i] = Ev(i, mod_o)
+
+        mod_o.functions["__init__"] = Init(mod_o)
+
+        self.objects[kl_id] = mod_o
+        del mod_o
+
+
+
+
         self.functions = {}
-        self.signals = []
         self.includes = []
         self.op_ids = []
         self.ev_ids = []
@@ -461,7 +889,6 @@ building __init__ function
                 continue
             self.parse_methods(kl_id, key)
 
-        self.parse_signals(kl_id)
         self.parse_init_func(kl_id)
 
 
@@ -531,6 +958,21 @@ building __init__ function
 
        return parents_to_find
 
+
+
+    def check_parents2(self):
+       list_of_parents = []
+
+       for n, o in self.objects.items():
+         o.parents = filter(len, o.parents)
+         list_of_parents += o.parents
+
+       list_of_parents = list(set(list_of_parents))
+
+       parents_to_find = filter(lambda l: True if l not in self.objects else False, list_of_parents)
+
+       return parents_to_find
+
     def build_js_modules(self, module_name, pkg):
        cl_data_tmp = {}
 
@@ -585,7 +1027,6 @@ building __init__ function
           properties += parent_data["properties_set"]
           properties += parent_data["properties_get"]
           event_ids += parent_data["ev_ids"]
-
 
 #        kl_dt[".h"] = os.path.join(self.outdir, "_" + kl_dt["module"]  + ".h")
 #        kl_dt[".cc"] = os.path.join(self.outdir, "_" + kl_dt["module"]  + ".cc")
@@ -1039,7 +1480,7 @@ building __init__ function
              c_f.append("static Handle<Value> %s(const Arguments& args)\n"%m)
              c_f.append("{\n")
              c_f.append("  eo_class_do(%s, eo_%s());\n"%(kl_dt["macro"],m))
-             c_f.append(" return Undefined();\n")
+             c_f.append("  return Undefined();\n")
              c_f.append("}\n")
              continue
 
@@ -1048,7 +1489,7 @@ building __init__ function
              c_f.append("Handle<Value> %s(const Arguments& args)\n"%m)
              c_f.append("{\n")
              c_f.append("  eo_class_do(%s, eo_%s());\n"%(kl_dt["macro"],m))
-             c_f.append(" return Undefined();\n")
+             c_f.append("  return Undefined();\n")
              c_f.append("}\n")
              continue
 
@@ -1166,240 +1607,6 @@ building __init__ function
 
 
 
-    def build_python_modules(self, module_name, pkg, sourcedir):
-       cl_data_tmp = {}
-       module_file = module_name + ".pyx"
-
-       for k in self.cl_data:
-         self.cl_data[k]["name"] =  normalize_names(self.cl_data[k]["c_name"])
-         self.cl_data[k]["parents"] = normalize_names(self.cl_data[k]["parents"])
-         cl_data_tmp[self.cl_data[k]["name"]] = self.cl_data[k]
-
-       self.cl_data = cl_data_tmp
-       del cl_data_tmp
-
-       if module_name == "eobase":
-         if "EoBase" in self.cl_data:
-           cl_data_tmp = dict(self.cl_data)
-           self.cl_data = {}
-           self.cl_data["EoBase"] = cl_data_tmp["EoBase"]
-           del cl_data_tmp
-         else:
-           print "ERROR: source files for module \"EoBase\" not found"
-           exit(1)
-       else:
-          if "EoBase" in self.cl_data:
-             self.cl_data.pop("EoBase")
-             print("Warning: EoBase module was removed from building tree")
-
-       for k in self.cl_data:
-         self.build_module(k)
-
-       lines = []
-       lines.append("from distutils.core import setup")
-       lines.append("from distutils.extension import Extension")
-       lines.append("from Cython.Distutils import build_ext")
-       lines.append("import commands, os")
-       lines.append("")
-
-       lines.append("def pkgconfig(_libs):")
-       lines.append("  cf = commands.getoutput(\"pkg-config --cflags %s\"%_libs).split()")
-       lines.append("  ldf = commands.getoutput(\"pkg-config --libs %s\"%_libs).split()")
-       lines.append("  return (cf, ldf)")
-       lines.append("")
-
-       lines.append("(e_compile_args, e_link_args) = pkgconfig(\"%s\")"%pkg)
-       lines.append("")
-
-       lines.append("e_include_dirs = [\".\"]")
-       lines.append("e_library_dirs = []")
-       lines.append("e_libraries = []")
-       lines.append("")
-
-       lines.append("setup(")
-       lines.append("  cmdclass = {'build_ext': build_ext},")
-       lines.append("  ext_modules = [")
-
-       if "EoBase" in self.cl_data:
-         lines.append("  Extension(\"%s\", ['%s'], include_dirs = e_include_dirs, library_dirs = e_library_dirs, libraries = e_libraries, extra_compile_args = e_compile_args, extra_link_args = e_link_args),"%(self.basemodule["module"], self.basemodule[".pyx"]))
-
-       lines.append("  Extension(\"%s\", ['%s'], include_dirs = e_include_dirs, library_dirs = e_library_dirs, libraries = e_libraries, extra_compile_args = e_compile_args, extra_link_args = e_link_args),"%(module_name, module_name + ".pyx"))
-
-       lines.append("   ])\n")
-       lines.append("\n")
-
-
-       f = open (os.path.join(self.outdir, "setup.py"), 'w')
-       for l in lines:
-         f.write(l + "\n")
-       f.close()
-
-#building right order of including files
-       cl_parents = {}
-       lst = []
-       for k in self.cl_data:
-          cl_parents[k] = self.cl_data[k]["parents"]
-
-       tmp = dict(cl_parents)
-
-       cont = True
-       while cont:
-         cont = False
-         for k in cl_parents:
-           can_add = True
-           for p in cl_parents[k]:
-             if p in tmp:
-               can_add = False
-           if can_add is True:
-             lst.append(k)
-             tmp.pop(k)
-             cont = True
-         cl_parents = dict(tmp)
-       if len(tmp) > 0:
-         print "ERROR: can't resolve classes include order"
-         exit(1)
-
-       lines = []
-       lines.append("from eodefault cimport *")
-       lines.append("\n")
-       for k in lst:
-         lines.append("include \"%s\""%os.path.split(self.cl_data[k][".pxi"])[1])
-
-       f = open (os.path.join(self.outdir, module_file), 'w')
-       for l in lines:
-         f.write(l + "\n")
-       f.close()
-
-       f_pyx = os.path.join(sourcedir, self.basemodule[".pyx"])
-       f_pxd = os.path.join(sourcedir, self.basemodule[".pxd"])
-       f_init = os.path.join(sourcedir, "__init__.py")
-       try:
-         shutil.copy(f_pyx, self.outdir)
-         shutil.copy(f_pxd, self.outdir)
-         shutil.copy(f_init, self.outdir)
-       except IOError as ex:
-          print "%s"%ex
-          print "Aborting"
-          exit(1)
-       except shutil.Error as er:
-          print "Warning: %s"%er
-
-
-
-    def build_module(self, kl_id):
-#creating .pyx file
-
-        kl_dt = self.cl_data[kl_id]
-
-        kl_dt[".pyx"] = os.path.join(self.outdir, kl_dt["module"]  + ".pyx")
-        kl_dt[".pxd"] = os.path.join(self.outdir, kl_dt["module"]  + ".pxd")
-        kl_dt[".pxi"] = os.path.join(self.outdir, kl_dt["module"]  + ".pxi")
-
-        f = open (kl_dt[".pxi"], 'w')
-        pattern = "########################################################"
-        l = '%s\n##\n## generated from from \"%s\"\n##\n%s'%(pattern, kl_dt["source_file"], pattern)
-        f.write(l+'\n\n')
-
-        #inserting cimports
-        l = "cimport %s"%kl_dt["module"]
-        f.write(l+'\n')
-        l = "cimport %s"%kl_dt["basemodule"]
-        f.write(l+'\n\n')
-
-        #defining class
-        parents = []
-        if len(kl_dt["parents"]) != 0:
-          parents = kl_dt["parents"]
-
-
-        if kl_dt["name"] == "EoBase":
-           parents = []
-           parents.append(self.basemodule["name"])
-           l = "from %s import %s"%(self.basemodule["module"], self.basemodule["name"])
-           f.write(l + "\n")
-
-        if "EoBase" in parents:
-          l = "from %s import %s"%("eobase", "EoBase")
-          f.write(l + "\n")
-
-        l = "from %s import %s"%(self.basemodule["module"], "pytext_to_utf8")
-        f.write(l + "\n")
-
-        f.write("\n")
-
-        #defining _id function
-        if kl_dt["extern_base_id"] != "":
-          l = 'cdef int %s(int sub_id):'%(kl_dt["sub_id_function"])
-          f.write(l+'\n')
-          l = '  return %s.%s + sub_id'%(kl_dt["module"],
-                                         kl_dt["extern_base_id"])
-          f.write(l+'\n\n')
-        parents = ",".join(self.reorder_parents(parents))
-        #defining class
-        l = 'class %s(%s):'%(kl_dt["name"], parents)
-        f.write(l+'\n\n')
-
-        #defining event globals
-        for v in kl_dt["ev_ids"]:
-          pos = v.find("EV_")
-          if pos == -1:
-            continue
-          name = v[pos + 3:]
-          l = "  %s = <long>%s.%s"%(name, kl_dt["module"], v)
-          f.write(l + '\n')
-        f.write('\n')
-
-        methods_parsed = kl_dt["methods_parsed"]
-        #inserting class methods
-        for key in methods_parsed:
-            func = methods_parsed[key]
-            for l in func:
-               f.write('  '+l+'\n')
-        f.close()
-        del methods_parsed
-
-        #creating .pxd file
-        f = open (kl_dt[".pxd"], 'w')
-        pattern = "########################################################"
-        l = "%s\n##\n## generated from from \"%s\"\n##\n%s"%(pattern, kl_dt["source_file"], pattern)
-        f.write(l+'\n\n')
-
-        #inserting cimports
-        l = "from %s cimport *"%(kl_dt["basemodule"])
-        f.write(l+'\n\n')
-
-        #inserting externs from H
-        l = "cdef extern from \"%s\":"%(kl_dt["includes"][0])
-        f.write(l+'\n\n')
-
-        if kl_dt["extern_base_id"] != "":
-          l = '  %s %s'%("Eo_Op", kl_dt["extern_base_id"])
-          f.write(l+'\n\n')
-        enum_lines = []
-        enum_lines.append("  ctypedef enum:")
-        for v in kl_dt["op_ids"]:
-          #inserting extern enums from H into temp list
-          if len(enum_lines) > 1 :
-            enum_lines[-1] = enum_lines[-1] + ','
-          enum_lines.append('    ' + v)
-          continue
-
-        for v in kl_dt["ev_ids"]:
-          l = '  %s %s'%("Eo_Event_Description *", v)
-          f.write(l+'\n')
-        f.write('\n')
-
-        if len(enum_lines) > 1:
-            for l in enum_lines:
-                f.write(l+'\n')
-            f.write('\n')
-
-        for v in kl_dt["extern_funcs"]:
-            l = '  %s %s'%(v[1], v[0])
-            f.write(l+'\n')
-        f.write('\n')
-
-        f.close()
 
     def outdir_set(self, _d):
       self.outdir = _d
@@ -1421,7 +1628,9 @@ building __init__ function
             for l in d:
               print spaces, l
 
-    def reorder_parents(self, p_list):
+
+#FIXME move this function to eo_py_gen
+    def reorder_parents2(self, p_list):
       if len(p_list) < 2:
         return p_list
       parent_l = []
@@ -1433,7 +1642,7 @@ building __init__ function
       tmp_parents_list.pop(0)
 
       for l in tmp_parents_list:
-        cl_type = self.cl_data[l]["type"]
+        cl_type = self.objects[l].eo_type
         if cl_type == self.string_consts["class_type_mixin"]: # "EOBJ_CLASS_TYPE_MIXIN":
           mixin_l.append(l)
         else:
@@ -1447,6 +1656,8 @@ building __init__ function
       lst = mixin_l + other_l + parent_l
 
       return lst
+
+
 
     def get_parents(self, kl):
       prnts = self.cl_data[kl]["parents"]

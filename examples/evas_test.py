@@ -187,12 +187,18 @@ bb.size_set(100, 50)
 bb.color_set(255, 0, 5, 255)
 bb.text_set(u"Red button")
 
+
+
+
 try:
   bb.text_set(bb)
 except TypeError as ex:
   print "TypeError: %s"%ex
 
+
 bb.event_callback_priority_add(ElwButton.CLICKED, 0, cb_clicked)
+
+
 
 #===========================
 but = ElwButton(w)
@@ -203,6 +209,8 @@ but.color_set(255, 0, 255, 255)
 but.text_set("1st button in box")
 but.event_callback_priority_add(ElwButton.CLICKED, 0, thaw_global)
 
+
+
 but2 = ElwButton(w)
 but2.visibility_set(1)
 #but2.position_set(270, 150)
@@ -211,13 +219,21 @@ but2.color_set(255, 255, 0, 255)
 but2.text_set("2nd button in box")
 but2.event_callback_priority_add(ElwButton.CLICKED, 0, freeze_me)
 
+
+
+
 box = ElwBox(w)
 p_box = box
 box.position_set(140, 170) 
 box.size_set(50, 50) 
 box.visibility_set(1) 
+
+
+
 box.pack_end(but)
 box.pack_end(but2)
+
+
 
 #===========================
 pb = ElwButton(w)

@@ -3,13 +3,94 @@
 from eo_parser.helper import isXML, filter_path, filter_path_no_warning, filter_files, normalize_names
 from eo_parser.XMLparser import XMLparser
 from argparse import ArgumentParser
-import os, sys
+import os, sys, shutil
 
 def verbose_true(mes):
   print mes
 
 def verbose_false(mes):
   pass
+
+
+
+def build_setup_file(module_name, pkg, outdir):
+   module_file = module_name + ".pyx"
+
+   lines = []
+   lines.append("from distutils.core import setup")
+   lines.append("from distutils.extension import Extension")
+   lines.append("from Cython.Distutils import build_ext")
+   lines.append("import commands, os")
+   lines.append("")
+
+   lines.append("def pkgconfig(_libs):")
+   lines.append("  cf = commands.getoutput(\"pkg-config --cflags %s\"%_libs).split()")
+   lines.append("  ldf = commands.getoutput(\"pkg-config --libs %s\"%_libs).split()")
+   lines.append("  return (cf, ldf)")
+   lines.append("")
+
+   lines.append("(e_compile_args, e_link_args) = pkgconfig(\"%s\")"%pkg)
+   lines.append("")
+
+   lines.append("e_include_dirs = [\".\"]")
+   lines.append("e_library_dirs = []")
+   lines.append("e_libraries = []")
+   lines.append("")
+
+   lines.append("setup(")
+   lines.append("  cmdclass = {'build_ext': build_ext},")
+   lines.append("  ext_modules = [")
+
+   if module_name == "eobase":
+     lines.append("  Extension(\"%s\", ['%s'], include_dirs = e_include_dirs, library_dirs = e_library_dirs, libraries = e_libraries, extra_compile_args = e_compile_args, extra_link_args = e_link_args),"%("eodefault", "eodefault.pyx"))
+
+   lines.append("  Extension(\"%s\", ['%s'], include_dirs = e_include_dirs, library_dirs = e_library_dirs, libraries = e_libraries, extra_compile_args = e_compile_args, extra_link_args = e_link_args),"%(module_name, module_name + ".pyx"))
+
+   lines.append("   ])\n\n")
+
+
+   f = open(os.path.join(outdir, "setup.py"), 'w')
+   for l in lines:
+     f.write(l + "\n")
+   f.close()
+
+
+
+
+def write_files(outdir, o):
+    f = open(os.path.join(outdir, o.V.pxi["f_name"]), 'w')
+
+    lst = o.V.pxi["head"]
+    for l in lst:
+       f.write(l+'\n')
+    f.write("\n")
+
+    lst = o.V.pxi["ev"]
+    for l in lst:
+       f.write(l+'\n')
+    f.write("\n")
+
+    lst = o.V.pxi["funcs_parsed"]
+    for l in lst:
+       f.write('  ' + l + '\n')
+    f.write("\n")
+    f.close
+
+    f = open(os.path.join(outdir, o.V.pxd["f_name"]), 'w')
+    lst = o.V.pxd["head"]
+    for l in lst:
+       f.write(l+'\n')
+    f.write("\n")
+
+    lst = o.V.pxd["ev"]
+    for l in lst:
+       f.write(l+'\n')
+    f.write("\n")
+    f.close
+
+
+
+
 
 def main():
   parser = ArgumentParser()
@@ -61,24 +142,34 @@ def main():
 
   verbose_print("Dirs: %s"%directories)
   verbose_print("Outdir: %s"%outdir)
-  verbose_print("xmldir: %s"%xmldir)
+  verbose_print("Xmldir: %s"%xmldir)
 
   xml_files = filter_files(directories, isXML, False)
   verbose_print("In Files: %s"%xml_files)
 
   xp = XMLparser()
-  xp.outdir_set(outdir)
 
   for f in xml_files:
     xp.parse(f)
 
+#excluding eobase module, if building non-eobase module
+  if args.module == "eobase":
+     if "Eo Base" in xp.objects:
+       cl_data_tmp = dict(xp.objects)
+       xp.objects = {}
+       xp.objects["Eo Base"] = cl_data_tmp["Eo Base"]
+       del cl_data_tmp
+     else:
+       print "ERROR: source files for module \"EoBase\" not found"
+       exit(1)
+  else:
+     if "Eo Base" in xp.objects:
+       xp.objects.pop("Eo Base")
+       print("Warning: EoBase module was removed from building tree")
 
-  for kl in xp.cl_data:
-     xp.py_parse(kl)
 
-  #xp.print_data()
+  parents_to_find =  xp.check_parents2()
 
-  parents_to_find =  xp.check_parents()
   verbose_print("Warning: need to find parent classes %s"%parents_to_find)
 
   if len(parents_to_find) != 0:
@@ -97,21 +188,19 @@ def main():
     for f in xml_files:
       xp_incl.parse(f)
 
-
-    for k in xp_incl.cl_data:
-      kl_dt = xp_incl.cl_data[k]
-      if kl_dt["c_name"] in parents_to_find:
-#     print "class: ", k
-        n = kl_dt["c_name"]
-        n = normalize_names(n)
-        xp.cl_incl[n] = kl_dt
-        i = parents_to_find.index(kl_dt["c_name"])
+    for n, o in xp_incl.objects.items():
+      if n in parents_to_find:
+        i = parents_to_find.index(n)
         parents_to_find.pop(i)
+        n = normalize_names(n)
+        xp.objects_incl[n] = o
+
     del xp_incl
 
     if len(parents_to_find) != 0:
       print "ERROR: XML files weren't found for %s classes... Aborting"%(",".join(parents_to_find))
       exit(1)
+
 
   for d in xmldir:
     d_tmp = os.path.join(d, "eodefault.pxd")
@@ -123,9 +212,80 @@ def main():
     print "ERROR: no include files were found... Aborting... (Use: --include=INCLUDE_DIR)"
     exit(1)
 
-  xp.build_python_modules(args.module, args.pkg, sourcedir)
 
-#  os.system("cd %s && python setup.py build_ext --inplace && rm -rf *.c build/"%outdir)
+  objects_tmp = {}
+  for n, o in xp.objects.items():
+    o.c_name = normalize_names(o.c_name)
+    o.kl_id = normalize_names(o.kl_id)
+    o.parents = normalize_names(o.parents)
+    objects_tmp[o.kl_id] = o
+
+  xp.objects = objects_tmp
+
+
+
+  #reodering parnts and generatind source code
+  for n, o in xp.objects.items():
+    o.parents = xp.reorder_parents2(o.parents)
+    o.resolve()
+
+  for n, o in xp.objects.items():
+    write_files(outdir, o)
+
+  #xp.build_python_modules(args.module, args.pkg, sourcedir)
+  build_setup_file(args.module, args.pkg, outdir)
+
+
+#building right order of including files
+  cl_parents = {}
+  lst = []
+  for n, o in xp.objects.items():
+    cl_parents[n] = o.parents
+
+  tmp = dict(cl_parents)
+
+  cont = True
+  while cont:
+    cont = False
+    for k in cl_parents:
+      can_add = True
+      for p in cl_parents[k]:
+        if p in tmp:
+          can_add = False
+      if can_add is True:
+        lst.append(k)
+        tmp.pop(k)
+        cont = True
+    cl_parents = dict(tmp)
+  if len(tmp) > 0:
+    print "ERROR: can't resolve classes include order"
+    exit(1)
+
+  lines = []
+  lines.append("from eodefault cimport *\n")
+  for k in lst:
+    lines.append("include \"%s\""%xp.objects[k].V.pxi["f_name"])
+
+  f = open (os.path.join(outdir, args.module + ".pyx"), 'w')
+  for l in lines:
+    f.write(l + "\n")
+  f.close()
+
+
+#copying eodefault module into source dir to compile
+  f_pyx = os.path.join(sourcedir, "eodefault.pyx")
+  f_pxd = os.path.join(sourcedir, "eodefault.pxd")
+  f_init = os.path.join(sourcedir, "__init__.py")
+  try:
+    shutil.copy(f_pyx, outdir)
+    shutil.copy(f_pxd, outdir)
+    shutil.copy(f_init, outdir)
+  except IOError as ex:
+    print "%s"%ex
+    print "Aborting"
+    exit(1)
+  except shutil.Error as er:
+    print "Warning: %s"%er
 
   del xp
 
