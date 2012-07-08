@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 
-from eoisa.eoisa_py import Simple, Complex, Mixin, Interface
+from eoisa.py.eoisa_py import Simple, Complex, Mixin, Interface
 
 so = Simple(None)
 co = Complex(None)

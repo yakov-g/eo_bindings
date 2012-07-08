@@ -71,13 +71,12 @@ cdef class EoDefault:
        #self.print_func_name("__dealloc__base__")
 
        eo = self.eo
-
        if eo == NULL:
          return
-
-       eodefault.eo_do(eodefault._eo_instance_get(self), eodefault.EO_BASE_BASE_ID + eodefault.EO_BASE_SUB_ID_DATA_DEL, <const_char_ptr>EoDefault.PY_EO_NAME)
-       self.eo = NULL
+       #eodefault._eo_instance_get(self)
+       eodefault.eo_do(eo, eodefault.EO_BASE_BASE_ID + eodefault.EO_BASE_SUB_ID_DATA_DEL, <const_char_ptr>EoDefault.PY_EO_NAME)
        eodefault.eo_unref(eo)
+       self.eo = NULL
 
    # eo_del()
    def delete(self):

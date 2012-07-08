@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from eo_parser.helper import isXML, filter_path, filter_path_no_warning, filter_files, normalize_names
+from eo_parser.helper import isXML, abs_path_get, filter_files, normalize_names
 from eo_parser.XMLparser import XMLparser
 from argparse import ArgumentParser
 import os, sys, shutil
@@ -10,7 +10,6 @@ def verbose_true(mes):
 
 def verbose_false(mes):
   pass
-
 
 
 def build_setup_file(module_name, pkg, outdir):
@@ -55,43 +54,6 @@ def build_setup_file(module_name, pkg, outdir):
    f.close()
 
 
-
-
-def write_files(outdir, o):
-    f = open(os.path.join(outdir, o.V.pxi["f_name"]), 'w')
-
-    lst = o.V.pxi["head"]
-    for l in lst:
-       f.write(l+'\n')
-    f.write("\n")
-
-    lst = o.V.pxi["ev"]
-    for l in lst:
-       f.write(l+'\n')
-    f.write("\n")
-
-    lst = o.V.pxi["funcs_parsed"]
-    for l in lst:
-       f.write('  ' + l + '\n')
-    f.write("\n")
-    f.close
-
-    f = open(os.path.join(outdir, o.V.pxd["f_name"]), 'w')
-    lst = o.V.pxd["head"]
-    for l in lst:
-       f.write(l+'\n')
-    f.write("\n")
-
-    lst = o.V.pxd["ev"]
-    for l in lst:
-       f.write(l+'\n')
-    f.write("\n")
-    f.close
-
-
-
-
-
 def main():
   parser = ArgumentParser()
   parser.add_argument("-d", "--dir", dest="directory",
@@ -99,6 +61,9 @@ def main():
 
   parser.add_argument("-o", "--outdir", dest="outdir",
                   action="store", help="Output directory")
+
+  parser.add_argument("-t", "--typedefs", dest="typedefs",
+                  action="store", help="Additional typedefs for parser")
 
   parser.add_argument("-v", "--verbose",
                   action="store_true", dest="verbose", default=False,
@@ -122,6 +87,7 @@ def main():
   directories = []
   outdir = ""
   sourcedir = ""
+  typedefs = ""
   xmldir = []
 
   if args.directory == None:
@@ -134,11 +100,15 @@ def main():
     print "ERROR: No module name was provided"
     exit(1)
   else:
-    directories = filter_path(args.directory)
+    directories = abs_path_get(args.directory)
     if args.xmldir is not None:
-      xmldir = filter_path_no_warning(args.xmldir)
+      xmldir = abs_path_get(args.xmldir, False)
 
-    outdir = filter_path(args.outdir)
+    outdir = abs_path_get([args.outdir])[0]
+
+
+  if args.typedefs != None:
+    typedefs = abs_path_get([args.typedefs])[0]
 
   verbose_print("Dirs: %s"%directories)
   verbose_print("Outdir: %s"%outdir)
@@ -147,12 +117,17 @@ def main():
   xml_files = filter_files(directories, isXML, False)
   verbose_print("In Files: %s"%xml_files)
 
+
   xp = XMLparser()
+  #adding typedefs to type definitions
+  if typedefs:
+    xp.typedefs_add(typedefs)
 
   for f in xml_files:
     xp.parse(f)
 
-#excluding eobase module, if building non-eobase module
+  #excluding everything, but the "eobase", if building eobse
+  #excluding "eobase" module, if building non-eobase module
   if args.module == "eobase":
      if "Eo Base" in xp.objects:
        cl_data_tmp = dict(xp.objects)
@@ -169,6 +144,7 @@ def main():
 
 
   parents_to_find =  xp.check_parents2()
+  print parents_to_find
 
   verbose_print("Warning: need to find parent classes %s"%parents_to_find)
 
@@ -182,18 +158,21 @@ def main():
     if len(xml_files) == 0:
       print "ERROR: no include files found for %s classes... Aborting...(Use: --include=INCLUDE_DIR)"% ",".join(parents_to_find)
       exit(1)
-    verbose_print( "xml_files: %s"%xml_files)
+    verbose_print("xml_files: %s"%xml_files)
 
+    #Creating temp parser to look for in include files.
     xp_incl = XMLparser()
     for f in xml_files:
       xp_incl.parse(f)
 
+    #Looking for parents. And saving proper object in include dictionary
     for n, o in xp_incl.objects.items():
       if n in parents_to_find:
         i = parents_to_find.index(n)
         parents_to_find.pop(i)
-        n = normalize_names(n)
+        n = normalize_names([n])[0]
         xp.objects_incl[n] = o
+        print n
 
     del xp_incl
 
@@ -215,22 +194,22 @@ def main():
 
   objects_tmp = {}
   for n, o in xp.objects.items():
-    o.c_name = normalize_names(o.c_name)
-    o.kl_id = normalize_names(o.kl_id)
+    o.c_name = normalize_names([o.c_name])[0]
+    o.kl_id = normalize_names([o.kl_id])[0]
     o.parents = normalize_names(o.parents)
     objects_tmp[o.kl_id] = o
 
   xp.objects = objects_tmp
 
-
-
-  #reodering parnts and generatind source code
+  #reodering parents and generating source code
   for n, o in xp.objects.items():
     o.parents = xp.reorder_parents2(o.parents)
     o.resolve()
 
+  #saving source code
   for n, o in xp.objects.items():
-    write_files(outdir, o)
+    o.V.pxi_file_to_dir_save(outdir)
+    o.V.pxd_file_to_dir_save(outdir)
 
   #xp.build_python_modules(args.module, args.pkg, sourcedir)
   build_setup_file(args.module, args.pkg, outdir)

@@ -3,7 +3,7 @@ import sys
 
 from base.eodefault import py_elm_init, elem_run
 from eobase import EoBase
-from evas.py_evas import ElwWin, ElwBox, ElwButton, ElwBoxedbutton, EvasObject
+from evas.py.py_evas import ElwWin, ElwBox, ElwButton, ElwBoxedbutton, EvasObject
 
 
 print "Initializing Elementary..."

@@ -1,7 +1,7 @@
 import xml.parsers.expat, os, shutil
-from helper import normalize_names
+from helper import normalize_names, _const
 
-
+const = _const()
 
 
 def O_TYPE_CHECK(o, class_type):
@@ -60,6 +60,7 @@ class PyVisitor(Visitor):
                                 "char*": ["char*", "object", "ToString"],
                                 "Eo*":  ["Eo*", self.basemodule["name"], "ToObject"],
                                 "short" : ["int", "int", "ToInt32"],
+                                "short*" : ["int", "int", "ToInt32"],
                                 "int": ["int", "int", "ToInt32"],
                                 "int*": ["int", "int", "ToInt32"],
                                 "long": ["long", "long", "ToNumber"],
@@ -83,17 +84,21 @@ class PyVisitor(Visitor):
                                 "double*": ["double", "double", "ToNumber" ],
                                 "long double*": ["long double", "long double", "ToNumber"],
                                 "Eo_Event_Description*":["long","long", "ToNumber"],
-                                "Eo_Event_Cb":["Eo_Event_Cb","object", "ToNumber"],
-                                "eo_base_data_free_func" : ["", ""]
+                                "Eo_Event_Cb":["Eo_Event_Cb","object", "ToNumber"]
+                                #"eo_base_data_free_func" : ["", ""]
                                 }
 
+        self.reserved_words = ["raise", "del"]
 
 
   def cast(self, _in):
+    t_tmp = _in.strip("*")
     t = _in
     for k in self.typedefs:
-      if t.find(k) != -1:
-        t = t.replace(k, self.typedefs[k])
+#      if t.find(k) != -1:
+      if t_tmp == k:
+        t = _in.replace(k, self.typedefs[k])
+    del t_tmp
 
     for k in self.primary_types:
       if t.find(k) != -1:
@@ -135,7 +140,6 @@ class PyVisitor(Visitor):
          function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_CALLBACK_DEL), _desc, func, <void*>_func)")
 
          function_lines.append("\n")
-         #self.cl_data[kl_id]["methods_parsed"][fname] = function_lines
          if_ret = True
        elif _o.op_id == "EO_BASE_SUB_ID_EVENT_CALLBACK_DEL_LAZY":
          function_lines.append("def event_callback_del_lazy(self, long _desc, object _func):")
@@ -177,7 +181,6 @@ class PyVisitor(Visitor):
        if if_ret:
          function_lines.append("\n")
          self.pxi["funcs_parsed"] += function_lines
-         #self.cl_data[kl_id]["methods_parsed"][fname] = function_lines
          return
 
        """
@@ -210,7 +213,7 @@ class PyVisitor(Visitor):
             c_t_internal = self.internal_types[c_t_tmp][0]
             py_type = self.internal_types[c_t_tmp][1]
          else:
-            print "Warning: type: \"%s\" wasn't found in self.internal_types. Functon \"%s\" will not be defined"%(c_t_tmp, fname)
+            print "Warning: type: \"%s\" wasn't found in self.internal_types. Functon \"%s\" will not be defined"%(c_t_tmp, _o.name)
             return
 
          if d == "in":
@@ -251,7 +254,15 @@ class PyVisitor(Visitor):
            function_lines.append(l);
 
      in_params.insert(0, "self")
-     l = "def %s(%s):"% (_o.name, ', '.join(in_params))
+
+
+     if _o.name in self.reserved_words:
+        func_name = _o.name + "_"
+        print "Warning: method name: \"%s\" for class : \"%s\" has been changed to \"%s\""%(_o.name,  cl_obj.kl_id, func_name)
+     else:
+        func_name = _o.name
+
+     l = "def %s(%s):"% (func_name, ', '.join(in_params))
      function_lines.insert(0, l)
 
      l = '%s(%s.%s)'%(cl_obj.sub_id_function,
@@ -413,6 +424,44 @@ class PyVisitor(Visitor):
     self.pxd["ev"].append(l)
 
 
+  #saving data to pxi file
+  def pxi_file_to_dir_save(self, _outdir):
+    f = open(os.path.join(_outdir, self.pxi["f_name"]), 'w')
+
+    lst = self.pxi["head"]
+    for l in lst:
+       f.write(l+'\n')
+    f.write("\n")
+
+    lst = self.pxi["ev"]
+    for l in lst:
+       f.write(l+'\n')
+    f.write("\n")
+
+    lst = self.pxi["funcs_parsed"]
+    for l in lst:
+       f.write('  ' + l + '\n')
+    f.write("\n")
+    f.close()
+
+
+
+  #saving data to px file
+  def pxd_file_to_dir_save(self, _outdir):
+
+    f = open(os.path.join(_outdir, self.pxd["f_name"]), 'w')
+    lst = self.pxd["head"]
+    for l in lst:
+       f.write(l+'\n')
+    f.write("\n")
+
+    lst = self.pxd["ev"]
+    for l in lst:
+       f.write(l+'\n')
+    f.write("\n")
+    f.close()
+
+
 
 class VAcceptor(object):
   def accept(self, v):
@@ -467,7 +516,6 @@ class Mod(object):
 class XMLparser(object):
     def __init__(self):
 
-        self.globals = {}
         self.cl_data = {}
         self.cl_incl = {}
         self.V = PyVisitor()
@@ -492,7 +540,7 @@ class XMLparser(object):
                               "char**" : "char*"}
 
         self.internal_types = {
-                                "void*": ["void*", "object"],
+                                "void*": ["void*", "object", "ToObject"],#FIXME
                                 "char*": ["char*", "object", "ToString"],
                                 "Eo*":  ["Eo*", "EoDefault", "ToObject"],
                                 "short" : ["int", "int", "ToInt32"],
@@ -526,7 +574,8 @@ class XMLparser(object):
                           "ToString" : "String",
                           "ToUint32" : "Number",
                           "ToInt32" : "Number",
-                          "ToNumber" : "Number"
+                          "ToNumber" : "Number",
+                          "ToObject" : "Local <Object>"
                           }
 
         self.string_consts = {"class_type_mixin" : "EO_CLASS_TYPE_MIXIN",
@@ -545,11 +594,39 @@ class XMLparser(object):
         self.class_data = {}
         self.functions = {} #function names with parameters
         self.current_func = ""
-        self.methods_parsed = {} #ready function lines
         self.hack_types = ["eo_base_data_free_func"]
 
-        self.globals["extern_base_id"] = ""
 
+
+
+    def typedefs_parser(self, name, attrs):
+     #converting unicode to ascii
+        attrs_ascii = {}
+        for key, val in attrs.iteritems():
+           attrs_ascii[key.encode("ascii")] = val.encode("ascii")
+
+        attrs = attrs_ascii
+
+        if name == "type":
+           fr = attrs["from"]
+           to = attrs["to"]
+           fr = " ".join(fr.split())
+           fr = fr.replace(" *", "*")
+           to = " ".join(to.split())
+           to = to.replace(" *", "*")
+           if fr not in self.typedefs:
+             self.typedefs[fr] = to
+
+        else:
+           pass
+
+    def typedefs_add(self, fName):
+        p = xml.parsers.expat.ParserCreate()
+        p.StartElementHandler = self.typedefs_parser
+        p.ParseFile(open(fName, 'r'))
+
+
+    #parsing function for expat parser
     def start_element_handler(self, name, attrs):
         #converting unicode to ascii
         attrs_ascii = {}
@@ -576,6 +653,7 @@ class XMLparser(object):
 
         elif name == "class":
             self.class_data = attrs
+            self.class_data["base_id"] = ""
 
         elif name == "sub_id":
             self.op_ids.append(attrs["name"])
@@ -584,7 +662,7 @@ class XMLparser(object):
             self.ev_ids.append(attrs["name"])
 
         elif name == "base_id":
-            self.globals["extern_base_id"] = attrs["name"]
+            self.class_data["base_id"] = attrs["name"]
 
         elif name == "extern_function":
             self.extern_funcs.append((attrs["name"], attrs["typename"]))
@@ -595,208 +673,34 @@ class XMLparser(object):
 
 #changing types according to typedefs: Evas_Coord -> int
     def cast(self, _in):
+      t_tmp = _in.strip("*")
       t = _in
       for k in self.typedefs:
-        if t.find(k) != -1:
-          t = t.replace(k, self.typedefs[k])
+#        if t.find(k) != -1:
+        if t_tmp == k:
+          t = _in.replace(k, self.typedefs[k])
+      del t_tmp
 
       for k in self.primary_types:
         if t.find(k) != -1:
           t = t.replace(k, self.primary_types[k])
       return t
 
-    def parse_methods(self, kl_id, fname):
-        kl_dt = self.cl_data[kl_id]
-        fparams = kl_dt["functions"][fname]
-        in_params = []
-        pass_params =[]
-        ret_params = []
-        function_lines = []
 
-        if kl_id == "Eo Base":
-          if_ret = False
-          if fparams["op_id"] == "EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD":
-            function_lines.append("def event_callback_priority_add(self, long _desc, int _priority, object _cb):")
-            function_lines.append("  if not callable(_cb):")
-            function_lines.append("    raise TypeError(\"func must be callable\")")
-            function_lines.append("  cdef Eo_Event_Cb cb = <Eo_Event_Cb> eodefault._object_callback")
-            function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD), _desc, _priority, cb, <void*>_cb)")
-            if_ret = True
-          elif fparams["op_id"] == "EO_BASE_SUB_ID_EVENT_CALLBACK_DEL":
-            function_lines.append("def event_callback_del(self, long _desc, object _func):")
-            function_lines.append("  cdef Eo_Event_Cb func = <Eo_Event_Cb> eodefault._object_callback")
-            function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_CALLBACK_DEL), _desc, func, <void*>_func)")
-
-            function_lines.append("\n")
-            self.cl_data[kl_id]["methods_parsed"][fname] = function_lines
-            if_ret = True
-          elif fparams["op_id"] == "EO_BASE_SUB_ID_EVENT_CALLBACK_DEL_LAZY":
-            function_lines.append("def event_callback_del_lazy(self, long _desc, object _func):")
-            function_lines.append("  cdef Eo_Event_Cb func = <Eo_Event_Cb> eodefault._object_callback")
-            function_lines.append("  cdef void * user_data")
-            function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_CALLBACK_DEL_LAZY), _desc, func, &user_data)")
-            function_lines.append("  return None if user_data == NULL else <object>user_data")
-            if_ret = True
-
-          elif fparams["op_id"] == "EO_BASE_SUB_ID_DATA_SET":
-            function_lines.append("def data_set(self, object _key, object _data):")
-            function_lines.append("  _key = pytext_to_utf8(_key)")
-            function_lines.append("  cdef char* key = <char*> _key")
-            function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_DATA_SET), key, <void*>_data, NULL)")
-            if_ret = True
-
-          elif fparams["op_id"] == "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE":
-            function_lines.append("@staticmethod")
-            function_lines.append("def event_global_freeze():")
-            function_lines.append("  eodefault.eo_class_do(eobase.eo_base_class_get(), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE))");
-            if_ret = True
-
-          elif fparams["op_id"] == "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE_GET":
-            function_lines.append("@staticmethod")
-            function_lines.append("def event_global_freeze_get():")
-            function_lines.append("  cdef int fcount");
-            function_lines.append("  eodefault.eo_class_do(eobase.eo_base_class_get(), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE_GET), &fcount)");
-            function_lines.append("  fcount_ = <object>fcount");
-            function_lines.append("  return (fcount_)");
-
-            if_ret = True
-
-          elif fparams["op_id"] == "EO_BASE_SUB_ID_EVENT_GLOBAL_THAW":
-            function_lines.append("@staticmethod")
-            function_lines.append("def event_global_thaw():")
-            function_lines.append("  eodefault.eo_class_do(eobase.eo_base_class_get(), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_GLOBAL_THAW))");
-            if_ret = True
-
-          if if_ret:
-            function_lines.append("\n")
-            self.cl_data[kl_id]["methods_parsed"][fname] = function_lines
-            return
-
-        """
-        self.properties.setdefault(kl, {})
-        fid = fparams["op_id"]
-        prop = None
-        if fname[-3:] == "set":
-          prop = self.properties[kl].setdefault(fname[:-4], {"set":False, "get":False})
-          prop["set"] = "True"
-
-          if "parameters" in fparams:
-            for n, c_t, d in fparams["parameters"]:
-              if d != "in":
-                prop["set"] = "True/False"
-        elif fname[-3:] == "get":
-          prop = self.properties[kl].setdefault(fname[:-4], {"set":False, "get":False})
-          prop["get"] = "True"
-
-        """
-
-        if "parameters" in fparams:
-
-          for i, (n, c_t, d) in enumerate(fparams["parameters"]):
-            c_t_tmp = self.cast(c_t)
-
-            py_type = ""
-            c_t_internal = ""
-
-            if c_t_tmp in self.internal_types:
-               c_t_internal = self.internal_types[c_t_tmp][0]
-               py_type = self.internal_types[c_t_tmp][1]
-            else:
-               print "warning: type: \"%s\" wasn't found in self.internal_types. functon \"%s\" will not be defined"%(c_t_tmp, fname)
-               return
-
-            if d == "in":
-              if c_t_tmp not in self.hack_types:
-                in_params.append(py_type + ' _' + n)
-                if c_t_internal == "Eo*":
-                  l = "  cdef %s %s = <%s> _%s"%(c_t_internal, n, c_t_internal, n + ".eo")
-                elif c_t_internal == "Eo_Event_Eb":
-                  l = "  cdef %s %s = <%s> %s"%(c_t_internal, n, c_t_internal, "eodefault._object_callback")
-#                elif fparams["parameters"][i-1][1] == "eo_event_cb":
-#                  l = ""
-                else:
-
-                  if c_t_internal == "char*" :
-                    l = "  _%s = pytext_to_utf8(_%s)"%(n, n)
-                    function_lines.append(l)
-                  l = "  cdef %s %s = <%s> _%s"%(c_t_internal, n, c_t_internal, n)
-                function_lines.append(l)
-              else:
-                in_params.append('_' + n)
-                #l = "  assert _%s == None, \"_%s should be None\""%(n, n)
-                #function_lines.append(l)
-                l = "  cdef void *%s_tmp = NULL if _%s is None else <void*>_%s"%(n, n, n)
-                function_lines.append(l)
-                #l = "  assert tmp == NULL, \"_%s should be NULL\""%(n)
-                #function_lines.append(l)
-                l = "  cdef %s %s = <%s> %s_tmp"%(c_t_tmp, n, c_t_tmp, n)
-                function_lines.append(l)
-
-              if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
-                pass_params.append('&' + n)
-              else:
-                pass_params.append(n)
-
-            elif d == "out":
-              l = "  cdef %s %s"%(c_t_internal, n)
-              pass_params.append('&' + n)
-              ret_params.append((n + '_', c_t_internal))
-              function_lines.append(l);
-
-            elif d == "in,out":
-              in_params.append('_' + n)
-              pass_params.append('&' + n)
-              if c_t_internal == "Eo*":
-                l = "  cdef %s %s = <%s> _%s"%(c_t_internal, n, c_t_internal, n + ".eo")
-              else:
-                l = "  cdef %s %s = <%s> _%s"%(c_t_internal, n, c_t_internal, n)
-              ret_params.append((n + '_', c_t_internal))
-              function_lines.append(l);
-
-        in_params.insert(0, "self")
-        l = "def %s(%s):"% (fname, ', '.join(in_params))
-        function_lines.insert(0, l)
-
-        l = '%s(%s.%s)'%(kl_dt['sub_id_function'],
-                                   kl_dt['module'],
-                                   fparams["op_id"])
-
-        pass_params.insert(0, l)
-        l = "%s.%s(self)"%(kl_dt["basemodule"], self._funcs["instance_get"])
-        pass_params.insert(0, l)
-        l = '  %s.%s(%s)'% (kl_dt["basemodule"], self._funcs["do"],', '.join(pass_params))
-        function_lines.append(l);
-
-        ret_params_tmp = []
-        if len(ret_params) > 0:
-          for p, t in ret_params:
-            if t.find('*') != -1:
-              l = '  %s = None if %s == NULL else <object>%s'%(p, p[:-1], p[:-1])
-              function_lines.append(l)
-            else:
-              l = '  %s = <object>%s'% (p, p[:-1])
-              function_lines.append(l)
-            ret_params_tmp.append(p)
-
-          l = '  return (%s)'% (', '.join(ret_params_tmp))
-          function_lines.append(l)
-
-        function_lines.append("")
-        self.cl_data[kl_id]["methods_parsed"][fname] = function_lines
-
-
+    #main XML parsing function
+    #parses all XML, initializes field of class structure
     def parse(self, fName):
         self.source_file = fName
         p = xml.parsers.expat.ParserCreate()
         p.StartElementHandler = self.start_element_handler
         p.ParseFile(open(fName, 'r'))
 
-        mod_name = normalize_names(self.class_data["c_name"]).lower()
+        mod_name = normalize_names([self.class_data[const.C_NAME]])[0].lower()
         #defining _id function
-        if self.globals["extern_base_id"] != "":
-          self.globals["sub_id_function"] = '%s_sub_id'%(mod_name)
+        if self.class_data["base_id"] != "":
+          self.class_data["sub_id_function"] = '%s_sub_id'%(mod_name)
         else:
-          self.globals["sub_id_function"] = ""
+          self.class_data["sub_id_function"] = ""
 
         parent_list = []
         parent_list.append(self.class_data["parent"])
@@ -805,23 +709,22 @@ class XMLparser(object):
         kl_id = self.class_data["c_name"]
         self.cl_data[kl_id] = \
            {
-              "c_name" : self.class_data["c_name"],
-              "macro" : self.class_data["macro"],
-              "type" : self.class_data["type"],
-              "get_function" : self.class_data["get_function"],
+              const.C_NAME : self.class_data["c_name"],
+              const.MACRO : self.class_data["macro"],
+              const.TYPE : self.class_data["type"],
+              const.GET_FUNCTION : self.class_data["get_function"],
               "instantiateable": self.class_data["instantiateable"],
               "includes" : self.includes,
               "functions" : self.functions,
-              "module" : mod_name,
+              const.MODULE : mod_name,
               "basemodule" : "eodefault",
               "op_ids" : self.op_ids,
               "ev_ids" : self.ev_ids,
-              "extern_base_id" : self.globals["extern_base_id"],
+              "extern_base_id" : self.class_data["base_id"],
               "extern_funcs" : self.extern_funcs,
-              "methods_parsed" : {},
-              "sub_id_function" : self.globals["sub_id_function"],
+              "sub_id_function" : self.class_data["sub_id_function"],
               "source_file" : self.source_file,
-              "parents" : parent_list
+              const.PARENTS : parent_list
             }
 
         mod_o = Mod()
@@ -837,12 +740,14 @@ class XMLparser(object):
         mod_o.basemodule = "eodefault"
         mod_o.op_ids = self.op_ids
         mod_o.ev_ids = self.ev_ids
-        mod_o.extern_base_id = self.globals["extern_base_id"]
+        mod_o.extern_base_id = self.class_data["base_id"]
         mod_o.extern_funcs = self.extern_funcs
-        mod_o.sub_id_function = self.globals["sub_id_function"]
+        mod_o.sub_id_function = self.class_data["sub_id_function"]
         mod_o.source_file = self.source_file
         mod_o.parents = parent_list
         mod_o.V = PyVisitor()
+
+        mod_o.V.typedefs = dict(self.typedefs)
 
 
         for i in self.functions:
@@ -857,39 +762,11 @@ class XMLparser(object):
         self.objects[kl_id] = mod_o
         del mod_o
 
-
-
-
         self.functions = {}
         self.includes = []
         self.op_ids = []
         self.ev_ids = []
         self.extern_funcs = []
-        self.globals = {}
-        self.globals["extern_base_id"] = ""
-
-#py_parse() - makes all main job - builds funcs, etc.
-
-    def py_parse(self, kl_id):
-
-        #the three following parses are for python, so can be moved
-        eo_base_ops = ["EO_BASE_SUB_ID_EVENT_FREEZE", "EO_BASE_SUB_ID_EVENT_FREEZE_GET", \
-                       "EO_BASE_SUB_ID_EVENT_THAW", "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE", "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE_GET",\
-                       "EO_BASE_SUB_ID_EVENT_GLOBAL_THAW", "EO_BASE_SUB_ID_DATA_SET", \
-                       "EO_BASE_SUB_ID_DATA_GET", "EO_BASE_SUB_ID_DATA_DEL", \
-                       "EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD", "EO_BASE_SUB_ID_EVENT_CALLBACK_DEL", \
-                       "EO_BASE_SUB_ID_EVENT_CALLBACK_CALL"]
-
-        for key in self.cl_data[kl_id]["functions"]:
-            #print self.current_class
-            op_id = self.cl_data[kl_id]["functions"][key]["op_id"]
-
-            if kl_id == "Eo Base":
-              if op_id not in eo_base_ops:
-                continue
-            self.parse_methods(kl_id, key)
-
-        self.parse_init_func(kl_id)
 
 
     def js_parse(self, kl_id):
@@ -959,7 +836,7 @@ class XMLparser(object):
        return parents_to_find
 
 
-
+    #parents
     def check_parents2(self):
        list_of_parents = []
 
@@ -977,7 +854,7 @@ class XMLparser(object):
        cl_data_tmp = {}
 
        for k in self.cl_data:
-         self.cl_data[k]["name"] =  normalize_names(self.cl_data[k]["c_name"])
+         self.cl_data[k]["name"] =  normalize_names([self.cl_data[k]["c_name"]])[0]
          self.cl_data[k]["parents"] = normalize_names(self.cl_data[k]["parents"])
          cl_data_tmp[self.cl_data[k]["name"]] = self.cl_data[k]
 
@@ -1116,18 +993,6 @@ class XMLparser(object):
 
           publ.append("   static void Initialize(Handle<Object> target);\n")
 
-          """
-          c_f.append("void %s::Initialize(Handle<Object> target)\n"%kl_id)
-          c_f.append("{\n")
-          c_f.append("   target->Set(String::NewSymbol(\"%s\") , GetTemplate()->GetFunction());\n"%kl_id)
-          print "ini", kl_id
-          for m in methods:
-#FIXME
-            print kl_id, m
-            if m in ["event_global_freeze", "event_global_thaw"]:
-              c_f.append("EO_REGISTER_STATIC_METHOD(%s);\n"% m)
-          c_f.append("}\n")
-"""
 
           init_f.append("void %s::Initialize(Handle<Object> target)\n"%kl_id)
           init_f.append("{\n")
@@ -1215,30 +1080,50 @@ class XMLparser(object):
         ll.append("public:\n")
         ll += publ
         for p in kl_dt["properties"]:
-           #generating headers of  setter/getter in class (h file)
-           ll.append("   Handle<Value> %s_get() const;\n"%(p))
-           ll.append("   void %s_set(Handle<Value> val);\n"%(p))
 
-          #generating setter/getter in cc file
+
+           params_tmp = []
+           add_this_func = True
+           for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_get"]["parameters"]):
+             if d != "out":
+               print "Warning wrong direction: property: %s; parameter: %s; direction: %s"%(p + "_get", n, d)
+               print "Property \"%s\" will not be defined"%(p + "_get")
+               add_this_func = False
+               break
+
+             c_t_tmp = self.cast(c_t)
+             js_type = ""
+             c_t_internal = ""
+
+             if c_t_tmp in self.internal_types:
+               c_t_internal = self.internal_types[c_t_tmp][0]
+               js_type = self.internal_types[c_t_tmp][2]
+               params_tmp.append((c_t, n, d, c_t_internal, js_type))
+             else:
+               print "Warning: type: \"%s\" wasn't found in self.internal_types. Function \"%s\" will not be defined"%(c_t_tmp, p + "_get")
+               add_this_func = False
+               break
+
+           if not add_this_func:
+             continue
+
+           #generating getter header  in class (h file)
+           ll.append("   Handle<Value> %s_get() const;\n"%(p))
+
+          #generating getter in cc file
            c_f.append("Handle<Value> %s::%s_get() const\n"%(kl_id, p))
            c_f.append("{\n")
            c_f.append("   HandleScope scope;\n")
-#          c_f.append("   eo_do(eobj, %s);\n"%(kl_dt["functions"][p + "_get"]["c_macro"]))
 
            pass_params = []
            ret_params = []
-           for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_get"]["parameters"]):
-             c_t_tmp = self.cast(c_t)
-             c_t_internal = self.internal_types[c_t_tmp][0]
+           for (c_t, n, d, c_t_internal, js_type) in params_tmp:
 
-             js_type = self.internal_types[c_t_tmp][2]
+             c_f.append("   %s %s;\n"%(c_t_internal, n))
+             pass_params.append('&' + n)
 
-             if d == "out":
-               c_f.append("   %s %s;\n"%(c_t_internal, n))
-               pass_params.append('&' + n)
-
-               js_type = self.js_types[js_type]
-               ret_params.append((n, js_type))
+             js_type = self.js_types[js_type]
+             ret_params.append((n, js_type))
 
            c_f.append("   eo_do(eobj, %s(%s));\n"%(kl_dt["functions"][p+"_get"]["c_macro"], ", ".join(pass_params)))
 
@@ -1254,45 +1139,63 @@ class XMLparser(object):
            else:
              c_f.append("   return Undefined();\n")
 
-           c_f.append("}\n")
-           c_f.append("\n")
+           c_f.append("}\n\n")
 
+
+
+           params_tmp = []
+           add_this_func = True
+           for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_set"]["parameters"]):
+             if d != "in":
+               print "Warning wrong direction: property: %s; parameter: %s; direction: %s"%(p, n, d)
+               print "Property \"%s\" will not be defined"%(p + "_set")
+               add_this_func = False
+               break
+
+             c_t_tmp = self.cast(c_t)
+             js_type = ""
+             c_t_internal = ""
+
+             if c_t_tmp in self.internal_types:
+               c_t_internal = self.internal_types[c_t_tmp][0]
+               js_type = self.internal_types[c_t_tmp][2]
+               params_tmp.append((c_t, n, d, c_t_internal, js_type))
+             else:
+               print "Warning: type: \"%s\" wasn't found in self.internal_types. Function \"%s\" will not be defined"%(c_t_tmp, p + "_set")
+               add_this_func = False
+               break
+
+           if not add_this_func:
+             continue
+
+           #generating setter header in class (h file)
+           ll.append("   void %s_set(Handle<Value> val);\n"%(p))
+
+           #generating setter in cc file
            c_f.append("void %s::%s_set(Handle<Value> val)\n"%(kl_id, p))
            c_f.append("{\n")
 
            pass_params = []
            add_end_func = []
-           if len(kl_dt["functions"][p+"_set"]["parameters"]) > 1:
+           if len(params_tmp) > 1:
              c_f.append("   Local<Object> __o = val->ToObject();\n")
 
-             for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_set"]["parameters"]):
-               c_t_tmp = self.cast(c_t)
-               c_t_internal = self.internal_types[c_t_tmp][0]
-               js_type = self.internal_types[c_t_tmp][2]
+             for (c_t, n, d, c_t_internal, js_type) in params_tmp:
 
-               if d != "in":
-                 print "Warning wrong directiong: property: %s; parameter: %s; direction: %"%(p, n, d)
+               c_f.append("   %s %s;\n"%(c_t_internal, n))
+               if js_type == "ToString":
+                  c_f.append("   %s = strdup(*String::Utf8Value(__o->Get(String::NewSymbol(\"%s\"))->%s()));\n"%(n, n, js_type))
                else:
-                 c_f.append("   %s %s;\n"%(c_t_internal, n))
-                 if js_type == "ToString":
-                    c_f.append("   %s = strdup(*String::Utf8Value(__o->Get(String::NewSymbol(\"%s\"))->%s()));\n"%(n, n, js_type))
-                 else:
-                   c_f.append("   %s = __o->Get(String::NewSymbol(\"%s\"))->%s()->Value();\n"%(n, n, js_type))
+                 c_f.append("   %s = __o->Get(String::NewSymbol(\"%s\"))->%s()->Value();\n"%(n, n, js_type))
 
-                 if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
-                   pass_params.append('&' + n)
-                 else:
-                   pass_params.append(n)
+               if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
+                 pass_params.append('&' + n)
+               else:
+                 pass_params.append(n)
 
-           elif len(kl_dt["functions"][p+"_set"]["parameters"]) == 1:
-             (n, c_t, d) =  kl_dt["functions"][p+"_set"]["parameters"][0]
-             c_t_tmp = self.cast(c_t)
-             c_t_internal = self.internal_types[c_t_tmp][0]
-             js_type = self.internal_types[c_t_tmp][2]
+           elif len(params_tmp) == 1:
+             for (c_t, n, d, c_t_internal, js_type) in params_tmp:
 
-             if d != "in":
-               print "Warning wrong direction: property: %s; parameter: %s; direction: %"%(p, n, d)
-             else:
                c_f.append("   %s %s;\n"%(c_t_internal, n))
                if js_type == "ToString":
                  c_f.append("   %s = strdup(*String::Utf8Value(val->%s()));\n"%(n, js_type))
@@ -1313,50 +1216,68 @@ class XMLparser(object):
 
         ll.append("\n")
 
+
+
+###############################################################################
+###############################################################################
+
         for p in kl_dt["properties_set"]:
            #generating headers of  setter/getter in class (h file)
+
+           params_tmp = []
+           add_this_func = True
+           for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_set"]["parameters"]):
+             if d != "in":
+               print "Warning wrong direction: property: %s; parameter: %s; direction: %"%(p, n, d)
+               print "Property \"%s\" will not be defined"%(p + "_set")
+               add_this_func = False
+               break
+
+             c_t_tmp = self.cast(c_t)
+             js_type = ""
+             c_t_internal = ""
+
+             if c_t_tmp in self.internal_types:
+               c_t_internal = self.internal_types[c_t_tmp][0]
+               js_type = self.internal_types[c_t_tmp][2]
+               params_tmp.append((c_t, n, d, c_t_internal, js_type))
+             else:
+               print "Warning: type: \"%s\" wasn't found in self.internal_types. Function \"%s\" will not be defined"%(c_t_tmp, p + "_set")
+               add_this_func = False
+               break
+
+           if not add_this_func:
+             continue
+
            ll.append("   void %s_set(Handle<Value> val);\n"%(p))
 
           #generating setter/getter in cc file
-
            c_f.append("void %s::%s_set(Handle<Value> val)\n"%(kl_id, p))
            c_f.append("{\n")
 
            pass_params = []
            add_end_func = []
-           if len(kl_dt["functions"][p+"_set"]["parameters"]) > 1:
+           if len(params_tmp) > 1:
              c_f.append("   Local<Object> __o = val->ToObject();\n")
 
-             for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_set"]["parameters"]):
-               c_t_tmp = self.cast(c_t)
-               c_t_internal = self.internal_types[c_t_tmp][0]
-               js_type = self.internal_types[c_t_tmp][2]
-
-               if d != "in":
-                 print "Warning wrong direction: property: %s; parameter: %s; direction: %"%(p, n, d)
+             for (c_t, n, d, c_t_internal, js_type) in params_tmp:
+               c_f.append("   %s %s;\n"%(c_t_internal, n))
+               #FIXME: case when we are working with EO
+               if js_type == "ToString":
+                 c_f.append("   %s = strdup(*String::Utf8Value(__o->Get(String::NewSymbol(\"%s\"))->%s()));\n"%(n, n, js_type))
+                 add_end_func.append("   free(%s);"%n)
                else:
-                 c_f.append("   %s %s;\n"%(c_t_internal, n))
-                 #FIXME: case when we are working with EO
-                 if js_type == "ToString":
-                    c_f.append("   %s = strdup(*String::Utf8Value(__o->Get(String::NewSymbol(\"%s\"))->%s()));\n"%(n, n, js_type))
-                 else:
-                   c_f.append("   %s = __o->Get(String::NewSymbol(\"%s\"))->%s()->Value();\n"%(n, n, js_type))
+                 c_f.append("   %s = __o->Get(String::NewSymbol(\"%s\"))->%s()->Value();\n"%(n, n, js_type))
 
-                 if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
-                   pass_params.append('&' + n)
-                 else:
-                   pass_params.append(n)
+               if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
+                 pass_params.append('&' + n)
+               else:
+                 pass_params.append(n)
 
 
-           elif len(kl_dt["functions"][p+"_set"]["parameters"]) == 1:
-             (n, c_t, d) =  kl_dt["functions"][p+"_set"]["parameters"][0]
-             c_t_tmp = self.cast(c_t)
-             c_t_internal = self.internal_types[c_t_tmp][0]
-             js_type = self.internal_types[c_t_tmp][2]
+           elif len(params_tmp) == 1:
+             for (c_t, n, d, c_t_internal, js_type) in params_tmp:
 
-             if d != "in":
-               print "Warning wrong direction: property: %s; parameter: %s; direction: %"%(p, n, d)
-             else:
                c_f.append("   %s %s;\n"%(c_t_internal, n))
                #FIXME: case for EO
                if js_type == "ToString":
@@ -1364,6 +1285,7 @@ class XMLparser(object):
                  add_end_func.append("   free(%s);"%n)
                else:
                  c_f.append("   %s = val->%s()->Value();\n"%(n, js_type))
+
                if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
                  pass_params.append('&' + n)
                else:
@@ -1377,7 +1299,37 @@ class XMLparser(object):
 
         ll.append("\n")
 
+###############################################################################
+###############################################################################
+
         for p in kl_dt["properties_get"]:
+
+           params_tmp = []
+           add_this_func = True
+           for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_get"]["parameters"]):
+             if d != "out":
+               print "Warning wrong direction: property: %s; parameter: %s; direction: %s"%(p + "_get", n, d)
+               print "Property \"%s\" will not be defined"%(p + "_get")
+               add_this_func = False
+               break
+
+             c_t_tmp = self.cast(c_t)
+             js_type = ""
+             c_t_internal = ""
+
+             if c_t_tmp in self.internal_types:
+               c_t_internal = self.internal_types[c_t_tmp][0]
+               js_type = self.internal_types[c_t_tmp][2]
+               params_tmp.append((c_t, n, d, c_t_internal, js_type))
+             else:
+               print "Warning: type: \"%s\" wasn't found in self.internal_types. Function \"%s\" will not be defined"%(c_t_tmp, p + "_get")
+               add_this_func = False
+               break
+
+           if not add_this_func:
+             continue
+
+
            #generating headers of  setter/getter in class (h file)
            ll.append("   Handle<Value> %s_get() const;\n"%(p))
 
@@ -1388,17 +1340,13 @@ class XMLparser(object):
 
            pass_params = []
            ret_params = []
-           for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_get"]["parameters"]):
-             c_t_tmp = self.cast(c_t)
-             c_t_internal = self.internal_types[c_t_tmp][0]
-             js_type = self.internal_types[c_t_tmp][2]
+#           for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_get"]["parameters"]):
+           for (c_t, n, d, c_t_internal, js_type) in params_tmp:
+             c_f.append("   %s %s;\n"%(c_t_internal, n))
+             pass_params.append('&' + n)
 
-             if d == "out":
-               c_f.append("   %s %s;\n"%(c_t_internal, n))
-               pass_params.append('&' + n)
-
-               js_type = self.js_types[js_type]
-               ret_params.append((n, js_type))
+             js_type = self.js_types[js_type]
+             ret_params.append((n, js_type))
 
            c_f.append("   eo_do(eobj, %s(%s));\n"%(kl_dt["functions"][p+"_get"]["c_macro"], ", ".join(pass_params)))
 
@@ -1421,6 +1369,9 @@ class XMLparser(object):
 
         ll.append("\n")
 
+
+###############################################################################
+###############################################################################
 
         for e in kl_dt["ev_ids"]:
            #generating headers of events in class (h file)
@@ -1484,6 +1435,10 @@ class XMLparser(object):
              c_f.append("}\n")
              continue
 
+#####################################################################
+#####################################################################
+
+
         for m in kl_dt["methods"]:
            if m in ["event_global_freeze", "event_global_thaw"]:
              c_f.append("Handle<Value> %s(const Arguments& args)\n"%m)
@@ -1504,8 +1459,17 @@ class XMLparser(object):
            in_param_counter = 0
            for i, (n, c_t, d) in enumerate(kl_dt["functions"][m]["parameters"]):
              c_t_tmp = self.cast(c_t)
-             c_t_internal = self.internal_types[c_t_tmp][0]
-             js_type = self.internal_types[c_t_tmp][2]
+
+             js_type = ""
+             c_t_internal = ""
+
+             if c_t_tmp in self.internal_types:
+               c_t_internal = self.internal_types[c_t_tmp][0]
+               js_type = self.internal_types[c_t_tmp][2]
+             else:
+               print "Warning: type: \"%s\" wasn't found in self.internal_types. Function \"%s\" will not be defined"%(c_t_tmp, m)
+               continue
+
 
              if d == "in":
                c_f.append("   Local<Value> _%s = args[%d];\n"%(n, in_param_counter))
@@ -1555,7 +1519,7 @@ class XMLparser(object):
              c_f.append("   Local<Object> obj__ = Object::New();\n")
              for p, t in ret_params:
                 c_f.append("   obj__->Set(String::NewSymbol(\"%s\"), %s::New(%s));\n"%(p, t, p))
-             c_f.append("   return scope.Close(obj__);//need to put proper values\n")
+             c_f.append("   return scope.Close(obj__); //need to put proper values\n")
            else:
              c_f.append("   return Undefined();\n")
 
@@ -1642,7 +1606,9 @@ class XMLparser(object):
       tmp_parents_list.pop(0)
 
       for l in tmp_parents_list:
-        cl_type = self.objects[l].eo_type
+         #FIXME: where to look for included classes
+        cl_type = self.objects[l].eo_type if l in self.objects else self.objects_incl[l].eo_type
+#        cl_type = self.objects[l].eo_type
         if cl_type == self.string_consts["class_type_mixin"]: # "EOBJ_CLASS_TYPE_MIXIN":
           mixin_l.append(l)
         else:

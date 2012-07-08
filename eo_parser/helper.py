@@ -1,7 +1,48 @@
 import os
 from string import capwords
 
-def isC(s): 
+class _const:
+  class ConstError(TypeError): pass
+  def __setattr__(self,name,value):
+    if self.__dict__.has_key(name):
+#       raise self.ConstError("Can't rebind const(%s)"%name)
+      print "Can't rebind const: \"%s\""%name
+      return
+    self.__dict__[name]=value
+  def __init__(self):
+    self.C_NAME = "c_name" #check after changing in XML
+    self.MODULE = "module" #check after cnaaging in XML
+    self.TYPE = "type!"
+    self.CLASS_CONSTRUCTOR = "class_constructor!"
+    self.BASE_ID = "base_id!"
+    self.FUNCS = "funcs!"
+    self.FUNCS_PARAMS = "params"
+    self.FUNCS_OP_MACRO = "c_macro!"
+    self.FUNCS_OP_ID = "op_id!"
+
+    self.GET_FUNCTION = "get_function!"
+    self.DEFINES = "defines!"
+    self.PARENTS = "parents!"
+    self.H_FILE = "h_file!"
+    self.C_FILE = "c_file!"
+    self.XML_FILE = "xml_file!"
+    self.MACRO = "macro"  #EO_CLASS
+    self.OP_MACROS = "op_macros" #dict of macros from @def with parameters
+
+    self.CLASS_TYPE_MIXIN =  "EO_CLASS_TYPE_MIXIN"
+    self.CLASS_TYPE_REGULAR = "EO_CLASS_TYPE_REGULAR"
+    self.CLASS_DESC_OPS = "EO_CLASS_DESCRIPTION_OPS"
+    self.EO_DEFINE_CLASS = "EO_DEFINE_CLASS"
+    self.EO_DEFINE_CLASS_STATIC =  "EO_DEFINE_CLASS_STATIC"
+    self.EO_OP_DESCRIPTION =  "EO_OP_DESCRIPTION"
+    self.EO_OP_DESCRIPTION_SENTINEL = "EO_OP_DESCRIPTION_SENTINEL"
+    self.SUB_ID = "SUB_ID_"
+    self.EO_TYPECHECK = "EO_TYPECHECK"
+
+
+
+#FIXME: filename cpp, hpp,....
+def isC(s):
   if s[-2:] == ".c" and s.find("eo.c") == -1:
     return True
   else:
@@ -19,6 +60,16 @@ def isXML(s):
   else:
     return False
 
+#FIXME: rename filter_files according to what it really does
+#  filter_files(_directories, func, recursive)
+#
+#  _directories - input list of dirs, func - filter function,
+#  recursive - recursive lookup or not
+#
+#  Recursively(if True) walks through directories.
+#  Builds abs path for files, and filters according to type
+#
+#  Returns list of absolute paths for func - type of files
 
 def filter_files(_directories, func, recursive = True):
   res = []
@@ -39,10 +90,21 @@ def filter_files(_directories, func, recursive = True):
   res = list(set(res))
   return res
 
-def filter_path(lst):
-   if type(lst) == list:
+
+
+#  abs_path_get(_paths)
+#
+#  _paths - list of dirs or files
+#  _warning - boolean; exit if path doesn't exist
+#
+#  Builds abs path and checks if it exists for each path in list.
+#
+#  Returns list of abs paths
+#
+def abs_path_get(_paths, _warning = True):
+   if type(_paths) == list:
      res = []
-     lst = list(set(lst))
+     lst = list(set(_paths)) #remove multiple items from list
      for d in lst:
        path_tmp = d
        path_tmp = os.path.expanduser(path_tmp)
@@ -50,48 +112,28 @@ def filter_path(lst):
        if os.path.exists(path_tmp):
          res.append(path_tmp)
        else:
-         print "ERROR: path %s doesn't exists... Aborting..."%path_tmp
-         exit(1)
+         if _warning:
+           print "ERROR: path %s doesn't exist... Aborting..."%path_tmp
+           exit(1)
      return res
 
-   elif type(lst) == str:
-     path_tmp = lst
-     path_tmp = os.path.expanduser(path_tmp)
-     path_tmp = os.path.abspath(path_tmp)
-     if not os.path.exists(path_tmp):
-       print "ERROR: output path %s doesn't exists... Aborting..."%path_tmp
-       exit(1)
-     return path_tmp
 
-def filter_path_no_warning(lst):
-   if type(lst) == list:
-     res = []
-     lst = list(set(lst))
-     for d in lst:
-       path_tmp = d
-       path_tmp = os.path.expanduser(path_tmp)
-       path_tmp = os.path.abspath(path_tmp)
-       if os.path.exists(path_tmp):
-         res.append(path_tmp)
-     return res
+#FIXME: pass only list as parameter
 
-   elif type(lst) == str:
-     path_tmp = lst
-     path_tmp = os.path.expanduser(path_tmp)
-     path_tmp = os.path.abspath(path_tmp)
-     if not os.path.exists(path_tmp):
-       path_tmp = ""
-     return path_tmp
-
+#  normalize_names(_lst)
+#
+#  _lst - list of class names
+#
+#  Normalizes class names like following:
+#  Some_class name --> SomeClassName
+#
+#  Returns list of normalized names
+#
 def normalize_names(_lst):
    res = []
    if type(_lst) is str:
-     l = _lst
-     l = l.replace("-"," ")
-     l = l.replace("_"," ")
-     l = capwords(l)
-     l = "".join(l.split())
-     return l
+     print "Need to change string type to list in normalize_names"
+     print _lst[1000]
    for l in _lst:
      l = l.replace("-"," ")
      l = l.replace("_"," ")
