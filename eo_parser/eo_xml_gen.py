@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-from eo_parser.helper import filter_files, abs_path_get, isC, isH, isXML
+from eo_parser.helper import dir_files_get, abs_path_get, isC, isH, isXML
 from eo_parser.helper import _const
 from eo_parser.XMLparser import XMLparser
 from eo_parser.Cparser import Cparser
 from argparse import ArgumentParser
 import sys
 
-
+#creating instance to handle constants
 const = _const()
 
 def verbose_true(mes):
@@ -23,6 +23,9 @@ def main():
 
   parser.add_argument("-o", "--outdir", dest="outdir",
                   action="store", help="output directory")
+
+  parser.add_argument("-t", "--typedefs", dest="typedefs",
+                  action="store", help="Additional typedefs for parser")
 
   parser.add_argument("-i", "--include", dest="xmldir", default = sys.path,
                   action="append", help="Include xml directory")
@@ -41,6 +44,7 @@ def main():
 
   directories = []
   outdir = ""
+  typedefs = ""
   xmldir = []
 
   if args.directory == None:
@@ -56,14 +60,22 @@ def main():
 
     outdir = abs_path_get([args.outdir])[0]
 
+  if args.typedefs != None:
+    typedefs = abs_path_get([args.typedefs])[0]
+
   verbose_print("dirs %s"%directories)
   verbose_print("outdir %s"%outdir)
 
-  c_files = filter_files(directories, isC)
-  h_files = filter_files(directories, isH)
+  files = dir_files_get(directories)
+  c_files = filter(isC, files)
+  h_files = filter(isH, files)
 
   cp = Cparser(args.verbose)
   cp.outdir_set(outdir)
+
+  #adding typedefs from extern file
+  if typedefs:
+    cp.typedefs_add(typedefs)
 
   #fetching data from c-file
   for f in c_files:
@@ -104,7 +116,8 @@ def main():
       print "No XML directory was provided"
 
     verbose_print("xmldir: %s\n"%xmldir)
-    xml_files = filter_files(xmldir, isXML, False)
+    xml_files = dir_files_get(xmldir)
+    xml_files = filter(isXML, xml_files)
 
     if len(xml_files) == 0:
       print "ERROR: no include files found for %s classes... Aborting..."% ",".join(parents_to_find)
@@ -119,7 +132,6 @@ def main():
     #saving data about parents we were looking for
     for k in xp.cl_data:
       kl_dt = xp.cl_data[k]
-      print kl_dt[const.MACRO]
       if kl_dt[const.MACRO] in parents_to_find:
          cp.cl_incl[kl_dt[const.MACRO]] = {const.MODULE : kl_dt[const.MODULE],
                                            const.C_NAME : kl_dt[const.C_NAME]}
@@ -133,6 +145,7 @@ def main():
       exit(1)
 
   #building XMLs
+  #cp.print_data()
   for k in cp.cl_data:
     cp.build_xml(k)
 

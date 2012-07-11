@@ -37,6 +37,55 @@ class Cparser(object):
     self.key_words = [self.op_desc, self.ev_desc, self.cl_desc]
 
     self.outdir = ""
+    self.typedefs = {"Evas_Coord" : "int",
+                     "Evas_Angle":"int",
+                     "Evas_Font_Size" : "int",
+                     "Eina_Bool" : "bool",
+                     "Eo_Callback_Priority": "short"}
+
+
+  #parsing function, to parse typedef file
+  def typedefs_parser(self, name, attrs):
+      attrs_ascii = {}
+      for key, val in attrs.iteritems():
+         attrs_ascii[key.encode("ascii")] = val.encode("ascii")
+
+      attrs = attrs_ascii
+
+      if name == "type":
+         fr = attrs["from"]
+         to = attrs["to"]
+         fr = " ".join(fr.split())
+         fr = fr.replace(" *", "*")
+         to = " ".join(to.split())
+         to = to.replace(" *", "*")
+         if fr not in self.typedefs:
+           self.typedefs[fr] = to
+      else:
+         pass
+
+  def typedefs_add(self, fName):
+     p = xml.parsers.expat.ParserCreate()
+     p.StartElementHandler = self.typedefs_parser
+     p.ParseFile(open(fName, 'r'))
+
+  #typedef resolving
+  def typedef_resolve(self, _in):
+    stars = ""
+
+    l = _in.split('*', 1)
+    t_tmp = l[0]
+    stars += l[1]+'*' if len(l) == 2 else ""
+
+    while t_tmp in self.typedefs:
+      t_tmp = self.typedefs[t_tmp]
+
+      l = t_tmp.split('*', 1)
+      t_tmp = l[0]
+      stars += l[1]+'*' if len(l) == 2 else ""
+
+    return t_tmp + stars
+
 
 
   #parsing c file
@@ -141,18 +190,18 @@ class Cparser(object):
       self.cl_data[cl_id][const.FUNCS][func_name] = {const.FUNCS_OP_ID : op_id, const.FUNCS_OP_MACRO: ""}
       pos = in_data.find(key_str, pos + 1)
 
-    #self.cl_data[cl_id][self.op_desc] = lst
-    self.cl_data[cl_id].pop(self.op_desc)
+    self.cl_data[cl_id][self.op_desc] = lst
+    #self.cl_data[cl_id].pop(self.op_desc)
 
 #looking for parameters types in *.h
   def parse_op_func_params(self, cl_id):
-
     if self.op_desc not in self.cl_data[cl_id]:
        return
 
     op_desc = self.cl_data[cl_id][self.op_desc]
     defines = self.cl_data[cl_id][const.DEFINES]
     macros = self.cl_data[cl_id][const.OP_MACROS]
+
 
     #looking for op_id in define; if found, cutting op_macro from define
     #and checking if it is in macros list. If not - we forgot to add comment
@@ -218,8 +267,8 @@ class Cparser(object):
       exit(1)
 
     lst.pop(-1)
-    #self.cl_data[cl_id][self.ev_desc] = lst
-    self.cl_data[cl_id].pop(self.ev_desc)
+    self.cl_data[cl_id][self.ev_desc] = lst
+    #self.cl_data[cl_id].pop(self.ev_desc)
 
 
 
@@ -275,7 +324,7 @@ class Cparser(object):
 
   #generating XML
   def build_xml(self, cl_id):
-    self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, self.cl_data[cl_id][const.MODULE] + ".xml")
+    self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, normalize_names([self.cl_data[cl_id][const.C_NAME]])[0] + ".xml")
 
     cl_data = self.cl_data[cl_id]
 
@@ -335,7 +384,7 @@ class Cparser(object):
         if "params" in cl_data[const.FUNCS][k]:
           params = cl_data[const.FUNCS][k][const.FUNCS_PARAMS]
           for v, t, d in params:
-             p = SubElement(m, "parameter", {"name":v, "c_typename":t, "direction":d})
+             p = SubElement(m, "parameter", {"name":v, "c_typename":t, "primary_type" : self.typedef_resolve(t),"direction":d})
 
 
     if self.ev_desc in cl_data:
@@ -482,6 +531,8 @@ class Cparser(object):
       print "ERROR: brackets should be {} or () or []"
       exit(1)
 
+
+  #print out data from each class in parser object
   def print_data(self):
     for klass in self.cl_data:
       print ""
@@ -499,7 +550,7 @@ class Cparser(object):
           for l in d:
             print spaces, l
 
-
+  #set internal variable for outdir
   def outdir_set(self, _d):
     self.outdir = _d
 

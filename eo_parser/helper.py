@@ -12,20 +12,20 @@ class _const:
   def __init__(self):
     self.C_NAME = "c_name" #check after changing in XML
     self.MODULE = "module" #check after cnaaging in XML
-    self.TYPE = "type!"
-    self.CLASS_CONSTRUCTOR = "class_constructor!"
-    self.BASE_ID = "base_id!"
-    self.FUNCS = "funcs!"
+    self.TYPE = "type"
+    self.CLASS_CONSTRUCTOR = "class_constructor"
+    self.BASE_ID = "base_id"
+    self.FUNCS = "funcs"
     self.FUNCS_PARAMS = "params"
-    self.FUNCS_OP_MACRO = "c_macro!"
-    self.FUNCS_OP_ID = "op_id!"
+    self.FUNCS_OP_MACRO = "c_macro"
+    self.FUNCS_OP_ID = "op_id"
 
-    self.GET_FUNCTION = "get_function!"
-    self.DEFINES = "defines!"
-    self.PARENTS = "parents!"
-    self.H_FILE = "h_file!"
-    self.C_FILE = "c_file!"
-    self.XML_FILE = "xml_file!"
+    self.GET_FUNCTION = "get_function"
+    self.DEFINES = "defines"
+    self.PARENTS = "parents"
+    self.H_FILE = "h_file"
+    self.C_FILE = "c_file"
+    self.XML_FILE = "xml_file"
     self.MACRO = "macro"  #EO_CLASS
     self.OP_MACROS = "op_macros" #dict of macros from @def with parameters
 
@@ -38,6 +38,12 @@ class _const:
     self.EO_OP_DESCRIPTION_SENTINEL = "EO_OP_DESCRIPTION_SENTINEL"
     self.SUB_ID = "SUB_ID_"
     self.EO_TYPECHECK = "EO_TYPECHECK"
+
+    self.SET_ONLY = 0
+    self.GET_ONLY = 1
+    self.SET_GET = 2
+#    self.GET_SET = 3
+    self.METHOD = 4
 
 
 
@@ -60,18 +66,17 @@ def isXML(s):
   else:
     return False
 
-#FIXME: rename filter_files according to what it really does
-#  filter_files(_directories, func, recursive)
+#  dir_files_get(_directories, func, recursive)
 #
-#  _directories - input list of dirs, func - filter function,
+#  _directories - input list of dirs,
 #  recursive - recursive lookup or not
 #
 #  Recursively(if True) walks through directories.
-#  Builds abs path for files, and filters according to type
+#  Builds abs path for files.
 #
-#  Returns list of absolute paths for func - type of files
+#  Returns list of absolute paths
 
-def filter_files(_directories, func, recursive = True):
+def dir_files_get(_directories, recursive = True):
   res = []
   if recursive:
     for d in _directories:
@@ -79,17 +84,16 @@ def filter_files(_directories, func, recursive = True):
         tmp = []
         for f in files:
           tmp.append(os.path.join(root,f))
-        res += filter(func, tmp)
+        res += tmp
   else:
     for d in _directories:
       tmp = []
       for f in os.listdir(d):
         tmp.append(os.path.join(d, f))
-      res += filter(func, tmp)
+      res += tmp
 
   res = list(set(res))
   return res
-
 
 
 #  abs_path_get(_paths)

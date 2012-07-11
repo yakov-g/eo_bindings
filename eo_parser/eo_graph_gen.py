@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from eo_parser.helper import isXML, filter_files, filter_path
+from eo_parser.helper import isXML, dir_files_get, abs_path_get
 from eo_parser.XMLparser import XMLparser
 from argparse import ArgumentParser
 import os
@@ -95,7 +95,7 @@ def main():
     exit(1)
 
   else:
-    directories = filter_path(args.directory)
+    directories = abs_path_get(args.directory)
 
     outfile = args.outfile
     outfile = os.path.expanduser(outfile)
@@ -109,7 +109,8 @@ def main():
   verbose_print("Dirs: %s"%directories)
   verbose_print("Outfile: %s"%outfile)
 
-  xml_files = filter_files(directories, isXML)
+  xml_files = dir_files_get(directories)
+  xml_files = filter(isXML, xml_files)
 
   graph = {}
 

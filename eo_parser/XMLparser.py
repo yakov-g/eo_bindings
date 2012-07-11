@@ -1,5 +1,6 @@
 import xml.parsers.expat, os, shutil
 from helper import normalize_names, _const
+import copy
 
 const = _const()
 
@@ -15,6 +16,12 @@ def O_TYPE_CHECK(o, class_type):
 def class_name_get(_o):
   return _o.__class__.__name__
 
+
+#  Visitor Design Pattern
+#  Visitor - base class for different visitors.
+#  visit function implements dispatch depending on class name of object
+#
+
 class Visitor(object):
   def visit(self, _p):
     method_name = "visit_" + class_name_get(_p)
@@ -25,13 +32,308 @@ class Visitor(object):
        print "%s is not callable attribute"%(method_name)
 
 
+class Abstract(object):
+   def __init__(self):
+      pass
+
+
+class JsVisitor(Visitor):
+
+  def __init__(self):
+     self.visited_properties = []
+
+     self.c_file = Abstract()
+     self.c_file.tmpl = []
+     self.c_file.cb_generate_macros = []
+     self.c_file.name = ""
+     self.c_file.functions = []
+     self.c_file.header = []
+
+     self.h_file = Abstract()
+     self.h_file.ev_list = []
+     self.h_file.name = ""
+     self.h_file.header = []
+     self.h_file.prop_cb_headers = []
+     self.h_file.ev_cb_headers = []
+     self.h_file.meth_cb_headers = []
+
+     self.class_info = Abstract()
+     self.class_info.header = ""
+     self.class_info.private = []
+     self.class_info.protected = []
+     self.class_info.public = []
+
+
+  def visit_Func(self, _o):
+#     print _o.name, _o.op_id, _o.c_macro, _o.parameters
+ #    print _o.prop_type
+
+     if _o.prop_type == const.SET_GET and _o.name not in self.visited_properties:
+       _oo = copy.deepcopy(_o)
+       _oo.name = _oo.name[:-4]
+       self.visit_prop_set_get(_oo)
+
+       self.visited_properties.append(_o.name[:-4]+"_set")
+       self.visited_properties.append(_o.name[:-4]+"_get")
+
+     elif _o.prop_type == const.SET_ONLY:
+       _oo = copy.deepcopy(_o)
+       _oo.name = _oo.name[:-4]
+       self.visit_prop_set_only(_oo)
+
+     elif _o.prop_type == const.GET_ONLY:
+       _oo = copy.deepcopy(_o)
+       _oo.name = _oo.name[:-4]
+       self.visit_prop_get_only(_oo)
+
+     elif _o.prop_type == const.METHOD:
+       self.visit_method(_o)
+
+
+  def visit_Ev(self, _o):
+    #defining event globals
+
+    ev = _o.ev_id.lower()
+    self.h_file.ev_list.append("      Persistent<Value> _event_%s;\n"%(ev))
+    self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_CALLBACKS(%s, %s);\n"%(_o.cl_obj.kl_id, ev))
+    self.c_file.tmpl.append("   PROPERTY(%s)"% ev)
+
+
+    self.class_info.public.append("\n")
+    self.class_info.public.append("   Handle<Value> %s_get() const;\n"%(ev))
+    self.class_info.public.append("   void %s_set(Handle<Value> val);\n"%(ev))
+    self.class_info.public.append("   void %s(void *event_info);\n"%(ev))
+    self.class_info.public.append("   static Eina_Bool %s_wrapper(void *data, Eo *obj, const Eo_Event_Description *desc, void *event_info);\n"%(ev))
+
+    self.h_file.ev_cb_headers.append("   Handle<Value> Callback_%s_get(Local<String>, const AccessorInfo &info);\n"%(ev))
+    self.h_file.ev_cb_headers.append("   void Callback_%s_set(Local<String>, Local<Value> val, const AccessorInfo &info);\n"%(ev))
+
+
+  def visit_prop_set_get(self, _o):
+    self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_CALLBACKS(%s, %s);\n"%(_o.cl_obj.kl_id, _o.name))
+
+    self.class_info.public.append("   Handle<Value> %s_get() const;\n"%(_o.name))
+    self.class_info.public.append("   void %s_set(Handle<Value> val);\n"%(_o.name))
+
+    self.h_file.prop_cb_headers.append("   Handle<Value> Callback_%s_get(Local<String>, const AccessorInfo &info);\n"%(_o.name))
+    self.h_file.prop_cb_headers.append("   void Callback_%s_set(Local<String>, Local<Value> val, const AccessorInfo &info);\n"%(_o.name))
+
+  def visit_method(self, _o):
+    if _o.name in ["event_global_freeze", "event_global_thaw"]:
+       return
+    self.c_file.cb_generate_macros.append("EO_GENERATE_METHOD_CALLBACKS(%s, %s);\n"%(_o.cl_obj.kl_id, _o.name))
+    self.c_file.tmpl.append("   METHOD(%s)"% _o.name)
+    self.h_file.meth_cb_headers.append("   Handle<Value> Callback_%s(const Arguments&);\n"%(_o.name))
+
+  def visit_prop_set_only(self, _o):
+    self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_SET_CALLBACK(%s, %s);\n"%(_o.cl_obj.kl_id, _o,name))
+    self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_GET_EMPTY_CALLBACK(%s, %s);\n"%(_o.cl_obj.kl_id, _o.name))
+    self.c_file.tmpl.append("   PROPERTY(%s)"% _o.name)
+    self.h_file.prop_cb_headers.append("   Handle<Value> Callback_%s_get(Local<String>, const AccessorInfo &info);\n"%(_o.name))
+    self.h_file.prop_cb_headers.append("   void Callback_%s_set(Local<String>, Local<Value> val, const AccessorInfo &info);\n"%(_o.name))
+
+  def visit_prop_get_only(self, _o):
+    self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_SET_EMPTY_CALLBACK(%s, %s);\n"%(_o.cl_obj.kl_id, _o.name))
+    self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_GET_CALLBACK(%s, %s);\n"%(_o.cl_obj.kl_id, _o.name))
+    self.c_file.tmpl.append("   PROPERTY(%s)"% _o.name)
+    self.h_file.prop_cb_headers.append("   Handle<Value> Callback_%s_get(Local<String>, const AccessorInfo &info);\n"%(_o.name))
+    self.h_file.prop_cb_headers.append("   void Callback_%s_set(Local<String>, Local<Value> val, const AccessorInfo &info);\n"%(_o.name))
+
+
+
+  def visit_Init(self, _o):
+    c_f = []
+    h_f = []
+
+    self.c_file.name = _o.cl_obj.js_cc_file
+    self.h_file.name = _o.cl_obj.js_h_file
+
+    self.c_file.header.append("/**\n * generated from \"%s\"\n */\n"%(_o.cl_obj.source_file))
+    self.c_file.header.append("#include \"%s\"\n"%(os.path.split(_o.cl_obj.js_h_file)[1] ))
+    self.c_file.header.append("namespace elm {\n\n")
+    self.c_file.header.append("using namespace v8;\n\n")
+
+    self.h_file.header.append("/**\n * generated from \"%s\"\n */\n"%(_o.cl_obj.source_file))
+    self.h_file.header.append("#ifndef %s\n"%( ("_JS_"+_o.cl_obj.mod_name+"_h_").upper() ))
+    self.h_file.header.append("#define %s\n"%( ("_JS_"+_o.cl_obj.mod_name+"_h_").upper() ))
+    self.h_file.header.append("\n")
+    self.h_file.header.append("#include \"elm.h\" //macro defines, common functions\n")
+    self.h_file.header.append("#include \"CElmObject.h\" //base object\n")
+    self.h_file.header.append("#include \"%s\" //eo-class include file\n"%(_o.cl_obj.includes[0]))
+
+#FIXME have to guess about filenames to include. (need to move it into js_obj_parse and save in "includes" array)
+    for l in _o.cl_obj.parents:
+       self.h_file.header.append("#include \"%s\" //include generated js-wrapping classes\n"%("_" + l.lower() + ".h"))
+
+    h_f.append("\n")
+    h_f.append("namespace elm { //namespace should have the same meaning as module for python\n")
+    h_f.append("\n")
+
+    h_f.append("using namespace v8;\n")
+    h_f.append("\n")
+
+    lst = ["public virtual CElmObject"]
+    for l in _o.cl_obj.parents:
+      lst.append("public virtual %s"%(l))
+
+    inherit = ", ".join(lst)
+    self.class_info.header ="class %s : %s \n"%(_o.cl_obj.kl_id, inherit)
+
+    init_f = []
+
+
+    if _o.cl_obj.eo_type == const.CLASS_TYPE_REGULAR:
+      self.class_info.private.append("   static Persistent<FunctionTemplate> tmpl;\n")
+      self.class_info.private.append("\n")
+
+      #implementing constructor
+      self.class_info.protected.append("   %s(Local<Object> _jsObject, CElmObject *parent);\n"%(_o.cl_obj.kl_id))
+      self.c_file.functions.append("%s::%s(Local<Object> _jsObject, CElmObject *parent)\n"%(_o.cl_obj.kl_id, _o.cl_obj.kl_id))
+      self.c_file.functions.append(" : CElmObject(_jsObject, eo_add(%s , parent ? parent->GetEo() : NULL))\n"%(_o.cl_obj.macro))
+      self.c_file.functions.append("{\n   jsObject->SetPointerInInternalField(0, static_cast<CElmObject*>(this));\n}\n")
+
+      self.class_info.protected.append("   static Handle<FunctionTemplate> GetTemplate();\n")
+      self.class_info.protected.append("\n")
+
+      self.class_info.public.insert(0, "   static void Initialize(Handle<Object> target);\n")
+
+
+      #implementing Initialize
+      init_f.append("void %s::Initialize(Handle<Object> target)\n"%_o.cl_obj.kl_id)
+      init_f.append("{\n")
+      init_f.append("   target->Set(String::NewSymbol(\"%s\") , GetTemplate()->GetFunction());\n"%_o.cl_obj.kl_id)
+      init_f.append("}\n")
+
+      self.class_info.public.insert(0, "   virtual void DidRealiseElement(Local<Value> obj);\n")
+
+      #implementing DidRealise
+      self.c_file.functions.append("void %s::DidRealiseElement(Local<Value> obj)\n {\n\
+                  (void) obj;\n\
+                  }\n"%_o.cl_obj.kl_id)
+
+      self.class_info.public.insert(0, "   friend Handle<Value> CElmObject::New<%s>(const Arguments& args);\n"%(_o.cl_obj.kl_id))
+      self.class_info.public.append("\n")
+
+
+    #default constructors - destructors
+    self.class_info.protected.append("   %s();\n"%(_o.cl_obj.kl_id))
+    self.c_file.functions.append("%s::%s(){}\n\n"%(_o.cl_obj.kl_id, _o.cl_obj.kl_id));
+    self.c_file.functions.append("%s::~%s(){} //need to add destruction of cb variables\n\n"%(_o.cl_obj.kl_id, _o.cl_obj.kl_id));
+
+    self.class_info.protected.append("   virtual ~%s();\n"%(_o.cl_obj.kl_id))
+
+
+
+    c_f += init_f
+    c_f.append("} //end namespace elm\n")
+
+    """
+    for l in h_f:
+       print l
+
+    print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5"
+    for l in c_f:
+      print l
+      """
+
+
+
+  #saving data to pxi file
+  def js_cc_file_to_dir_save(self, _outdir):
+    print "cc", self.c_file.name
+#    f = open(os.path.join(_outdir, self.pxi["f_name"]), 'w')
+    """
+    lst = self.pxi["head"]
+    for l in lst:
+       f.write(l+'\n')
+    f.write("\n")
+
+    """
+
+
+  def js_h_file_to_dir_save(self, _outdir):
+    print "h", self.h_file.name
+
+    lines = []
+
+    for line in self.h_file.header:
+      lines.append(line)
+
+    lines.append("\n")
+    lines.append("namespace elm { //namespace should have the same meaning as module for python\n")
+    lines.append("\n")
+
+    lines.append("using namespace v8;\n")
+    lines.append("\n")
+    lines.append(self.class_info.header)
+    lines.append("{\n") # open class
+
+    lines.append("private:\n")
+    for line in self.class_info.private:
+      lines.append(line)
+
+    lines.append("protected:\n")
+    for line in self.class_info.protected:
+      lines.append(line)
+
+    if len(self.h_file.ev_list) != 0:
+      lines.append("\n   struct {\n")
+      for line in self.h_file.ev_list:
+        lines.append(line)
+      lines.append("   } cb;\n\n")
+
+
+    lines.append("public:\n")
+    for line in self.class_info.public:
+      lines.append(line)
+
+    lines.append("} // end_class\n") # close class
+
+    lines.append("\n/* properties callbacks*/\n") 
+    for line in self.h_file.prop_cb_headers:
+      lines.append(line)
+
+    lines.append("\n/* methods callbacks*/\n") 
+    for line in self.h_file.meth_cb_headers:
+      lines.append(line)
+
+    lines.append("\n/* properties(events) callbacks*/\n") 
+    for line in self.h_file.ev_cb_headers:
+      lines.append(line)
+
+
+
+    lines.append("\n")
+    lines.append("} //end namespace elm\n")
+
+    lines.append("\n")
+    lines.append("#endif\n")
+
+    f = open (self.h_file.name, 'w')
+    for line in lines:
+      f.write(line)
+    f.close()
+
+
+
+
+
+
+
+
+#  PyVisitor
+#  Py code generation. Generates code depending on object type(input data)
+#  Under  "object type" we understand just some set of data, which has 
+#  the same rules of generation
+#
+
 class PyVisitor(Visitor):
 
   def __init__(self):
-
+        #  PyVisitor generates 2 types of files: pxi and pxd
+        #  head, ev, funcs_parsed - are hooks for different parts of source code
         self.pxi = {"f_name": "", "head" : [], "ev" : [], "funcs_parsed" : []}
         self.pxd = {"f_name": "", "head" : [], "ev" : [], }
-
 
         self._funcs = {"instance_set2" : "_eo_instance_set2",
                        "instance_get" : "_eo_instance_get",
@@ -44,12 +346,6 @@ class PyVisitor(Visitor):
                            "type" :"EO_CLASS_TYPE_REGULAR_NO_INSTANCE",
                            ".pyx" : "eodefault.pyx",
                            ".pxd" : "eodefault.pxd"}
-
-        self.typedefs = {"Evas_Coord" : "int",
-                         "Evas_Angle":"int",
-                         "Evas_Font_Size" : "int",
-                         "Eina_Bool" : "bool",
-                         "Eo_Callback_Priority": "short"}
 
         self.primary_types = {"Eo**" : "Eo*",
                               "void**" : "void*",
@@ -88,23 +384,19 @@ class PyVisitor(Visitor):
                                 #"eo_base_data_free_func" : ["", ""]
                                 }
 
-        self.reserved_words = ["raise", "del"]
-
+        self.python_reserved_words = ["raise", "del"]
 
   def cast(self, _in):
-    t_tmp = _in.strip("*")
     t = _in
-    for k in self.typedefs:
-#      if t.find(k) != -1:
-      if t_tmp == k:
-        t = _in.replace(k, self.typedefs[k])
-    del t_tmp
 
     for k in self.primary_types:
       if t.find(k) != -1:
         t = t.replace(k, self.primary_types[k])
     return t
 
+
+
+  #generating function code
   def visit_Func(self, _o):
 #     print "func Func: ", _o.name, _o.op_id, _o.c_macro, _o.parameters
      eo_base_ops = ["EO_BASE_SUB_ID_EVENT_FREEZE", "EO_BASE_SUB_ID_EVENT_FREEZE_GET", \
@@ -203,8 +495,8 @@ class PyVisitor(Visitor):
 
      if True:#"parameters" in fparams:
 
-       for i, (n, c_t, d) in enumerate(_o.parameters):
-         c_t_tmp = self.cast(c_t)
+       for i, (n, c_t, d, p_t) in enumerate(_o.parameters):
+         c_t_tmp = self.cast(p_t)
 
          py_type = ""
          c_t_internal = ""
@@ -213,7 +505,7 @@ class PyVisitor(Visitor):
             c_t_internal = self.internal_types[c_t_tmp][0]
             py_type = self.internal_types[c_t_tmp][1]
          else:
-            print "Warning: type: \"%s\" wasn't found in self.internal_types. Functon \"%s\" will not be defined"%(c_t_tmp, _o.name)
+            print "Warning: type: \"%s\" wasn't found in self.internal_types. Function \"%s\" will not be defined"%(c_t_tmp, _o.name)
             return
 
          if d == "in":
@@ -256,7 +548,7 @@ class PyVisitor(Visitor):
      in_params.insert(0, "self")
 
 
-     if _o.name in self.reserved_words:
+     if _o.name in self.python_reserved_words:
         func_name = _o.name + "_"
         print "Warning: method name: \"%s\" for class : \"%s\" has been changed to \"%s\""%(_o.name,  cl_obj.kl_id, func_name)
      else:
@@ -293,7 +585,7 @@ class PyVisitor(Visitor):
      self.pxi["funcs_parsed"] += function_lines
 
 
-
+  #generating __init_function
   def visit_Init(self, _o):
     cl_obj = _o.cl_obj
 
@@ -363,23 +655,20 @@ class PyVisitor(Visitor):
     if cl_obj.extern_base_id != "":
       l = 'cdef int %s(int sub_id):'%(cl_obj.sub_id_function)
       self.pxi["head"].append(l)
-      l = '  return %s.%s + sub_id'%(cl_obj.mod_name,
-                                         cl_obj.extern_base_id)
+      l = '  return %s.%s + sub_id'%(cl_obj.mod_name, cl_obj.extern_base_id)
       self.pxi["head"].append(l + '\n')
 
     #defining class
-
     parents = ','.join(parents)
     l = 'class %s(%s):'%(cl_obj.kl_id, parents)
 
     self.pxi["head"].append(l)
 
-
-        #inserting cimports
+    #inserting cimports
     l = "from %s cimport *"%(cl_obj.basemodule)
     self.pxd["head"].append(l + '\n')
 
-        #inserting externs from H
+    #inserting externs from H
     l = "cdef extern from \"%s\":"%(cl_obj.includes[0])
     self.pxd["head"].append(l + '\n')
 
@@ -387,7 +676,6 @@ class PyVisitor(Visitor):
     if cl_obj.extern_base_id != "":
        l = '  %s %s'%("Eo_Op", cl_obj.extern_base_id)
        self.pxd["head"].append(l + '\n')
-
 
     enum_lines = []
     enum_lines.append("  ctypedef enum:")
@@ -407,10 +695,7 @@ class PyVisitor(Visitor):
         self.pxd["head"].append(l)
 
 
-
-
-
-
+  #generating event defenitions
   def visit_Ev(self, _o):
     #defining event globals
     v = _o.ev_id
@@ -445,8 +730,7 @@ class PyVisitor(Visitor):
     f.close()
 
 
-
-  #saving data to px file
+  #saving data to pxd file
   def pxd_file_to_dir_save(self, _outdir):
 
     f = open(os.path.join(_outdir, self.pxd["f_name"]), 'w')
@@ -469,24 +753,29 @@ class VAcceptor(object):
       return None
     v.visit(self)
 
+#class to save function data
 class Func(VAcceptor):
-   def __init__(self, _name, _op_id, _c_macro, _parameters, _cl_obj):
+   def __init__(self, _name, _op_id, _c_macro, _parameters, _prop_type, _cl_obj):
      self.name = _name
      self.op_id = _op_id
      self.c_macro = _c_macro
      self.parameters = _parameters
      self.cl_obj = _cl_obj
+     self.prop_type = _prop_type
 
+#class to save init function data
 class Init(VAcceptor):
    def __init__(self, _cl_obj):
      self.cl_obj = _cl_obj
 
-
+#class to save event data
 class Ev(VAcceptor):
    def __init__(self, _ev_id, _cl_obj):
      self.ev_id = _ev_id
      self.cl_obj = _cl_obj
 
+#  class to keep all data about class
+#  (instead of nested dictionary in parser class)
 class Mod(object):
    def __init__(self):
      self.kl_id = ""
@@ -518,22 +807,8 @@ class XMLparser(object):
 
         self.cl_data = {}
         self.cl_incl = {}
-        self.V = PyVisitor()
         self.objects = {}
         self.objects_incl = {}
-
-        """
-        self.properties = {}
-        """
-
-        #internal functions, used in eodefault.pyx
-
-
-        self.typedefs = {"Evas_Coord" : "int",
-                         "Evas_Angle":"int",
-                         "Evas_Font_Size" : "int",
-                         "Eina_Bool" : "bool",
-                         "Eo_Callback_Priority": "short"}
 
         self.primary_types = {"Eo**" : "Eo*",
                               "void**" : "void*",
@@ -578,13 +853,9 @@ class XMLparser(object):
                           "ToObject" : "Local <Object>"
                           }
 
-        self.string_consts = {"class_type_mixin" : "EO_CLASS_TYPE_MIXIN",
-                              "class_type_regular" : "EO_CLASS_TYPE_REGULAR",
-                          }
-        self.python_reserved = {"pass" }
+        self.python_reserved = {"pass"}
 
 
-        self.outdir = ""
         self.source_file = ""
         self.includes = []
         self.ev_ids = []
@@ -594,36 +865,6 @@ class XMLparser(object):
         self.class_data = {}
         self.functions = {} #function names with parameters
         self.current_func = ""
-        self.hack_types = ["eo_base_data_free_func"]
-
-
-
-
-    def typedefs_parser(self, name, attrs):
-     #converting unicode to ascii
-        attrs_ascii = {}
-        for key, val in attrs.iteritems():
-           attrs_ascii[key.encode("ascii")] = val.encode("ascii")
-
-        attrs = attrs_ascii
-
-        if name == "type":
-           fr = attrs["from"]
-           to = attrs["to"]
-           fr = " ".join(fr.split())
-           fr = fr.replace(" *", "*")
-           to = " ".join(to.split())
-           to = to.replace(" *", "*")
-           if fr not in self.typedefs:
-             self.typedefs[fr] = to
-
-        else:
-           pass
-
-    def typedefs_add(self, fName):
-        p = xml.parsers.expat.ParserCreate()
-        p.StartElementHandler = self.typedefs_parser
-        p.ParseFile(open(fName, 'r'))
 
 
     #parsing function for expat parser
@@ -638,7 +879,6 @@ class XMLparser(object):
             self.current_func = attrs["name"]
             self.functions.setdefault(self.current_func, {"op_id":attrs["op_id"], "c_macro":attrs["c_macro"], "parameters":[]})
 
-
         elif name == "parameter":
             func_att = self.functions[self.current_func]
             #par_att = func_att.setdefault('parameters', [])
@@ -646,7 +886,7 @@ class XMLparser(object):
             name = attrs["name"]
             if name in self.python_reserved:
               name += "__"
-            par_att.append((name, attrs["c_typename"], attrs["direction"]))
+            par_att.append((name, attrs["c_typename"], attrs["direction"], attrs["primary_type"]))
 
         elif name == "include":
             self.includes.append(attrs["name"])
@@ -671,15 +911,8 @@ class XMLparser(object):
             pass
 
 
-#changing types according to typedefs: Evas_Coord -> int
     def cast(self, _in):
-      t_tmp = _in.strip("*")
       t = _in
-      for k in self.typedefs:
-#        if t.find(k) != -1:
-        if t_tmp == k:
-          t = _in.replace(k, self.typedefs[k])
-      del t_tmp
 
       for k in self.primary_types:
         if t.find(k) != -1:
@@ -745,13 +978,25 @@ class XMLparser(object):
         mod_o.sub_id_function = self.class_data["sub_id_function"]
         mod_o.source_file = self.source_file
         mod_o.parents = parent_list
-        mod_o.V = PyVisitor()
-
-        mod_o.V.typedefs = dict(self.typedefs)
+#        mod_o.V = PyVisitor()
 
 
         for i in self.functions:
-          mod_o.functions[i] = Func(i, self.functions[i]["op_id"], self.functions[i]["c_macro"], self.functions[i]["parameters"], mod_o)
+          T = ""
+          if i[-4:] == "_set":
+            if i[:-4]+"_get" in self.functions:
+              T = const.SET_GET
+            else:
+              T = const.SET_ONLY
+          elif i[-4:] == "_get":
+            if i[:-4]+"_set" in self.functions:
+              T = const.SET_GET
+            else:
+              T = const.GET_ONLY
+          else:
+            T = const.METHOD
+          mod_o.functions[i] = Func(i, self.functions[i]["op_id"], self.functions[i]["c_macro"], self.functions[i]["parameters"], T, mod_o)
+
 
 
         for i in self.ev_ids:
@@ -769,15 +1014,17 @@ class XMLparser(object):
         self.extern_funcs = []
 
 
-    def js_parse(self, kl_id):
+    def js_parse(self, kl_id, outdir):
 
        funcs = self.cl_data[kl_id]["functions"]
 
-       self.cl_data[kl_id]["js_cpp_h"] = os.path.join(self.outdir, "_" + self.cl_data[kl_id]["module"]  + ".h")
-       self.cl_data[kl_id]["js_cpp_cc"] = os.path.join(self.outdir, "_" + self.cl_data[kl_id]["module"]  + ".cc")
+       self.cl_data[kl_id]["js_cpp_h"] = os.path.join(outdir, "_" + self.cl_data[kl_id]["module"]  + ".h")
+       self.cl_data[kl_id]["js_cpp_cc"] = os.path.join(outdir, "_" + self.cl_data[kl_id]["module"]  + ".cc")
 
-       self.cl_data[kl_id]["properties"] = self.cl_data[kl_id]["methods"] = \
-       self.cl_data[kl_id]["properties_set"] = self.cl_data[kl_id]["properties_get"] = []
+       self.cl_data[kl_id]["properties"] = []
+       self.cl_data[kl_id]["methods"] = []
+       self.cl_data[kl_id]["properties_set"] = []
+       self.cl_data[kl_id]["properties_get"] = []
 
        eo_base_ops = ["EO_BASE_SUB_ID_EVENT_FREEZE", "EO_BASE_SUB_ID_EVENT_FREEZE_GET", "EO_BASE_SUB_ID_EVENT_THAW", "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE", "EO_BASE_SUB_ID_EVENT_GLOBAL_THAW"]
 
@@ -802,10 +1049,6 @@ class XMLparser(object):
            methods.append(l)
 
        for key in prop_tmp:
-        # if kl_id == "Eo Base":
-        #   if funcs[key]["op_id"] not in eo_base_ops:
-        #     continue
-
          l = key[:-4]
 
          if l + "_set" in prop_tmp and l + "_get" in prop_tmp and l not in methods:
@@ -821,6 +1064,13 @@ class XMLparser(object):
        self.cl_data[kl_id]["methods"] = methods
        self.cl_data[kl_id]["properties_set"] = properties_set
        self.cl_data[kl_id]["properties_get"] = properties_get
+
+
+    def js_obj_parse(self, outdir):
+      for n, o in self.objects.items():
+         o.js_h_file = os.path.join(outdir, "_" + o.mod_name + ".h")
+         o.js_cc_file = os.path.join(outdir, "_" + o.mod_name + ".cc")
+
 
 
     def check_parents(self):
@@ -978,7 +1228,7 @@ class XMLparser(object):
         init_f = []
         tmpl = ""
 
-        if kl_dt["type"] == self.string_consts["class_type_regular"]:
+        if kl_dt["type"] == const.CLASS_TYPE_REGULAR:
           priv.append("   static Persistent<FunctionTemplate> tmpl;\n")
           priv.append("\n")
 
@@ -1079,19 +1329,21 @@ class XMLparser(object):
         ll.append("\n")
         ll.append("public:\n")
         ll += publ
+
+
         for p in kl_dt["properties"]:
 
 
            params_tmp = []
            add_this_func = True
-           for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_get"]["parameters"]):
+           for i, (n, c_t, d, p_t) in enumerate(kl_dt["functions"][p+"_get"]["parameters"]):
              if d != "out":
                print "Warning wrong direction: property: %s; parameter: %s; direction: %s"%(p + "_get", n, d)
                print "Property \"%s\" will not be defined"%(p + "_get")
                add_this_func = False
                break
 
-             c_t_tmp = self.cast(c_t)
+             c_t_tmp = self.cast(p_t)
              js_type = ""
              c_t_internal = ""
 
@@ -1145,14 +1397,14 @@ class XMLparser(object):
 
            params_tmp = []
            add_this_func = True
-           for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_set"]["parameters"]):
+           for i, (n, c_t, d, p_t) in enumerate(kl_dt["functions"][p+"_set"]["parameters"]):
              if d != "in":
                print "Warning wrong direction: property: %s; parameter: %s; direction: %s"%(p, n, d)
                print "Property \"%s\" will not be defined"%(p + "_set")
                add_this_func = False
                break
 
-             c_t_tmp = self.cast(c_t)
+             c_t_tmp = self.cast(p_t)
              js_type = ""
              c_t_internal = ""
 
@@ -1226,14 +1478,14 @@ class XMLparser(object):
 
            params_tmp = []
            add_this_func = True
-           for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_set"]["parameters"]):
+           for i, (n, c_t, d, p_t) in enumerate(kl_dt["functions"][p+"_set"]["parameters"]):
              if d != "in":
                print "Warning wrong direction: property: %s; parameter: %s; direction: %"%(p, n, d)
                print "Property \"%s\" will not be defined"%(p + "_set")
                add_this_func = False
                break
 
-             c_t_tmp = self.cast(c_t)
+             c_t_tmp = self.cast(p_t)
              js_type = ""
              c_t_internal = ""
 
@@ -1306,14 +1558,14 @@ class XMLparser(object):
 
            params_tmp = []
            add_this_func = True
-           for i, (n, c_t, d) in enumerate(kl_dt["functions"][p+"_get"]["parameters"]):
+           for i, (n, c_t, d, p_t) in enumerate(kl_dt["functions"][p+"_get"]["parameters"]):
              if d != "out":
                print "Warning wrong direction: property: %s; parameter: %s; direction: %s"%(p + "_get", n, d)
                print "Property \"%s\" will not be defined"%(p + "_get")
                add_this_func = False
                break
 
-             c_t_tmp = self.cast(c_t)
+             c_t_tmp = self.cast(p_t)
              js_type = ""
              c_t_internal = ""
 
@@ -1457,8 +1709,8 @@ class XMLparser(object):
            pass_params = []
            ret_params = []
            in_param_counter = 0
-           for i, (n, c_t, d) in enumerate(kl_dt["functions"][m]["parameters"]):
-             c_t_tmp = self.cast(c_t)
+           for i, (n, c_t, d, p_t) in enumerate(kl_dt["functions"][m]["parameters"]):
+             c_t_tmp = self.cast(p_t)
 
              js_type = ""
              c_t_internal = ""
@@ -1570,11 +1822,6 @@ class XMLparser(object):
         f.close()
 
 
-
-
-    def outdir_set(self, _d):
-      self.outdir = _d
-
     def print_data(self):
       for klass in self.cl_data:
         print ""
@@ -1609,7 +1856,7 @@ class XMLparser(object):
          #FIXME: where to look for included classes
         cl_type = self.objects[l].eo_type if l in self.objects else self.objects_incl[l].eo_type
 #        cl_type = self.objects[l].eo_type
-        if cl_type == self.string_consts["class_type_mixin"]: # "EOBJ_CLASS_TYPE_MIXIN":
+        if cl_type == const.CLASS_TYPE_MIXIN: # "EOBJ_CLASS_TYPE_MIXIN":
           mixin_l.append(l)
         else:
           other_l.append(l)
@@ -1624,17 +1871,91 @@ class XMLparser(object):
       return lst
 
 
-
     def get_parents(self, kl):
-      prnts = self.cl_data[kl]["parents"]
-
+      prnts = self.objects[kl].parents
       l = []
       for p in prnts:
         if p != "EoBase":
           l = l + self.get_parents(p)
 
       l = list(set(l + prnts))
-#      l = filter(lambda el: el != "EoBase", l)
-
       return l
+
+
+    def normalize_module_names(self):
+      objects_tmp = {}
+      for n, o in self.objects.items():
+        o.c_name = normalize_names([o.c_name])[0]
+        o.kl_id = normalize_names([o.kl_id])[0]
+        o.parents = normalize_names(o.parents)
+        objects_tmp[o.kl_id] = o
+      self.objects = objects_tmp
+
+    def py_code_generate(self, module_name ,outdir):
+      #normalizing names for each class object (Evas_Object Class -> EvasObjectClass)
+      self.normalize_module_names()
+
+      #reodering parents and generating source code
+      for n, o in self.objects.items():
+        o.parents = self.reorder_parents2(o.parents)
+
+        o.V = PyVisitor()
+        o.resolve()
+
+      #saving files
+      for n, o in self.objects.items():
+        o.V.pxi_file_to_dir_save(outdir)
+        o.V.pxd_file_to_dir_save(outdir)
+
+      #generating  "pyx" module file,
+      #which simply includes source files "pxi" of each class
+      #building right order of including files
+      cl_parents = {}
+      lst = []
+      for n, o in self.objects.items():
+        cl_parents[n] = o.parents
+
+      tmp = dict(cl_parents)
+
+      cont = True
+      while cont:
+        cont = False
+        for k in cl_parents:
+          can_add = True
+          for p in cl_parents[k]:
+            if p in tmp:
+              can_add = False
+          if can_add is True:
+            lst.append(k)
+            tmp.pop(k)
+            cont = True
+        cl_parents = dict(tmp)
+      if len(tmp) > 0:
+        print "ERROR: can't resolve classes include order"
+        exit(1)
+
+      lines = []
+      lines.append("from eodefault cimport *\n")
+      for k in lst:
+        lines.append("include \"%s\""%self.objects[k].V.pxi["f_name"])
+        #FIXME adding filenames of include modules?
+
+      f = open (os.path.join(outdir, module_name + ".pyx"), 'w')
+      for l in lines:
+        f.write(l + "\n")
+      f.close()
+
+
+    def js_code_generate(self, outdir):
+
+      #reodering parents and generating source code
+      for n, o in self.objects.items():
+
+        o.V = JsVisitor()
+        o.resolve()
+
+      #saving files
+      for n, o in self.objects.items():
+        o.V.js_cc_file_to_dir_save(outdir)
+        o.V.js_h_file_to_dir_save(outdir)
 
