@@ -10,23 +10,29 @@ class _const:
       return
     self.__dict__[name]=value
   def __init__(self):
-    self.C_NAME = "c_name" #check after changing in XML
-    self.MODULE = "module" #check after cnaaging in XML
-    self.TYPE = "type"
+    # most of constants are used as internal dict keys,
+    # but some of them are also used as tags in XML
+    # Changing this constans will only spoil the view of XML
+
+    self.NAME = "name" #used as xml-tag
+    self.C_NAME = "c_name" #used as xml-tag
+    self.MODULE = "module" #used as xml-tag
+    self.TYPE = "type" #used as xml-tag
     self.CLASS_CONSTRUCTOR = "class_constructor"
     self.BASE_ID = "base_id"
     self.FUNCS = "funcs"
-    self.FUNCS_PARAMS = "params"
-    self.FUNCS_OP_MACRO = "c_macro"
-    self.FUNCS_OP_ID = "op_id"
+    self.PARAMETERS = "parameters"
+    self.OP_ID = "op_id"
 
-    self.GET_FUNCTION = "get_function"
+    self.GET_FUNCTION = "get_function"#used as xml-tag
     self.DEFINES = "defines"
+    self.PARENT = "parent"#used as xml-tag
     self.PARENTS = "parents"
     self.H_FILE = "h_file"
     self.C_FILE = "c_file"
     self.XML_FILE = "xml_file"
-    self.MACRO = "macro"  #EO_CLASS
+    self.MACRO = "macro"  #EO_CLASS  #used as xml-tag
+    self.C_MACRO = "c_macro"#used as xml-tag
     self.OP_MACROS = "op_macros" #dict of macros from @def with parameters
 
     self.CLASS_TYPE_MIXIN =  "EO_CLASS_TYPE_MIXIN"
@@ -42,29 +48,50 @@ class _const:
     self.SET_ONLY = 0
     self.GET_ONLY = 1
     self.SET_GET = 2
-#    self.GET_SET = 3
-    self.METHOD = 4
+    self.METHOD = "method" #used as type id for property; and as xml tag
 
 
+    self.EXTENSIONS = "extensions"  #used as xml-tag
+    self.INSTANTIATEABLE = "instantiateable" #used as xml-tag
+    self.CLASS = "class" #used as xml-tag
+    self.INCLUDE = "include" #used as xml-tag
+    self.TYPENAME = "typename" #used as xml-tag
+    self.EXTERN_FUNCTION = "extern_function" #used as xml-tag
+    self.EVENT = "event" #used as xml-tag
+    self.EVENTS = "events" #used as xml-tag
+    self.METHODS = "methods" #used as xml-tag
+    self.XML_SUB_ID = "sub_id" #used as xml-tag
+    self.PARAMETER = "parameter" #used as xml-tag
+    self.C_TYPENAME = "c_typename" #used as xml-tag
+    self.PRIMARY_TYPE = "primary_type" #used as xml-tag
+    self.DIRECTION = "direction" #used as xml-tag
 
-#FIXME: filename cpp, hpp,....
+
 def isC(s):
-  if s[-2:] == ".c" and s.find("eo.c") == -1:
-    return True
-  else:
-    return False
+  #FIXME when parsing eobase we can catch "eo.c" with EO_DEFINE_CLASS
+  path_lst = s.split('.')
+  if len(path_lst) == 2:
+    if path_lst[1] in ["c", "cc", "cpp"]:
+      return True
+    else:
+      return False
+
 
 def isH(s):
-  if s[-2:] == ".h":
-    return True
-  else:
-    return False
+  path_lst = s.split('.')
+  if len(path_lst) == 2:
+    if path_lst[1] in ["h"]:
+      return True
+    else:
+      return False
 
 def isXML(s):
-  if s[-4:] == ".xml":
-    return True
-  else:
-    return False
+  path_lst = s.split('.')
+  if len(path_lst) == 2:
+    if path_lst[1] in ["xml"]:
+      return True
+    else:
+      return False
 
 #  dir_files_get(_directories, func, recursive)
 #
@@ -122,8 +149,6 @@ def abs_path_get(_paths, _warning = True):
      return res
 
 
-#FIXME: pass only list as parameter
-
 #  normalize_names(_lst)
 #
 #  _lst - list of class names
@@ -135,9 +160,6 @@ def abs_path_get(_paths, _warning = True):
 #
 def normalize_names(_lst):
    res = []
-   if type(_lst) is str:
-     print "Need to change string type to list in normalize_names"
-     print _lst[1000]
    for l in _lst:
      l = l.replace("-"," ")
      l = l.replace("_"," ")

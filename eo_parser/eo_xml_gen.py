@@ -85,7 +85,6 @@ def main():
   for f in h_files:
     cp.h_file_data_get(f)
 
-
   #remove records, which are not class, t.e. they don't have GET_FUNCTION key
   cl_data_tmp = dict(cp.cl_data) #deep copy of dictionary
   for k in cl_data_tmp:
@@ -130,14 +129,14 @@ def main():
       xp.parse(f)
 
     #saving data about parents we were looking for
-    for k in xp.cl_data:
-      kl_dt = xp.cl_data[k]
-      if kl_dt[const.MACRO] in parents_to_find:
-         cp.cl_incl[kl_dt[const.MACRO]] = {const.MODULE : kl_dt[const.MODULE],
-                                           const.C_NAME : kl_dt[const.C_NAME]}
-         i = parents_to_find.index(kl_dt[const.MACRO])
+    for n, o in xp.objects.items():
+      if o.macro in parents_to_find:
+         cp.cl_incl[o.macro] = {const.MODULE : o.mod_name,
+                                const.C_NAME : o.c_name}
+         i = parents_to_find.index(o.macro)
          parents_to_find.pop(i)
     del xp
+
 
     #if there are still parents, which we need to find - exit
     if len(parents_to_find) != 0:
@@ -145,7 +144,6 @@ def main():
       exit(1)
 
   #building XMLs
-  #cp.print_data()
   for k in cp.cl_data:
     cp.build_xml(k)
 

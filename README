@@ -14,7 +14,7 @@ It analyzes source and header C files, which can contain EO-styled class definit
     Scanner runs recursively on defined folders
     a. > python eo_xml_gen.py --dir=IN_DIR --dir=IN_DIR2 --outdir=OUT_DIR -include=INCLUDE_DIR
       script searches for dependency xmlfiles in Python env paths.
-      if PYTHONPATH wasn't set, explicit --include=INCLUDE_DIR can be needed
+      if PYTHONPATH wasn't set explicit --include=INCLUDE_DIR can be needed
 
     b. Building classes graph chart:
       Graph generator runs recursively on defined folders and generates graphviz dot file,
@@ -35,7 +35,7 @@ It analyzes source and header C files, which can contain EO-styled class definit
    c. Creating eobase python sources:
       > python e_compile.py  --dir=PY_EOBASE --outdir=PY_EOBASE --module=eobase
       --pkg="elementary eo"
-      To create base module, option --module must be "eobase"
+      To create base module use option --module="eobase"
       - eobase.pxd, eobase.pyx - will be created
       - eodefault.pxd, eodefault.pyx - will be copied from script folder
       - setup.py will be created.

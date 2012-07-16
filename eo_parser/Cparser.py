@@ -45,7 +45,7 @@ class Cparser(object):
 
 
   #parsing function, to parse typedef file
-  def typedefs_parser(self, name, attrs):
+  def typedefs_xml_parser(self, name, attrs):
       attrs_ascii = {}
       for key, val in attrs.iteritems():
          attrs_ascii[key.encode("ascii")] = val.encode("ascii")
@@ -66,10 +66,12 @@ class Cparser(object):
 
   def typedefs_add(self, fName):
      p = xml.parsers.expat.ParserCreate()
-     p.StartElementHandler = self.typedefs_parser
+     p.StartElementHandler = self.typedefs_xml_parser
      p.ParseFile(open(fName, 'r'))
 
   #typedef resolving
+  # _in - in type
+  # Returns resolved type
   def typedef_resolve(self, _in):
     stars = ""
 
@@ -87,8 +89,7 @@ class Cparser(object):
     return t_tmp + stars
 
 
-
-  #parsing c file
+ # Parsing c-file: get data from class description, op description, event description
   def c_file_data_get(self, filename):
 
     f = open(filename, 'r')
@@ -152,9 +153,9 @@ class Cparser(object):
 
 
 
-  #parsing Eo_Op_Description
+  #parsing Eo_Op_Description:
   #generating function name and mapping it to id
-  #op_is structure
+  #op_id structure
   #{
   #   EO_OP_FUNC(EO_BASE_ID(EO_BASE_SUB_ID_CONSTRUCTOR), _constructor),
   #   EO_OP_FUNC(EO_BASE_ID(EO_BASE_SUB_ID_DESTRUCTOR), _destructor),
@@ -187,13 +188,14 @@ class Cparser(object):
       func_name = op_id[op_id.find(sub_id_str)+len(sub_id_str):].lower()
       lst.append((op_id, func_name))
 
-      self.cl_data[cl_id][const.FUNCS][func_name] = {const.FUNCS_OP_ID : op_id, const.FUNCS_OP_MACRO: ""}
+      self.cl_data[cl_id][const.FUNCS][func_name] = {const.OP_ID : op_id, const.C_MACRO: ""}
       pos = in_data.find(key_str, pos + 1)
 
     self.cl_data[cl_id][self.op_desc] = lst
     #self.cl_data[cl_id].pop(self.op_desc)
 
-#looking for parameters types in *.h
+  #  resolving parameters's types and names according to
+  #  #define, @def and op_ids
   def parse_op_func_params(self, cl_id):
     if self.op_desc not in self.cl_data[cl_id]:
        return
@@ -214,7 +216,7 @@ class Cparser(object):
            s_tmp = s_tmp.replace(" ", "")
            s_tmp = s_tmp.split('(')[0]
            if s_tmp not in macros:
-              print "Warning: no comments for \"%s\"; file: \"%s\" "%(s_tmp, self.cl_data[cl_id]["h_file"])
+              print "Warning: no comments for \"%s\"; file: \"%s\" "%(s_tmp, self.cl_data[cl_id][const.H_FILE])
            else:
 
              params = []
@@ -233,7 +235,7 @@ class Cparser(object):
                      tok =  ",".join(list(params_direction[i]))
                      params.append((lst[1], lst[0], tok))
                    except IndexError:
-                     print "Warning: error in description %s in  %s"%(s_tmp,self.cl_data[cl_id]["h_file"])
+                     print "Warning: error in description %s in  %s"%(s_tmp,self.cl_data[cl_id][const.H_FILE])
 
                 else:
                    print "ERROR: check parameters in EO_TYPECHECK"
@@ -244,8 +246,8 @@ class Cparser(object):
 
                 i += 1
 
-             self.cl_data[cl_id][const.FUNCS][f][const.FUNCS_PARAMS] = params
-             self.cl_data[cl_id][const.FUNCS][f][const.FUNCS_OP_MACRO] = s_tmp
+             self.cl_data[cl_id][const.FUNCS][f][const.PARAMETERS] = params
+             self.cl_data[cl_id][const.FUNCS][f][const.C_MACRO] = s_tmp
 
 
 
@@ -328,9 +330,9 @@ class Cparser(object):
 
     cl_data = self.cl_data[cl_id]
 
-    module = Element('module')
-    module.set('name', cl_data[const.C_NAME])
-    SubElement(module, "include", {"name": os.path.split(cl_data[const.H_FILE])[1]})
+    module = Element(const.MODULE)
+    module.set(const.NAME, cl_data[const.C_NAME])
+    SubElement(module, const.INCLUDE, {const.NAME: os.path.split(cl_data[const.H_FILE])[1]})
 
     cl_parent = ""
     cl_brothers = []
@@ -348,49 +350,49 @@ class Cparser(object):
       else:
         cl_brothers.append(tmp[l][const.C_NAME])
 
-    SubElement(module, "extern_function", {"name":cl_data[const.GET_FUNCTION]+"()",
-                                           "typename":"Eo_Class*"})
+    SubElement(module, const.EXTERN_FUNCTION, {const.NAME:cl_data[const.GET_FUNCTION]+"()",
+                                           const.TYPENAME:"Eo_Class*"})
 
     cl_brothers = ",".join(cl_brothers)
 
     instantiateable = "False"
     if cl_data[const.TYPE] == const.CLASS_TYPE_REGULAR:
       instantiateable = "True"
-    cl = SubElement(module, "class", {#"name":cl_data["name"],
-                                      "c_name" : cl_data[const.C_NAME],
-                                      "parent":cl_parent,
-                                      "extensions":cl_brothers,
-                                      "macro":cl_id,
-                                      "get_function": cl_data[const.GET_FUNCTION],
-                                      "type" : cl_data[const.TYPE],
-                                      "instantiateable" : instantiateable})
+    cl = SubElement(module, const.CLASS, {
+                                      const.C_NAME : cl_data[const.C_NAME],
+                                      const.PARENT:cl_parent,
+                                      const.EXTENSIONS:cl_brothers,
+                                      const.MACRO:cl_id,
+                                      const.GET_FUNCTION: cl_data[const.GET_FUNCTION],
+                                      const.TYPE : cl_data[const.TYPE],
+                                      const.INSTANTIATEABLE : instantiateable})
 
-    op_tag = SubElement(cl, "op_id")
-    ev_tag = SubElement(cl, "events")
-    m_tag = SubElement(cl, "methods")
+    op_tag = SubElement(cl, const.OP_ID)
+    ev_tag = SubElement(cl, const.EVENTS)
+    m_tag = SubElement(cl, const.METHODS)
 
     if cl_data[const.BASE_ID] != "NULL":
-      SubElement(op_tag, "base_id", {"name":cl_data[const.BASE_ID]})
+      SubElement(op_tag, const.BASE_ID, {const.NAME:cl_data[const.BASE_ID]})
 
     for k in cl_data[const.FUNCS]:
-        SubElement(op_tag, "sub_id", {"name":cl_data[const.FUNCS][k][const.FUNCS_OP_ID]})
+        SubElement(op_tag, const.XML_SUB_ID, {const.NAME:cl_data[const.FUNCS][k][const.OP_ID]})
 
 
-        m = SubElement(m_tag, "method", {"name" : k,
-                                      "op_id":cl_data[const.FUNCS][k][const.FUNCS_OP_ID],
-                                      "c_macro":cl_data[const.FUNCS][k][const.FUNCS_OP_MACRO]})
+        m = SubElement(m_tag, const.METHOD, {const.NAME : k,
+                                      const.OP_ID:cl_data[const.FUNCS][k][const.OP_ID],
+                                      const.C_MACRO:cl_data[const.FUNCS][k][const.C_MACRO]})
 
         #defining parameter type
-        if "params" in cl_data[const.FUNCS][k]:
-          params = cl_data[const.FUNCS][k][const.FUNCS_PARAMS]
+        if const.PARAMETERS in cl_data[const.FUNCS][k]:
+          params = cl_data[const.FUNCS][k][const.PARAMETERS]
           for v, t, d in params:
-             p = SubElement(m, "parameter", {"name":v, "c_typename":t, "primary_type" : self.typedef_resolve(t),"direction":d})
+             p = SubElement(m, const.PARAMETER, {const.NAME:v, const.C_TYPENAME:t, const.PRIMARY_TYPE : self.typedef_resolve(t),const.DIRECTION:d})
 
 
     if self.ev_desc in cl_data:
       lst = cl_data[self.ev_desc]
       for l in lst:
-         SubElement(ev_tag, "event",{"name":l})
+         SubElement(ev_tag, const.EVENT,{const.NAME:l})
 
     res = tostring(module, "utf-8")
     res = minidom.parseString(res)

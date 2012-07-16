@@ -122,8 +122,7 @@ def main():
   for f in xml_files:
     xp.parse(f)
 
-  for k in xp.cl_data:
-    graph[xp.cl_data[k]["c_name"]] = xp.cl_data[k]
+  graph = dict(xp.objects)
 
   del xp
 
@@ -137,41 +136,43 @@ def main():
   lines.append("      graph [rankdir = \"%s\", fontsize = %s, label = \"%s\"];"%(styles["rankdir"], styles["graphfontsize"], styles["graphlabel"]))
   lines.append("      node [shape = \"%s\" fontsize = %s];"%(styles["nodeshape"], styles["nodefontsize"]))
 
-  for k in graph:
-    if graph[k]["type"] == types["REGULAR"]:
-      line = "      \"%s\" [label = \"%s \\n %s\", color = \"%s\"];"%(k, graph[k]["c_name"], graph[k]["type"], n_color[types["REGULAR"]])
-    elif graph[k]["type"] == types["MIXIN"]:
-      line = "      \"%s\" [label = \"%s \\n %s\", color = \"%s\"];"%(k, graph[k]["c_name"], graph[k]["type"], n_color[types["MIXIN"]])
-    elif graph[k]["type"] == types["INTERFACE"]:
-      line = "      \"%s\" [label = \"%s \\n %s\", color = \"%s\"];"%(k, graph[k]["c_name"], graph[k]["type"], n_color[types["INTERFACE"]])
-    elif graph[k]["type"] == types["NO_INSTANT"]:
-      line = "      \"%s\" [label = \"%s \\n %s\", color = \"%s\"];"%(k, graph[k]["c_name"], graph[k]["type"], n_color[types["NO_INSTANT"]])
+  #generating dot node description for node, for each class
+  for n, o in graph.items():
+    if o.eo_type == types["REGULAR"]:
+      line = "      \"%s\" [label = \"%s \\n %s\", color = \"%s\"];"%(n, o.c_name, o.eo_type, n_color[types["REGULAR"]])
+    elif o.eo_type == types["MIXIN"]:
+      line = "      \"%s\" [label = \"%s \\n %s\", color = \"%s\"];"%(n, o.c_name, o.eo_type, n_color[types["MIXIN"]])
+    elif o.eo_type == types["INTERFACE"]:
+      line = "      \"%s\" [label = \"%s \\n %s\", color = \"%s\"];"%(n, o.c_name, o.eo_type, n_color[types["INTERFACE"]])
+    elif o.eo_type == types["NO_INSTANT"]:
+      line = "      \"%s\" [label = \"%s \\n %s\", color = \"%s\"];"%(n, o.c_name, o.eo_type, n_color[types["NO_INSTANT"]])
     else:
-      line = "      \"%s\" [label = \"%s \\n %s\"];"%(k, graph[k]["c_name"], graph[k]["type"])
+      line = "      \"%s\" [label = \"%s \\n %s\"];"%(n, o.c_name, o.eo_type)
 
     lines.append(line)
 
-  for k in graph:
-    parent = graph[k]["parents"][0]
-    ext = graph[k]["parents"][1:]
+  #generating dot edge description for each parent of each class
+  for n, o in graph.items():
+    parent = o.parents[0]
+    ext = o.parents[1:]
     ext = filter(len, ext)
     if len(parent) != 0:
       if parent in graph:
-        p_type = graph[parent]["type"]
+        p_type = graph[parent].eo_type
       else:
         p_type = types["REGULAR"]
-      line = "      \"%s\" -> \"%s\" [style = \"%s\", color=\"%s\"];"%(k, parent, styles["edge"], n_color[p_type])
+      line = "      \"%s\" -> \"%s\" [style = \"%s\", color=\"%s\"];"%(n, parent, styles["edge"], n_color[p_type])
       lines.append(line)
     for l in ext:
-      if graph[l]["type"] == types["REGULAR"]:
-        line = "      \"%s\" -> \"%s\" [style=\"%s\", color=\"%s\"] ;"%(k, l, "dashed", n_color[types["REGULAR"]])
-      elif graph[l]["type"] == types["MIXIN"]:
-        line = "      \"%s\" -> \"%s\" [style=\"%s\", color=\"%s\"] ;"%(k, l, "dashed", n_color[types["MIXIN"]])
-      elif graph[l]["type"] == types["INTERFACE"]:
+      if graph[l].eo_type == types["REGULAR"]:
+        line = "      \"%s\" -> \"%s\" [style=\"%s\", color=\"%s\"] ;"%(n, l, "dashed", n_color[types["REGULAR"]])
+      elif graph[l].eo_type == types["MIXIN"]:
+        line = "      \"%s\" -> \"%s\" [style=\"%s\", color=\"%s\"] ;"%(n, l, "dashed", n_color[types["MIXIN"]])
+      elif graph[l].eo_type == types["INTERFACE"]:
 #       line = "      \"%s\" -> \"%s\" [style=\"%s\"] ;"%(k, l, styles["extedge"])
-        line = "      \"%s\" -> \"%s\" [style=\"%s\", color = \"%s\"] ;"%(k, l, "dotted", n_color[types["INTERFACE"]])
-      elif graph[l]["type"] == types["NO_INSTANT"]:
-        line = "      \"%s\" -> \"%s\" [style=\"%s\", color=\"%s\"] ;"%(k, l, "dashed", n_color[types["NO_INSTANT"]])
+        line = "      \"%s\" -> \"%s\" [style=\"%s\", color = \"%s\"] ;"%(n, l, "dotted", n_color[types["INTERFACE"]])
+      elif graph[l].eo_type == types["NO_INSTANT"]:
+        line = "      \"%s\" -> \"%s\" [style=\"%s\", color=\"%s\"] ;"%(n, l, "dashed", n_color[types["NO_INSTANT"]])
       else:
         line = "      \"%s\" -> \"%s\" [style=\"%s\", color=\"%s\"] ;"%(k, l, "dashed", "black")
 

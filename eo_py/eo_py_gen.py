@@ -84,7 +84,7 @@ def main():
   directories = []
   outdir = ""
   sourcedir = ""
-  xmldir = []
+  incl_dirs = []
 
   if args.directory == None:
     print "ERROR: No source directory was provided"
@@ -99,82 +99,25 @@ def main():
     directories = abs_path_get(args.directory)
     outdir = abs_path_get([args.outdir])[0]
     if args.xmldir is not None:
-      xmldir = abs_path_get(args.xmldir, False)
+      incl_dirs = abs_path_get(args.xmldir, False)
 
 
   verbose_print("Dirs: %s"%directories)
   verbose_print("Outdir: %s"%outdir)
-  verbose_print("Xmldir: %s"%xmldir)
+  verbose_print("Include dirs: %s"%incl_dirs)
 
   xml_files = dir_files_get(directories, False)
   xml_files = filter(isXML, xml_files)
-
   verbose_print("In Files: %s"%xml_files)
 
   xp = XMLparser()
-  for f in xml_files:
-    xp.parse(f)
-
-  #excluding everything, but the "eobase", if building eobse
-  #excluding "eobase" module, if building non-eobase module
-  if args.module == "eobase":
-    if "Eo Base" in xp.objects:
-      cl_data_tmp = dict(xp.objects)
-      xp.objects = {}
-      xp.objects["Eo Base"] = cl_data_tmp["Eo Base"]
-      del cl_data_tmp
-    else:
-      print "ERROR: source files for module \"EoBase\" not found"
-      exit(1)
-  else:
-    if "Eo Base" in xp.objects:
-      xp.objects.pop("Eo Base")
-      print("Warning: EoBase module was removed from building tree")
-
-  #get list of parents, which need to be found
-  parents_to_find =  xp.check_parents2()
-
-
-  if parents_to_find:
-
-    verbose_print("Warning: need to find parent classes %s"%parents_to_find)
-    if len(xmldir) == 0:
-      print "No XML directory was provided"
-
-    xml_files = dir_files_get(xmldir)
-    xml_files = filter(isXML, xml_files)
-
-    if len(xml_files) == 0:
-      print "ERROR: no include files found for %s classes... Aborting...(Use: --include=INCLUDE_DIR)"% ",".join(parents_to_find)
-      exit(1)
-    verbose_print("xml_files: %s"%xml_files)
-
-    #Creating temp parser to look for parents in include files.
-    xp_incl = XMLparser()
-    for f in xml_files:
-      xp_incl.parse(f)
-
-    #Looking for parents, and saving proper object in include dictionary
-    #FIXME: but later I never use it ??
-    for n, o in xp_incl.objects.items():
-      if n in parents_to_find:
-        i = parents_to_find.index(n)
-        parents_to_find.pop(i)
-        n = normalize_names([n])[0]
-        xp.objects_incl[n] = o
-
-    del xp_incl
-
-    if len(parents_to_find) != 0:
-      print "ERROR: XML files weren't found for %s classes... Aborting"%(",".join(parents_to_find))
-      exit(1)
-
-  #generating source code
+  xp.module_parse(args.module, xml_files, incl_dirs)
   xp.py_code_generate(args.module ,outdir)
+
   setup_file_generate(args.module, args.pkg, outdir)
 
   #Looking for "eodefault.pxd" module. Needed to include
-  for d in xmldir:
+  for d in incl_dirs:
     d_tmp = os.path.join(d, "eodefault.pxd")
     if os.path.exists(d_tmp):
       sourcedir = d

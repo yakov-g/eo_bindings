@@ -3,7 +3,8 @@ import sys
 
 from base.eodefault import py_elm_init, elem_run
 from eobase import EoBase
-from evas_lib.py.evas_l import Evas, EvasObjectRectangle, EvasObjectLine
+#from evas_lib.py.evas_l import Evas, EvasObjectRectangle, EvasObjectLine
+from tmp2.evas_l import Evas, EvasObjectRectangle, EvasObjectLine
 
 ev = Evas(None)
 rect = EvasObjectRectangle(ev)
