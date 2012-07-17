@@ -1,5 +1,5 @@
 import xml.parsers.expat
-import sys, os
+import sys, os, re
 
 from xml.etree.ElementTree import Element, SubElement, Comment, tostring
 from xml.dom import minidom
@@ -87,6 +87,80 @@ class Cparser(object):
       stars += l[1]+'*' if len(l) == 2 else ""
 
     return t_tmp + stars
+
+
+  def c_file_data_get2(self, filename):
+
+    f = open(filename, 'r')
+    allfile = f.read()
+    f.close()
+
+    current_class = ""
+    func_pos = 0
+
+   #fetch all "#define" from file
+    for token in ["EO_DEFINE_CLASS", "EO_DEFINE_STATIC_CLASS"]:
+      reg = "%s\(.*\).*"%token
+      def_list = re.findall(reg, allfile)
+
+
+      if len(def_list):
+        print "lalal: ", def_list
+        print filename 
+
+        for l in def_list:
+          d = self.find_token_in_brackets(l, 0, "()")
+          d = d.replace(" ","")
+          d = d.replace("\n", "")
+          lst = d.split(",")
+          print lst
+          current_class = lst[0]
+          desc_var_name = lst[1].strip("&")
+
+          if token == "EO_DEFINE_STATIC_CLASS":
+            lst = lst[3:-1]
+          else:
+            lst = lst[2:-1]
+
+          lst = filter(lambda l: False if l == "NULL" else True, lst)
+          if current_class in self.cl_data:
+            verbose_print("Class %s from file %s won't be added in the tree"%(current_class, filename))
+            verbose_print("Class %s from file %s will be used as parent in inheritance"%(current_class, self.cl_data[current_class][const.C_FILE]))
+            return
+          self.cl_data[current_class] = {const.PARENTS:lst,
+                                   const.C_FILE:filename,
+                                   const.FUNCS:{}}
+          print desc_var_name
+
+          reg = "Eo_Class_Description[ ]*%s [ =]*{[^{]*};"%(desc_var_name)
+          af = allfile.replace("\n", "")
+          desc_list = re.findall(reg, af)
+
+          if len(desc_list):
+            tmp = desc_list[0]
+            tmp = self.find_token_in_brackets(tmp, 0, "{}")
+            tmp = tmp.replace("\t", "")
+            self.cl_data[current_class]["cl_desc"] = tmp
+            print "desc list: ", tmp
+
+            self.parse_cl_desc2(current_class)
+
+
+          ev_var_name = self.cl_data[current_class]["ev_desc"]
+          if ev_var_name != "NULL":
+            pos_start = allfile.find("Eo_Event_Description *"+ev_var_name+"[]")
+            if pos_start == -1:
+              #verbose_print("Warning: \"%s\" wasn't found in %s"%(l, filename))
+              pass
+            else:
+              tmp =self.find_token_in_brackets(allfile, pos_start, "{}")
+              tmp = tmp.replace("\t", "")
+              tmp = tmp.replace("\n", "")
+              self.cl_data[current_class]["ev_desc"] = tmp
+
+              self.parse_ev_desc2(current_class)
+          print self.cl_data[current_class]
+          print ""
 
 
  # Parsing c-file: get data from class description, op description, event description
@@ -273,6 +347,26 @@ class Cparser(object):
     #self.cl_data[cl_id].pop(self.ev_desc)
 
 
+  #fetching event ids
+  #
+  #event_desc structure
+  # { EV_CLICKED, EV_BUTTON_DOWN, EV_BUTTON_UP, NULL  }
+  #
+  def parse_ev_desc2(self, cl_id):
+    if self.cl_data[cl_id]["ev_desc"] == "NULL":
+       return
+
+    in_data = self.cl_data[cl_id]["ev_desc"]
+    in_data = in_data.replace(" ","")
+
+    lst = in_data.split(',')
+    if lst[-1] != "NULL":
+      print "ERROR: last event descriptor should be NULL in class %s"%(cl_id)
+      exit(1)
+
+    lst.pop(-1)
+    self.cl_data[cl_id]["ev_desc"] = lst
+    #self.cl_data[cl_id].pop(self.ev_desc)
 
 #parsing Eo_Class_Description
   def parse_cl_desc(self, cl_id):
@@ -287,6 +381,7 @@ class Cparser(object):
     for l in lst:
        lst_tmp.append(l.strip(" ").strip("\""))
     lst = lst_tmp
+    del lst_tmp
 
     #self.cl_data[cl_id][self.cl_desc] = lst
     self.cl_data[cl_id].pop(self.cl_desc)
@@ -294,15 +389,18 @@ class Cparser(object):
     ###
     # Class desc structure:
     # {
-    #[0]    "Evas_Object_Line",
-    #[1]    EO_CLASS_TYPE_REGULAR,
-    #[2]    EO_CLASS_DESCRIPTION_OPS(&EVAS_OBJ_LINE_BASE_ID, op_desc, EVAS_OBJ_LINE_SUB_ID_LAST),
-    #[3]    NULL,
-    #[4]    sizeof(Evas_Object_Line),
-    #[5]    _class_constructor,
-    #[6]    NULL
+    #[0]    EO_VERSION
+    #[1]    "Evas_Object_Line",
+    #[2]    EO_CLASS_TYPE_REGULAR,
+    #[3]    EO_CLASS_DESCRIPTION_OPS(&EVAS_OBJ_LINE_BASE_ID, op_desc, EVAS_OBJ_LINE_SUB_ID_LAST),
+    #[4]    NULL,
+    #[5]    sizeof(Evas_Object_Line),
+    #[6]    _class_constructor,
+    #[7]    NULL
     # }
     #
+
+    lst.pop(0) #throwing out version
 
     cl_name = lst[0]
     self.cl_data[cl_id][const.C_NAME] = cl_name
@@ -324,8 +422,81 @@ class Cparser(object):
       self.cl_data[cl_id][const.BASE_ID] = s
 
 
+
+
+
+
+
+  def parse_cl_desc2(self, cl_id):
+    if "cl_desc" not in self.cl_data[cl_id]:
+      return
+
+    in_data = self.cl_data[cl_id]["cl_desc"]
+    #splitting class desc
+    lst = smart_split(in_data)
+    print "Name: ", lst[1]
+    tmp = lst[1]
+    pos = tmp.find("\"")
+
+#    if pos == -1:
+#      reg
+
+    lst_tmp = []
+    for l in lst:
+       lst_tmp.append(l.strip(" ").strip("\""))
+    lst = lst_tmp
+    del lst_tmp
+
+    #self.cl_data[cl_id][self.cl_desc] = lst
+    self.cl_data[cl_id].pop("cl_desc")
+
+    ###
+    # Class desc structure:
+    # {
+    #[0]    EO_VERSION
+    #[1]    "Evas_Object_Line",
+    #[2]    EO_CLASS_TYPE_REGULAR,
+    #[3]    EO_CLASS_DESCRIPTION_OPS(&EVAS_OBJ_LINE_BASE_ID, op_desc, EVAS_OBJ_LINE_SUB_ID_LAST),
+    #[4]    _events_desc,
+    #[5]    sizeof(Evas_Object_Line),
+    #[6]    _class_constructor,
+    #[7]    NULL
+    # }
+    #
+
+    lst.pop(0) #throwing out version
+
+    cl_name = lst[0]
+    self.cl_data[cl_id][const.C_NAME] = cl_name
+
+    self.cl_data[cl_id][const.MODULE] = normalize_names([cl_name])[0].lower()
+    self.cl_data[cl_id][const.TYPE] = lst[1]
+    self.cl_data[cl_id]["ev_desc"] = lst[3]
+    self.cl_data[cl_id][const.CLASS_CONSTRUCTOR] = lst[5]
+
+    class_desc_ops = lst[2]
+    pos = class_desc_ops.find(const.CLASS_DESC_OPS)
+    if pos != -1:
+      s = self.find_token_in_brackets(class_desc_ops, pos, "()")
+      s = s.split(',')[0]
+      s = s.strip("& ")
+      if s == "NULL" and cl_name == "Eo Base":
+#FIXME: hardcoded EO_BASE_BASE_ID
+        print cl_name, "Warning: hardcoded EO_BASE_BASE_ID"
+        s = "EO_BASE_BASE_ID"
+      self.cl_data[cl_id][const.BASE_ID] = s
+
+
+
+
+
+
+
   #generating XML
   def build_xml(self, cl_id):
+    #FIXME: because i don't parse several EO_DEFINE_CLASS in file
+    #if const.C_NAME not in self.cl_data[cl_id]:
+     # return
     self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, normalize_names([self.cl_data[cl_id][const.C_NAME]])[0] + ".xml")
 
     cl_data = self.cl_data[cl_id]

@@ -77,13 +77,22 @@ def main():
   if typedefs:
     cp.typedefs_add(typedefs)
 
+  print "c files : %s"%(c_files)
+
+  print "get files from C"
   #fetching data from c-file
   for f in c_files:
-    cp.c_file_data_get(f)
+#    cp.c_file_data_get(f)
+    cp.c_file_data_get2(f)
 
+  print const.GET_FUNCTION
+  cp.print_data()
+
+  print "get files from H"
   #fetching data from h-file
   for f in h_files:
     cp.h_file_data_get(f)
+
 
   #remove records, which are not class, t.e. they don't have GET_FUNCTION key
   cl_data_tmp = dict(cp.cl_data) #deep copy of dictionary
