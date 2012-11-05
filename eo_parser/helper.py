@@ -24,6 +24,9 @@ class _const:
     self.PARAMETERS = "parameters"
     self.OP_ID = "op_id"
 
+    self.OP_DESC = "op_desccc"
+    self.EV_DESC = "ev_desccc"
+
     self.GET_FUNCTION = "get_function"#used as xml-tag
     self.DEFINES = "defines"
     self.PARENT = "parent"#used as xml-tag
@@ -49,7 +52,6 @@ class _const:
     self.GET_ONLY = 1
     self.SET_GET = 2
     self.METHOD = "method" #used as type id for property; and as xml tag
-
 
     self.EXTENSIONS = "extensions"  #used as xml-tag
     self.INSTANTIATEABLE = "instantiateable" #used as xml-tag

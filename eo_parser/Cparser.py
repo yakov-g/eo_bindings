@@ -88,80 +88,174 @@ class Cparser(object):
 
     return t_tmp + stars
 
+  def fetch_data(self, _in_data):
+    def_list = []
+
+    reg = "EO_DEFINE_CLASS\((.*)\).*"
+    def_list += re.findall(reg, _in_data)
+
+  #event_desc structure
+  #
+  #  EO_DEFINE_CLASS(elm_scrollable_interface_get, &_elm_scrollable_interface_desc, NULL, EVAS_SMART_SCROLLABLE_INTERFACE, NULL);
+  #
+
+    class_def = {}
+    class_desc = {}
+    ev_desc = {"NULL" : []}
+    #print "def list: ", def_list
+    for s in def_list:
+       s = s.replace(" ", "")
+       s = s.replace("\n", "")
+       l_tmp = s.split(",")
+
+       key = l_tmp[0].strip(" ")
+       desc_var = l_tmp[1].strip(" &")
+       parent = l_tmp[2]
+       l_tmp = l_tmp[3:-1]
+       l_tmp = filter(lambda l: False if l == "NULL" else True, l_tmp)
+
+       class_def[key] = [desc_var, parent, l_tmp]
+    
+
+  #event_desc structure
+  # { EV_CLICKED, EV_BUTTON_DOWN, EV_BUTTON_UP, NULL  }
+  #
+    reg = "Eo_Event_Description[ *]*([a-zA-Z0-9_]*)[][ =]*{([^}]*)};"
+    af = _in_data.replace("\n", "")
+    ev_list = re.findall(reg, af)
+
+    for tup in ev_list:
+       key = tup[0]
+       lst = tup[1].replace(" ", "").split(",")
+       if lst[-1] != "NULL":
+         print "ERROR: last event descriptor should be NULL in class %s"%(cl_id)
+         exit(1)
+       lst = filter(lambda l: False if l == "NULL" else True, lst)
+       ev_desc[key] = lst
+
+   #  fetching
+   #  op description
+   #
+    reg = "Eo_Op_Description[ ]*([a-zA-Z0-9_]*)\[\][ =]*{([^}]*)};"
+    all_op_descs = re.findall(reg, af)
+    op_desc = {}
+    for tup in all_op_descs:
+      s_tmp = tup[1]
+      # fetching op_ids and descriptions
+      reg =  "EO_OP_DESCRIPTION\([ ]*([A-Z_]*)[ ]*,[ ]*\"([^\"]*)\"[ ]*\),"
+      ids_and_descs = re.findall(reg, s_tmp)
+
+      op_list = []
+      for t in ids_and_descs:
+         op_id = t[0] #op_id
+         func_name = re.findall("SUB_ID_(.*)", op_id)
+         op_list.append((op_id, func_name[0].lower()))
+
+      op_desc[tup[0]] = op_list
+
+
+    ###
+    # Class desc structure:
+    # {
+    #[0]    EO_VERSION
+    #[1]    "Evas_Object_Line",
+    #[2]    EO_CLASS_TYPE_REGULAR,
+    #[3]    EO_CLASS_DESCRIPTION_OPS(&EVAS_OBJ_LINE_BASE_ID, op_desc, EVAS_OBJ_LINE_SUB_ID_LAST),
+    #[4]    NULL,
+    #[5]    sizeof(Evas_Object_Line),
+    #[6]    _class_constructor,
+    #[7]    NULL
+    # }
+    #
+    reg = "Eo_Class_Description[ ]*([a-zA-Z0-9_]*)[ =]*{([^}]*)};"
+    desc_list = re.findall(reg, af)
+
+    for tup in desc_list:
+       key = tup[0]
+       l_tmp = smart_split(tup[1])
+       ver = l_tmp[0].strip(" ")
+       name = l_tmp[1]
+       cl_type = l_tmp[2].strip(" ")
+       
+       #splitting string into list
+       desc_ops = l_tmp[3].replace(" ", "").replace("&", "")
+       desc_ops = re.findall("\(([^)]*)\)" , desc_ops)[0].split(",")
+       #mapping op_desc var name into ops list
+       if desc_ops[1] != "NULL":
+          desc_ops[1] = op_desc[desc_ops[1]]
+
+       ev_desc_var = l_tmp[4].strip(" ")
+
+       if -1 == name.find("\n"):
+          name = name.strip(" ")
+          reg = "#define[ ]*%s[ ]*(\"[^\"]*\")"%name
+          ll = re.findall(reg, af)
+          if len(ll):
+            name = ll[0].strip("\"")
+#       l_tmp = tup[1].split(",")
+       class_desc[key] = [name, cl_type, desc_ops, ev_desc[ev_desc_var]]
+
+    #mapping class_desc_var_name to content
+    for key, data in class_def.iteritems():
+       class_def[key] += class_desc[data[0]]
+       class_def[key].pop(0)
+    """
+    for key, data in class_def.iteritems():
+       print key, " -> ", data
+       """
+
+
+
+    return class_def
 
   def c_file_data_get2(self, filename):
 
     f = open(filename, 'r')
     allfile = f.read()
     f.close()
+    ttt = self.fetch_data(allfile)
 
-    current_class = ""
-    func_pos = 0
+    for key, data in ttt.iteritems():
+       print key, " -> ", data
 
-   #fetch all "#define" from file
-    for token in ["EO_DEFINE_CLASS", "EO_DEFINE_STATIC_CLASS"]:
-      reg = "%s\(.*\).*"%token
-      def_list = re.findall(reg, allfile)
+       func_pos = 0
 
+       cl_id = key
+       lst = []
+       lst.append(data[0]) 
+       lst += data[1]
+       lst = filter(lambda l: False if l == "NULL" else True, lst)
+       print lst
 
-      if len(def_list):
-        print "lalal: ", def_list
-        print filename 
+       if cl_id in self.cl_data:
+         verbose_print("Class %s from file %s won't be added in the tree"%(current_class, filename))
+         verbose_print("Class %s from file %s will be used as parent in inheritance"%(current_class, self.cl_data[current_class][const.C_FILE]))
+         return
 
-        for l in def_list:
-          d = self.find_token_in_brackets(l, 0, "()")
-          d = d.replace(" ","")
-          d = d.replace("\n", "")
-          lst = d.split(",")
-          print lst
-          current_class = lst[0]
-          desc_var_name = lst[1].strip("&")
+       self.cl_data[cl_id] = {const.PARENTS:lst,
+                                      const.C_FILE:filename,
+                                      const.FUNCS:{}}
 
-          if token == "EO_DEFINE_STATIC_CLASS":
-            lst = lst[3:-1]
-          else:
-            lst = lst[2:-1]
+       cl_name = data[2]
+       self.cl_data[cl_id][const.C_NAME] = cl_name
 
-          lst = filter(lambda l: False if l == "NULL" else True, lst)
-          if current_class in self.cl_data:
-            verbose_print("Class %s from file %s won't be added in the tree"%(current_class, filename))
-            verbose_print("Class %s from file %s will be used as parent in inheritance"%(current_class, self.cl_data[current_class][const.C_FILE]))
-            return
-          self.cl_data[current_class] = {const.PARENTS:lst,
-                                   const.C_FILE:filename,
-                                   const.FUNCS:{}}
-          print desc_var_name
+       self.cl_data[cl_id][const.MODULE] = normalize_names([cl_name])[0].lower()
+       self.cl_data[cl_id][const.TYPE] = data[3]
+       self.cl_data[cl_id][const.EV_DESC] = data[5]
+   #   self.cl_data[cl_id][const.CLASS_CONSTRUCTOR] = lst[5]
 
-          reg = "Eo_Class_Description[ ]*%s [ =]*{[^{]*};"%(desc_var_name)
-          af = allfile.replace("\n", "")
-          desc_list = re.findall(reg, af)
+       class_desc_ops = data[4]
+       self.cl_data[cl_id][const.OP_DESC] = class_desc_ops[1]
 
-          if len(desc_list):
-            tmp = desc_list[0]
-            tmp = self.find_token_in_brackets(tmp, 0, "{}")
-            tmp = tmp.replace("\t", "")
-            self.cl_data[current_class]["cl_desc"] = tmp
-            print "desc list: ", tmp
+       for tup in class_desc_ops[1]:
+          self.cl_data[cl_id][const.FUNCS][tup[1]] = {const.OP_ID : tup[0], const.C_MACRO: ""}
 
-            self.parse_cl_desc2(current_class)
-
-
-          ev_var_name = self.cl_data[current_class]["ev_desc"]
-          if ev_var_name != "NULL":
-            pos_start = allfile.find("Eo_Event_Description *"+ev_var_name+"[]")
-            if pos_start == -1:
-              #verbose_print("Warning: \"%s\" wasn't found in %s"%(l, filename))
-              pass
-            else:
-              tmp =self.find_token_in_brackets(allfile, pos_start, "{}")
-              tmp = tmp.replace("\t", "")
-              tmp = tmp.replace("\n", "")
-              self.cl_data[current_class]["ev_desc"] = tmp
-
-              self.parse_ev_desc2(current_class)
-          print self.cl_data[current_class]
-          print ""
-
+       s = class_desc_ops[0]
+       if s == "NULL" and cl_name == "Eo Base":
+#FIXME: hardcoded EO_BASE_BASE_ID
+         print cl_name, "Warning: hardcoded EO_BASE_BASE_ID"
+         s = "EO_BASE_BASE_ID"
+       self.cl_data[cl_id][const.BASE_ID] = s
 
  # Parsing c-file: get data from class description, op description, event description
   def c_file_data_get(self, filename):
@@ -271,10 +365,12 @@ class Cparser(object):
   #  resolving parameters's types and names according to
   #  #define, @def and op_ids
   def parse_op_func_params(self, cl_id):
-    if self.op_desc not in self.cl_data[cl_id]:
+    if const.OP_DESC not in self.cl_data[cl_id]:
+       print "Not found: %s"%const.OP_DESC
+       exit()
        return
 
-    op_desc = self.cl_data[cl_id][self.op_desc]
+    op_desc = self.cl_data[cl_id][const.OP_DESC]
     defines = self.cl_data[cl_id][const.DEFINES]
     macros = self.cl_data[cl_id][const.OP_MACROS]
 
@@ -347,26 +443,6 @@ class Cparser(object):
     #self.cl_data[cl_id].pop(self.ev_desc)
 
 
-  #fetching event ids
-  #
-  #event_desc structure
-  # { EV_CLICKED, EV_BUTTON_DOWN, EV_BUTTON_UP, NULL  }
-  #
-  def parse_ev_desc2(self, cl_id):
-    if self.cl_data[cl_id]["ev_desc"] == "NULL":
-       return
-
-    in_data = self.cl_data[cl_id]["ev_desc"]
-    in_data = in_data.replace(" ","")
-
-    lst = in_data.split(',')
-    if lst[-1] != "NULL":
-      print "ERROR: last event descriptor should be NULL in class %s"%(cl_id)
-      exit(1)
-
-    lst.pop(-1)
-    self.cl_data[cl_id]["ev_desc"] = lst
-    #self.cl_data[cl_id].pop(self.ev_desc)
 
 #parsing Eo_Class_Description
   def parse_cl_desc(self, cl_id):
@@ -420,72 +496,6 @@ class Cparser(object):
         print cl_name, "Warning: hardcoded EO_BASE_BASE_ID"
         s = "EO_BASE_BASE_ID"
       self.cl_data[cl_id][const.BASE_ID] = s
-
-
-
-
-
-
-
-  def parse_cl_desc2(self, cl_id):
-    if "cl_desc" not in self.cl_data[cl_id]:
-      return
-
-    in_data = self.cl_data[cl_id]["cl_desc"]
-    #splitting class desc
-    lst = smart_split(in_data)
-    print "Name: ", lst[1]
-    tmp = lst[1]
-    pos = tmp.find("\"")
-
-#    if pos == -1:
-#      reg
-
-    lst_tmp = []
-    for l in lst:
-       lst_tmp.append(l.strip(" ").strip("\""))
-    lst = lst_tmp
-    del lst_tmp
-
-    #self.cl_data[cl_id][self.cl_desc] = lst
-    self.cl_data[cl_id].pop("cl_desc")
-
-    ###
-    # Class desc structure:
-    # {
-    #[0]    EO_VERSION
-    #[1]    "Evas_Object_Line",
-    #[2]    EO_CLASS_TYPE_REGULAR,
-    #[3]    EO_CLASS_DESCRIPTION_OPS(&EVAS_OBJ_LINE_BASE_ID, op_desc, EVAS_OBJ_LINE_SUB_ID_LAST),
-    #[4]    _events_desc,
-    #[5]    sizeof(Evas_Object_Line),
-    #[6]    _class_constructor,
-    #[7]    NULL
-    # }
-    #
-
-    lst.pop(0) #throwing out version
-
-    cl_name = lst[0]
-    self.cl_data[cl_id][const.C_NAME] = cl_name
-
-    self.cl_data[cl_id][const.MODULE] = normalize_names([cl_name])[0].lower()
-    self.cl_data[cl_id][const.TYPE] = lst[1]
-    self.cl_data[cl_id]["ev_desc"] = lst[3]
-    self.cl_data[cl_id][const.CLASS_CONSTRUCTOR] = lst[5]
-
-    class_desc_ops = lst[2]
-    pos = class_desc_ops.find(const.CLASS_DESC_OPS)
-    if pos != -1:
-      s = self.find_token_in_brackets(class_desc_ops, pos, "()")
-      s = s.split(',')[0]
-      s = s.strip("& ")
-      if s == "NULL" and cl_name == "Eo Base":
-#FIXME: hardcoded EO_BASE_BASE_ID
-        print cl_name, "Warning: hardcoded EO_BASE_BASE_ID"
-        s = "EO_BASE_BASE_ID"
-      self.cl_data[cl_id][const.BASE_ID] = s
-
 
 
 
