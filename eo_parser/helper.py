@@ -24,10 +24,8 @@ class _const:
     self.PARAMETERS = "parameters"
     self.OP_ID = "op_id"
 
-#    self.OP_DESC = "op_desccc"
-#    self.EV_DESC = "ev_desccc"
-    self.OP_DESC = "Eo_Op_Description op_desc"
-    self.EV_DESC = "Eo_Event_Description *event_desc"
+    self.OP_DESC = "op_desccc"
+    self.EV_DESC = "ev_desccc"
 
     self.GET_FUNCTION = "get_function"#used as xml-tag
     self.DEFINES = "defines"
