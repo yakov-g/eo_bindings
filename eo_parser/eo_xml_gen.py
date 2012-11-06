@@ -77,17 +77,11 @@ def main():
   if typedefs:
     cp.typedefs_add(typedefs)
 
-  print "c files : %s"%(c_files)
-
-  print "get files from C"
   #fetching data from c-file
   for f in c_files:
   #  cp.c_file_data_get(f)
     cp.c_file_data_get2(f)
 
-  print const.GET_FUNCTION
-
-  print "get files from H"
   #fetching data from h-file
   for f in h_files:
     cp.h_file_data_get(f)
@@ -155,7 +149,7 @@ def main():
   for k in cp.cl_data:
     cp.build_xml(k)
 
-  cp.print_data()
+  #cp.print_data()
   del cp
 
 if __name__ == "__main__":

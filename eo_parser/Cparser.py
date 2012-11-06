@@ -138,11 +138,11 @@ class Cparser(object):
    #
     reg = "Eo_Op_Description[ ]*([a-zA-Z0-9_]*)\[\][ =]*{([^}]*)};"
     all_op_descs = re.findall(reg, af)
-    op_desc = {}
+    op_desc = {"NULL" : []}
     for tup in all_op_descs:
       s_tmp = tup[1]
       # fetching op_ids and descriptions
-      reg =  "EO_OP_DESCRIPTION\([ ]*([A-Z_]*)[ ]*,[ ]*\"([^\"]*)\"[ ]*\),"
+      reg =  "EO_OP_DESCRIPTION[^\)]*\([ ]*([A-Z_]*)[ ]*,[ ]*\"([^\"]*)\"[ ]*\),"
       ids_and_descs = re.findall(reg, s_tmp)
 
       op_list = []
@@ -174,24 +174,26 @@ class Cparser(object):
        key = tup[0]
        l_tmp = smart_split(tup[1])
        ver = l_tmp[0].strip(" ")
-       name = l_tmp[1]
+       name = l_tmp[1].strip(" ")
        cl_type = l_tmp[2].strip(" ")
        
        #splitting string into list
        desc_ops = l_tmp[3].replace(" ", "").replace("&", "")
        desc_ops = re.findall("\(([^)]*)\)" , desc_ops)[0].split(",")
        #mapping op_desc var name into ops list
-       if desc_ops[1] != "NULL":
-          desc_ops[1] = op_desc[desc_ops[1]]
+       #if op_desc == NULL; t.e. no op_id for current class; NULL will be changed to empty list
+       desc_ops[1] = op_desc[desc_ops[1]]
 
        ev_desc_var = l_tmp[4].strip(" ")
 
-       if -1 == name.find("\n"):
+       if -1 == name.find("\""):
           name = name.strip(" ")
           reg = "#define[ ]*%s[ ]*(\"[^\"]*\")"%name
           ll = re.findall(reg, af)
           if len(ll):
-            name = ll[0].strip("\"")
+            name = ll[0]
+
+       name = name.strip("\"")
 #       l_tmp = tup[1].split(",")
        class_desc[key] = [name, cl_type, desc_ops, ev_desc[ev_desc_var]]
 
@@ -215,8 +217,8 @@ class Cparser(object):
     f.close()
     ttt = self.fetch_data(allfile)
 
+    #for each class which was found it c-file
     for key, data in ttt.iteritems():
-       print key, " -> ", data
 
        func_pos = 0
 
@@ -225,11 +227,10 @@ class Cparser(object):
        lst.append(data[0]) 
        lst += data[1]
        lst = filter(lambda l: False if l == "NULL" else True, lst)
-       print lst
 
        if cl_id in self.cl_data:
-         verbose_print("Class %s from file %s won't be added in the tree"%(current_class, filename))
-         verbose_print("Class %s from file %s will be used as parent in inheritance"%(current_class, self.cl_data[current_class][const.C_FILE]))
+         verbose_print("Class %s from file %s won't be added in the tree"%(cl_id, filename))
+         verbose_print("Class %s from file %s will be used as parent in inheritance"%(cl_id, self.cl_data[cl_id][const.C_FILE]))
          return
 
        self.cl_data[cl_id] = {const.PARENTS:lst,
@@ -501,7 +502,6 @@ class Cparser(object):
 
 
 
-
   #generating XML
   def build_xml(self, cl_id):
     #FIXME: because i don't parse several EO_DEFINE_CLASS in file
@@ -660,6 +660,8 @@ class Cparser(object):
     #looking for class_get function to get class macro
     current_class = ""
     cl_macro = []
+    cl_id_copy = []
+
     for k in self.cl_data:
       pos = 0
       get_func = ""
@@ -667,7 +669,10 @@ class Cparser(object):
       for d in def_list:
 
         pos = d.find(k)
-        if pos != -1:
+        reg = '#define[ ]*[a-zA-Z_]*[ ]*%s\(\)'%k
+
+        res = re.findall(reg, d)
+        if re.match(reg, d):
           lst = d.split()
           current_class = lst[1]
           get_func = k
