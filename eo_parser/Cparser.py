@@ -390,21 +390,24 @@ class Cparser(object):
     f.close()
 
    #fetch all "#define" from file
-    pos = pos_d = allfile.find("#define")
-    def_list = []
-    while pos != -1:
-       pos_end = allfile.find("\n", pos)
-       pos_end2 = allfile.find("\\", pos)
-       if pos_end < pos_end2 or pos_end2 == -1:
-         s = allfile[pos_d:pos_end]
-         s = s.replace("\n", "")
-         s = s.replace("\\", "")
-         s = " ".join(s.split())
-         def_list.append(s)
-         pos = pos_d = allfile.find("#define", pos_end)
-       else:
-          pos = pos_end + 1
-          continue
+    matcher = re.compile(r"^[ \t]*(#define(.*\\\n)*.*$)",re.MULTILINE)
+    ss = matcher.findall(allfile, re.MULTILINE)
+    d_list = []
+    for tup in ss:
+      s_tmp = tup[0].replace("\n", "").replace("\\", "")
+      s_tmp = " ".join(s_tmp.split())
+      d_list.append(s_tmp)
+
+    def_list = d_list
+
+    """
+    #fetch all "@def" from file
+    #matcher = re.compile(r"^/\*\*( \*.*\n)*.*\*/$",re.MULTILINE)
+    matcher = re.compile("(^/\*\*\n( \*.*\n)*.* \*/$)",re.MULTILINE)
+    ss = matcher.findall(allfile, re.MULTILINE)
+    for s in ss:
+       print "s====================", s[0]
+       """
 
    #fetch all data from "@def" comments
     macro = {}
@@ -423,7 +426,6 @@ class Cparser(object):
         for i in range(len(lst)):
           lst[i] = " ".join(lst[i].split()) #removing more than one spaces
 
-
         macro_name = lst[0]
         par_lst = []
         macro_name = macro_name.split("(")[0]
@@ -432,9 +434,9 @@ class Cparser(object):
         for l in lst:
           if l.startswith("@param"):
              s = ""
-             s1 = re.match("\[in|out\]", l)
+             s1 = re.match("@param\[(in|out|in,out)\]", l)
              if s1:
-                s = s1.group(0)
+                s = s1.group(1)
              s = s.replace(" ", "")
              s_tmp = []
              if s != "":
@@ -451,11 +453,9 @@ class Cparser(object):
                 print "ERROR: check parameter's description in #define %s"%(macro_name)
                 exit(1)
              par_lst.append(t)
-
       macro[macro_name] = par_lst
 
       pos = allfile.find("@def", pos_end)
-
 
     #looking for class_get function to get class macro
     current_class = ""
@@ -466,8 +466,8 @@ class Cparser(object):
       pos = 0
       get_func = ""
 
-      for d in def_list:
-
+      for d in def_list: 
+        # looking for #define SOME_CLASS some_class_get()
         reg = '#define[ ]*[a-zA-Z_]*[ ]*%s\(\)'%k
         res = re.findall(reg, d)
         if re.match(reg, d):
