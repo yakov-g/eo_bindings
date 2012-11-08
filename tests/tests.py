@@ -1,6 +1,6 @@
 import unittest
-from XMLparser import XMLparser
-from eo_parser.Cparser import Cparser
+from eoparser.xmlparser import XMLparser
+from eoparser.cparser import Cparser
 
 class testP(unittest.TestCase):
     

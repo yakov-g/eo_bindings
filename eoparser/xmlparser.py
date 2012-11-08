@@ -1,5 +1,5 @@
 import xml.parsers.expat, os, shutil
-from eo_parser.helper import isXML, abs_path_get, dir_files_get
+from eoparser.helper import isXML, abs_path_get, dir_files_get
 from helper import normalize_names, _const
 import copy
 

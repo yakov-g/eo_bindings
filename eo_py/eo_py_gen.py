@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from eo_parser.helper import isXML, abs_path_get, dir_files_get, normalize_names
-from eo_parser.XMLparser import XMLparser
+from eoparser.helper import isXML, abs_path_get, dir_files_get, normalize_names
+from eoparser.xmlparser import XMLparser
 from argparse import ArgumentParser
 import os, sys, shutil
 

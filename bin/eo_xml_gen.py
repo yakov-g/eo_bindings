@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from eo_parser.helper import dir_files_get, abs_path_get, isC, isH, isXML
-from eo_parser.helper import _const
-from eo_parser.XMLparser import XMLparser
-from eo_parser.Cparser import Cparser
+from eoparser.helper import dir_files_get, abs_path_get, isC, isH, isXML
+from eoparser.helper import _const
+from eoparser.xmlparser import XMLparser
+from eoparser.cparser import Cparser
 from argparse import ArgumentParser
 import sys
 
