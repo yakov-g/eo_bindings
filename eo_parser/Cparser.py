@@ -522,6 +522,7 @@ class Cparser(object):
 #
 # Returns list of tokens
 #
+##########
 
 def smart_split(tmp):
   bracket = 0
