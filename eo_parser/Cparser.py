@@ -285,7 +285,7 @@ class Cparser(object):
                 lst[1] = lst[1].replace(" ", "")
                 if len(lst) == 2:
                    try:
-                     tok =  ",".join(list(params_direction[i]))
+                     tok =  params_direction[i]
                      params.append((lst[1], lst[0], tok))
                    except IndexError:
                      print "Warning: error in description %s in  %s"%(s_tmp,self.cl_data[cl_id][const.H_FILE])
@@ -294,7 +294,6 @@ class Cparser(object):
                    print "ERROR: check parameters in EO_TYPECHECK"
                    exit(1)
                 i += 1
-
              self.cl_data[cl_id][const.FUNCS][f][const.PARAMETERS] = params
              self.cl_data[cl_id][const.FUNCS][f][const.C_MACRO] = s_tmp
 
@@ -400,62 +399,27 @@ class Cparser(object):
 
     def_list = d_list
 
-    """
     #fetch all "@def" from file
-    #matcher = re.compile(r"^/\*\*( \*.*\n)*.*\*/$",re.MULTILINE)
-    matcher = re.compile("(^/\*\*\n( \*.*\n)*.* \*/$)",re.MULTILINE)
-    ss = matcher.findall(allfile, re.MULTILINE)
-    for s in ss:
-       print "s====================", s[0]
-       """
-
-   #fetch all data from "@def" comments
+    matcher = re.compile("(^/\*\*\n(((.(?!\*/))*\n)*).*\*/$)",re.MULTILINE)
+    all_comments_list = matcher.findall(allfile)
     macro = {}
-    pos = allfile.find("@def")
-    while pos != -1:
-      pos_start = pos
-      pos_end = allfile.find("*/", pos_start)
-      if pos_end != -1:
-        tmp = allfile[pos_start : pos_end]
-        #tmp = tmp.replace("\n", "") #deleting next string
-        tmp = tmp.replace("*", "") #removing *
-        lst = tmp.split("\n")
+    for comment in all_comments_list:
+         comment_tmp = comment[1]
 
-        lst = filter(macro_filter_func, lst)
+         #looking for @def token in comment
+         res = re.search("@def[ ]+([a-zA-Z0-9_]*)", comment_tmp)
+         if res == None:
+            continue
 
-        for i in range(len(lst)):
-          lst[i] = " ".join(lst[i].split()) #removing more than one spaces
+         macro_name = res.group(1)
 
-        macro_name = lst[0]
-        par_lst = []
-        macro_name = macro_name.split("(")[0]
+         #looking for parameters direction in comment
+         res = re.findall("@param[\[]*([inout,]*)[\]]*", comment_tmp)
+         l_tmp = []
+         for l in res:
+            l_tmp.append(l if len(l) else "in,out");
 
-        macro_name = macro_name[macro_name.find(" ")+1:].strip(" ")
-        for l in lst:
-          if l.startswith("@param"):
-             s = ""
-             s1 = re.match("@param\[(in|out|in,out)\]", l)
-             if s1:
-                s = s1.group(1)
-             s = s.replace(" ", "")
-             s_tmp = []
-             if s != "":
-                s = s.split(",")
-                if "in" in s:
-                   s_tmp.append("in")
-                if "out" in s:
-                   s_tmp.append("out")
-             else:
-                s_tmp.append("in")
-                s_tmp.append("out")
-             t = tuple(s_tmp)
-             if len(t) == 0:
-                print "ERROR: check parameter's description in #define %s"%(macro_name)
-                exit(1)
-             par_lst.append(t)
-      macro[macro_name] = par_lst
-
-      pos = allfile.find("@def", pos_end)
+         macro[macro_name] = l_tmp
 
     #looking for class_get function to get class macro
     current_class = ""
