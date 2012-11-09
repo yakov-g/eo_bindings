@@ -20,9 +20,11 @@ It analyzes source and header C files, which can contain EO-styled class definit
       Graph generator runs recursively on defined folders and generates graphviz dot file,
       which can be used to generate image
 
-      > python eo_graph_gen.py --dir=FOLDER_WITH_XML1 --dir=FOLDER_WITH_XMLS --outfile=OUTFILE.dot
-      > dot -Tpng OUTFILE.dot -o out.png
-      > eog out.png
+#      > python eo_graph_gen.py --dir=FOLDER_WITH_XML1 --dir=FOLDER_WITH_XMLS --outfile=OUTFILE.dot
+#      > dot -Tpng OUTFILE.dot -o out.png
+#      > eog out.png
+      > python eo_graph_gen.py --dir=FOLDER_WITH_XML1 --dir=FOLDER_WITH_XMLS --outfile=graph.png
+      > eog graph.png
 
 2. Generating python-bindings: read /eo_py/README
 

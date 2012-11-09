@@ -82,7 +82,6 @@ def main():
     verbose_print = verbose_false
 
   verbose_print("Options: %s"%args)
-  verbose_print("Args: %s"%args)
 
   directories = []
   outfile = ""
@@ -179,13 +178,16 @@ def main():
       lines.append(line)
   lines.append("}")
 
-  f = open(outfile, 'w')
+  tmp_dot_file = "tmp.dot"
+  f = open(tmp_dot_file, 'w')
   for l in lines:
     f.write(l+'\n')
 
   f.close()
 
-  verbose_print("dot file: %s was generated"%(outfile))
+  verbose_print("Dot file: '%s' was generated"%(tmp_dot_file))
+  verbose_print("Graph file: '%s was generated"%(outfile))
+  os.system("dot -Tpng %s -o %s"%(tmp_dot_file, outfile))
 
 if __name__ == "__main__":
   main()
