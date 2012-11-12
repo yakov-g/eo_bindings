@@ -394,14 +394,12 @@ class Cparser(object):
 
    #fetch all "#define" from file
     matcher = re.compile(r"^[ \t]*(#define(.*\\\n)*.*$)",re.MULTILINE)
-    ss = matcher.findall(allfile, re.MULTILINE)
-    d_list = []
+    ss = matcher.findall(allfile)
+    def_list = []
     for tup in ss:
       s_tmp = tup[0].replace("\n", "").replace("\\", "")
       s_tmp = " ".join(s_tmp.split())
-      d_list.append(s_tmp)
-
-    def_list = d_list
+      def_list.append(s_tmp)
 
     #fetch all "@def" from file
     matcher = re.compile("(^/\*\*\n(((.(?!\*/))*\n)*).*\*/$)",re.MULTILINE)
