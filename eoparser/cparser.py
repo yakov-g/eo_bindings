@@ -114,7 +114,7 @@ class Cparser(object):
   #event_desc structure
   # { EV_CLICKED, EV_BUTTON_DOWN, EV_BUTTON_UP, NULL  }
   #
-    reg = "Eo_Event_Description[ *]*([a-zA-Z0-9_]*)[][ =]*{([^}]*)};"
+    reg = "Eo_Event_Description[ *]*([\w]*)[][ =]*{([^}]*)};"
     af = _in_data.replace("\n", "")
     ev_list = re.findall(reg, af)
 
@@ -130,7 +130,7 @@ class Cparser(object):
    #  fetching
    #  op description
    #
-    reg = "Eo_Op_Description[ ]*([a-zA-Z0-9_]*)\[\][ =]*{([^}]*)};"
+    reg = "Eo_Op_Description[ ]*([\w]*)\[\][ =]*{([^}]*)};"
     all_op_descs = re.findall(reg, af)
     op_desc = {"NULL" : []}
     for tup in all_op_descs:
@@ -161,7 +161,7 @@ class Cparser(object):
     #[7]    NULL
     # }
     #
-    reg = "Eo_Class_Description[ ]*([a-zA-Z0-9_]*)[ =]*{([^}]*)};"
+    reg = "Eo_Class_Description[ ]*([\w]*)[ =]*{([^}]*)};"
     desc_list = re.findall(reg, af)
 
     for tup in desc_list:
@@ -189,7 +189,6 @@ class Cparser(object):
             name = ll[0]
 
        name = name.strip("\"")
-#       l_tmp = tup[1].split(",")
        class_desc[key] = [name, cl_type, desc_ops, ev_desc[ev_desc_var]]
 
     #mapping class_desc_var_name to content
@@ -256,23 +255,28 @@ class Cparser(object):
     op_desc = self.cl_data[cl_id][const.OP_DESC]
     defines = self.cl_data[cl_id][const.DEFINES]
     macros = self.cl_data[cl_id][const.OP_MACROS]
+    b_id = self.cl_data[cl_id][const.BASE_ID]
+    b_id_macro = ""
+    for d in defines:
+      o = re.match("#define ([\w]*)\(([^\)]*)\) \(%s[\W]*\\2[\W]*\)"%(b_id), d)
+      if o != None:
+         b_id_macro = o.group(1)
 
     #looking for op_id in define; if found, cutting op_macro from define
     #and checking if it is in macros list. If not - we forgot to add comment
     #if yes - cutting types from define
     for op, f in op_desc:
        for d in defines:
-         pos = d.find(op)
-         if pos != -1 and d[pos : d.find(")", pos)] == op:
-           s_tmp = d[d.find(' ') + 1:]
-           s_tmp = s_tmp.replace(" ", "")
-           s_tmp = s_tmp.split('(')[0]
+         o = re.match("#define ([\w]*)\([^\)]*\) %s\(%s\).*"%(b_id_macro, op), d)
+         if o != None:
+           s_tmp = o.group(1)
+
            if s_tmp not in macros:
               print "Warning: no comments for \"%s\"; file: \"%s\" "%(s_tmp, self.cl_data[cl_id][const.H_FILE])
            else:
 
              params = []
-             params_direction =  macros[s_tmp]
+             params_direction = macros[s_tmp]
              reg = "%s\(([^,]*),([^,]*)\)"%const.EO_TYPECHECK
              ss = re.findall(reg, d)
 
@@ -285,7 +289,7 @@ class Cparser(object):
                 lst[1] = lst[1].replace(" ", "")
                 if len(lst) == 2:
                    try:
-                     tok =  params_direction[i]
+                     tok = params_direction[i]
                      params.append((lst[1], lst[0], tok))
                    except IndexError:
                      print "Warning: error in description %s in  %s"%(s_tmp,self.cl_data[cl_id][const.H_FILE])
@@ -407,7 +411,7 @@ class Cparser(object):
          comment_tmp = comment[1]
 
          #looking for @def token in comment
-         res = re.search("@def[ ]+([a-zA-Z0-9_]*)", comment_tmp)
+         res = re.search("@def[ ]+([\w]*)", comment_tmp)
          if res == None:
             continue
 
@@ -429,10 +433,10 @@ class Cparser(object):
     for k in self.cl_data:
       pos = 0
       get_func = ""
-
+      
       for d in def_list: 
         # looking for #define SOME_CLASS some_class_get()
-        reg = '#define[ ]*[a-zA-Z_]*[ ]*%s\(\)'%k
+        reg = '#define[ ]*[\w]*[ ]*%s\(\)'%k
         res = re.findall(reg, d)
         if re.match(reg, d):
           lst = d.split()
