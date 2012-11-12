@@ -3,6 +3,8 @@ from distutils.core import setup
 setup(
     name='eoparser',
     version='0.1dev',
+    author='Yakov Goldberg',
+    author_email='yakov.goldberg@gmail.com',
     packages=['eoparser',],
     package_data={'eoparser': ['data/types.xml']},
     scripts=['bin/eo_xml_gen.py', 'bin/eo_graph_gen.py'],
