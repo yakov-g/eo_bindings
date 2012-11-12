@@ -1,6 +1,11 @@
 <?xml version="1.0" ?>
 <types>
   <type from="Evas_Object" to="Eo"/>
+  <type from="Evas_Coord" to="int"/>
+  <type from="Evas_Angle" to="int"/>
+  <type from="Evas_Font_Size" to="int"/>
+  <type from="Evas_Bool" to="bool"/>
+  <type from="Eo_Callback_Priority" to="short"/>
   <type from="Evas_Smart" to="Eo"/>
   <type from="Evas_Map" to="Eo"/>
   <type from="Evas_Text_Style_Type" to="Eo"/>
@@ -11,6 +16,4 @@
   <type from="b" to="a*"/>
   <type from="c" to="char"/>
   <type from="d" to="c*"/>
-
-
 </types>

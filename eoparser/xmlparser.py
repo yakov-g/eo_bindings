@@ -1138,6 +1138,8 @@ class XMLparser(object):
         p.StartElementHandler = self.start_element_handler
         p.ParseFile(open(fName, 'r'))
 
+        if self.class_data == {}:
+           return
         mod_name = normalize_names([self.class_data[const.C_NAME]])[0].lower()
         #defining _id function
         if self.class_data[const.BASE_ID] != "":
@@ -1208,6 +1210,7 @@ class XMLparser(object):
         self.op_ids = []
         self.ev_ids = []
         self.extern_funcs = []
+        self.class_data = {}
 
 
     #For each class(object) in current tree, checks if parent is also in current tree.

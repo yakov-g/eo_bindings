@@ -149,7 +149,6 @@ def main():
   for k in cp.cl_data:
     cp.build_xml(k)
 
-  #cp.print_data()
   del cp
 
 if __name__ == "__main__":
