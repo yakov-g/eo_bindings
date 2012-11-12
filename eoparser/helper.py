@@ -73,27 +73,23 @@ def isC(s):
   #FIXME when parsing eobase we can catch "eo.c" with EO_DEFINE_CLASS
   path_lst = s.split('.')
   if len(path_lst) == 2:
-    if path_lst[1] in ["c", "cc", "cpp"]:
-      return True
-    else:
-      return False
-
+    return True if path_lst[1] in ["c", "cc", "cpp"] else False
+  else:
+    return False
 
 def isH(s):
   path_lst = s.split('.')
   if len(path_lst) == 2:
-    if path_lst[1] in ["h"]:
-      return True
-    else:
-      return False
+    return True if path_lst[1] in ["h"] else False
+  else:
+    return False
 
 def isXML(s):
   path_lst = s.split('.')
   if len(path_lst) == 2:
-    if path_lst[1] in ["xml"]:
-      return True
-    else:
-      return False
+    return True if path_lst[1] in ["xml"] else False
+  else:
+    return False
 
 #  dir_files_get(_directories, func, recursive)
 #
