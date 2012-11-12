@@ -1,43 +1,19 @@
 import unittest
+import os
 from eoparser.xmlparser import XMLparser
 from eoparser.cparser import Cparser
+from eoparser.helper import dir_files_get, abs_path_get, isC, isH, isXML, normalize_names
 
 class testP(unittest.TestCase):
     
     def setUp(self):
         self.c_parser = Cparser(False)
 
-    def test_strip(self):
-        s = """
-            #define MY_TEST_CLASS_NAME "test_class_name"
+    def test_fetch_data(self):
+        f = open('test_data.in', 'r')
+        s = f.read()
+        f.close()
 
-static const Eo_Op_Description _elm_pan_op_desc[] = {
-     EO_OP_DESCRIPTION(ELM_OBJ_PAN_SUB_ID_POS_SET, "description here"),
-     EO_OP_DESCRIPTION(ELM_OBJ_PAN_SUB_ID_POS_GET, "description here"),
-     EO_OP_DESCRIPTION_SENTINEL
-};
-
-static const Eo_Event_Description *event_desc[] = {
-     EO_EV_CALLBACK_ADD,
-     EO_EV_CALLBACK_DEL,
-     EO_EV_DEL,
-     NULL
-};
-
-static const Eo_Class_Description test_class_desc = {
-     EO_VERSION,
-     MY_TEST_CLASS_NAME,
-     EO_CLASS_TYPE_REGULAR,
-     EO_CLASS_DESCRIPTION_OPS(&ELM_OBJ_PAN_BASE_ID, _elm_pan_op_desc, ELM_OBJ_PAN_SUB_ID_LAST),
-     event_desc,
-     sizeof(Elm_Pan_Smart_Data),
-     _elm_pan_class_constructor,
-     NULL
-};
-
-            EO_DEFINE_CLASS(class_get, &test_class_desc, parent, brother, NULL)
-
-            """
         class_def_answer = {"class_get" : ["parent", 
                                            ["brother"], 
                                            "test_class_name", 
@@ -51,26 +27,44 @@ static const Eo_Class_Description test_class_desc = {
 
         ret = self.c_parser.fetch_data(s)
         self.assertEqual(ret, answer)
-#        self.assertEqual(self.prs.strip_replace("{test str}", "{} "), "teststr" )
-    """    
-    def test_strip2(self):
-        s = "(teststr)"
-        self.assertEqual(self.prs.strip_replace("  [te stst r]  ", "[] "), "teststr")
 
-    def test_parse(self):
-        s = "EO_DEFINE_CLASS(elm_button_class_get, &desc)"
-        self.assertEqual(self.prs.parse_class_desc(s), ["elm_button_class_get", "desc"])
-        self.assertEqual(self.prs.defs, ["elm_button_class_get", "desc"])
-        self.assertEqual(self.prs.dic, {"a" : "b" , 1 :34} )
-"""
+    def test_isC(self):
+        self.assertTrue(isC("abc.c"))
+        self.assertTrue(isC("abc.cc"))
+        self.assertTrue(isC("abc.cpp"))
+        self.assertFalse(isC("abc.cp"))
+        self.assertFalse(isC("abc.def.c"))
+
+    def test_isH(self):
+        self.assertTrue(isH("abc.h"))
+        self.assertFalse(isH("abc.c"))
+        self.assertFalse(isH("abc.def.h"))
+
+    def test_isXML(self):
+        self.assertTrue(isXML("abc.xml"))
+        self.assertFalse(isXML("abc.h"))
+        self.assertFalse(isXML("abc.qwe.xml"))
+
+    def test_abs_path_get(self):
+       _in = "test_data.in"
+       _in_list = [_in]
+       _out = _in
+       _out = os.path.expanduser(_out)
+       _out = os.path.abspath(_out)
+
+       self.assertEqual(abs_path_get(_in_list), [_out])
+
+    def test_normalize_names(self):
+       _in = ["hello world", "elm_Box", "evas Object-SmaRt", "EvAs-common InTeRface"]
+       _out = ["HelloWorld", "ElmBox", "EvasObjectSmart", "EvasCommonInterface"]
+
+       self.assertEqual(normalize_names(_in), _out)
+
 
 def suite():
-
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(testP))
     return suite
-
-
 
 if __name__ == '__main__':
 
