@@ -22,15 +22,13 @@ def main():
   parser.add_argument("-v", "--verbose",
                   action="store_true", dest="verbose", default=False,
                   help="Print status messages to stdout")
-
+  """
   parser.add_argument("--graphstyle", action="store", dest="graphstyle", default="digraph",
                   help="Set graph style. Default: \"digraph\"")
+  """
 
-  parser.add_argument("--edge", action="store", dest="edge", default="solid",
-                  help="Set line style for parent edge. Default: \"solid\"")
-
-  parser.add_argument("--extedge", action="store", dest="extedge", default="dashed",
-                  help="Set line style for extension edge. Default: \"dashed\"")
+  parser.add_argument("--extedge", action="store", dest="extedge", default="dashed, dashed, dotted, dashed",
+                  help="Set line style for extension edges depending on extension type(REGULAR, MIXIN, INTERFACE, NO_INSTANT).[\"solid, dotted, dashed, bold\"].  Default: \"dashed, dashed, dotted, dashed\"")
 
   parser.add_argument("--rankdir", action="store", dest="rankdir", default="BT",
                   help="Direction of directed graph[BT, TB, LR, RL]. Default: \"BT\"")
@@ -47,33 +45,53 @@ def main():
   parser.add_argument("--nodeshape", action="store", dest="nodeshape", default="polygon",
                   help="Node shape.[\"polygon\", \"circle\", \"ellipse\"] Default: \"polygon\"")
 
+  parser.add_argument("--long-names", action="store", dest="short_long", default="short",
+                  help="Node shape.[\"short\", \"long\"] Default: \"short\"")
+
 
   styles = {}
 
   args = parser.parse_args()
-  styles["edge"] = args.edge
-  styles["extedge"] = args.extedge
-  styles["graphstyle"] = args.graphstyle
+  styles["extedge"] = args.extedge.replace(" ", "").split(",")
+  if len (styles["extedge"]) < 4:
+     print "--extedge option is not correct"
+     exit(1)
+  styles["graphstyle"] = "digraph"# args.graphstyle
   styles["rankdir"] = args.rankdir
   styles["graphfontsize"] = args.graphfontsize
   styles["graphlabel"] = args.graphlabel
   styles["nodefontsize"] = args.nodefontsize
   styles["nodeshape"] = args.nodeshape
+  SHORT_LONG = 0 if args.short_long == "short" else 1
 
+  TYPE_REGULAR = "EO_CLASS_TYPE_REGULAR"
+  TYPE_MIXIN = "EO_CLASS_TYPE_MIXIN"
+  TYPE_INTERFACE = "EO_CLASS_TYPE_INTERFACE"
+  TYPE_NO_INSTANT = "EO_CLASS_TYPE_REGULAR_NO_INSTANT"
 
-  types = {
-            "REGULAR":"EO_CLASS_TYPE_REGULAR",
-            "MIXIN" : "EO_CLASS_TYPE_MIXIN",
-            "INTERFACE":"EO_CLASS_TYPE_INTERFACE",
-            "NO_INSTANT":"EO_CLASS_TYPE_REGULAR_NO_INSTANT"
+  types_list = (TYPE_REGULAR, TYPE_MIXIN, TYPE_INTERFACE, TYPE_NO_INSTANT)
+
+  type_names = {
+            TYPE_REGULAR : ("REGULAR", "EO_CLASS_TYPE_REGULAR"),
+            TYPE_MIXIN : ("MIXIN", "EO_CLASS_TYPE_MIXIN"),
+            TYPE_INTERFACE : ("INTERFACE", "EO_CLASS" ),
+            TYPE_NO_INSTANT : ("NO INSTANT", "EO_CLASS_TYPE_REGULAR_NO_INSTANT")
           }
 
+  #node colors
   n_color = {
-              types["REGULAR"]:"green",
-              types["MIXIN"] : "blue",
-              types["INTERFACE"]:"red",
-              types["NO_INSTANT"]:"darkviolet"
+              TYPE_REGULAR :"green",
+              TYPE_MIXIN : "blue",
+              TYPE_INTERFACE :"red",
+              TYPE_NO_INSTANT :"darkviolet"
             }
+
+  #ext edge line style
+  p_edge = {}
+  p_edge[TYPE_REGULAR] = styles["extedge"][0]
+  p_edge[TYPE_MIXIN] = styles["extedge"][1]
+  p_edge[TYPE_INTERFACE] = styles["extedge"][2]
+  p_edge[TYPE_NO_INSTANT] = styles["extedge"][3]
 
   verbose_print = None
   if args.verbose is True:
@@ -137,14 +155,8 @@ def main():
 
   #generating dot node description for node, for each class
   for n, o in graph.items():
-    if o.eo_type == types["REGULAR"]:
-      line = "      \"%s\" [label = \"%s \\n %s\", color = \"%s\"];"%(n, o.c_name, o.eo_type, n_color[types["REGULAR"]])
-    elif o.eo_type == types["MIXIN"]:
-      line = "      \"%s\" [label = \"%s \\n %s\", color = \"%s\"];"%(n, o.c_name, o.eo_type, n_color[types["MIXIN"]])
-    elif o.eo_type == types["INTERFACE"]:
-      line = "      \"%s\" [label = \"%s \\n %s\", color = \"%s\"];"%(n, o.c_name, o.eo_type, n_color[types["INTERFACE"]])
-    elif o.eo_type == types["NO_INSTANT"]:
-      line = "      \"%s\" [label = \"%s \\n %s\", color = \"%s\"];"%(n, o.c_name, o.eo_type, n_color[types["NO_INSTANT"]])
+    if o.eo_type in types_list:
+      line = "      \"%s\" [label = \"%s \\n %s\", color = \"%s\"];"%(n, o.c_name, type_names[o.eo_type][SHORT_LONG], n_color[o.eo_type])
     else:
       line = "      \"%s\" [label = \"%s \\n %s\"];"%(n, o.c_name, o.eo_type)
 
@@ -160,18 +172,12 @@ def main():
         p_type = graph[parent].eo_type
       else:
         p_type = types["REGULAR"]
-      line = "      \"%s\" -> \"%s\" [style = \"%s\", color=\"%s\"];"%(n, parent, styles["edge"], n_color[p_type])
+      line = "      \"%s\" -> \"%s\" [style = \"%s\", color=\"%s\"];"%(n, parent, "solid", n_color[p_type])
       lines.append(line)
     for l in ext:
-      if graph[l].eo_type == types["REGULAR"]:
-        line = "      \"%s\" -> \"%s\" [style=\"%s\", color=\"%s\"] ;"%(n, l, "dashed", n_color[types["REGULAR"]])
-      elif graph[l].eo_type == types["MIXIN"]:
-        line = "      \"%s\" -> \"%s\" [style=\"%s\", color=\"%s\"] ;"%(n, l, "dashed", n_color[types["MIXIN"]])
-      elif graph[l].eo_type == types["INTERFACE"]:
-#       line = "      \"%s\" -> \"%s\" [style=\"%s\"] ;"%(k, l, styles["extedge"])
-        line = "      \"%s\" -> \"%s\" [style=\"%s\", color = \"%s\"] ;"%(n, l, "dotted", n_color[types["INTERFACE"]])
-      elif graph[l].eo_type == types["NO_INSTANT"]:
-        line = "      \"%s\" -> \"%s\" [style=\"%s\", color=\"%s\"] ;"%(n, l, "dashed", n_color[types["NO_INSTANT"]])
+      eo_type_tmp = graph[l].eo_type
+      if eo_type_tmp in types_list:
+        line = "      \"%s\" -> \"%s\" [style=\"%s\", color=\"%s\"] ;"%(n, l, p_edge[eo_type_tmp], n_color[eo_type_tmp])
       else:
         line = "      \"%s\" -> \"%s\" [style=\"%s\", color=\"%s\"] ;"%(k, l, "dashed", "black")
 
@@ -188,6 +194,13 @@ def main():
   verbose_print("Dot file: '%s' was generated"%(tmp_dot_file))
   verbose_print("Graph file: '%s was generated"%(outfile))
   os.system("dot -Tpng %s -o %s"%(tmp_dot_file, outfile))
+  """
+  os.system("neato -Tpng %s -o %s_neato"%(tmp_dot_file, outfile))
+  os.system("twopi -Tpng %s -o %s_twopi"%(tmp_dot_file, outfile))
+  os.system("circo -Tpng %s -o %s_circo"%(tmp_dot_file, outfile))
+  os.system("fdp -Tpng %s -o %s_fdp"%(tmp_dot_file, outfile))
+  os.system("sfdp -Tpng %s -o %s_sfdp"%(tmp_dot_file, outfile))
+  """
 
 if __name__ == "__main__":
   main()
