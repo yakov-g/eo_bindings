@@ -130,6 +130,8 @@ class Visitor(object):
                                 "bool*" : ["unsigned char","int", "ToBoolean"],
                                 "unsigned int": ["unsigned int", "unsigned int", "ToUint32"],
                                 "unsigned int*": ["unsigned int", "unsigned int", "ToUint32"],
+                                "unsigned short": ["unsigned int", "unsigned int", "ToUint32"],
+                                "unsigned short*": ["unsigned int", "unsigned int", "ToUint32"],
                                 "unsigned long": ["unsigned long", "unsigned long", "ToUint32"],
                                 "unsigned long*": ["unsigned long", "unsigned long", "ToNumber"],
                                 "unsigned long long": ["unsigned long long", "unsigned long long", "ToNumber"],
@@ -812,7 +814,7 @@ class PyVisitor(Visitor):
 
        if if_ret:
          function_lines.append("\n")
-         self.pxi["funcs_parsed"] += function_lines
+         self.pxi.funcs_parsed += function_lines
          return
 
 

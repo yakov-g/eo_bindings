@@ -136,7 +136,7 @@ class Cparser(object):
     for tup in all_op_descs:
       s_tmp = tup[1]
       # fetching op_ids and descriptions
-      reg =  "EO_OP_DESCRIPTION[^\)]*\([ ]*([A-Z_]*)[ ]*,[ ]*\"([^\"]*)\"[ ]*\),"
+      reg =  "EO_OP_DESCRIPTION[^\)]*\([ ]*([A-Z0-9_]*)[ ]*,[ ]*\"([^\"]*)\"[ ]*\),"
       ids_and_descs = re.findall(reg, s_tmp)
 
       op_list = []
