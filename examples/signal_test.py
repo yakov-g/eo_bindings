@@ -2,7 +2,7 @@
 
 from base.eodefault import *
 from eobase import EoBase
-from signals.signals_py import Simple
+from signals.py.signals_py import Simple
 
 def cb_del(o):
   print "OBJECT DELETED"

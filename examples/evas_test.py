@@ -3,7 +3,7 @@ import sys
 
 from base.eodefault import py_elm_init, elem_run
 from eobase import EoBase
-from evas.py.py_evas import ElwWin, ElwBox, ElwButton, ElwBoxedbutton, EvasObject
+from evas.py.evas_py import ElwWin, ElwBox, ElwButton, ElwBoxedbutton, ExEvasObject
 
 
 print "Initializing Elementary..."
@@ -133,21 +133,21 @@ def num_cb(obj):
 
 
 def cb_add(o):
-  o.alert("obj: " + o.text_get() + "; Added: cb_add")
+  o.alert("  obj: " + o.text_get() + "; cb_added")
 
 def cb_del(o):
-  o.alert("obj: " + o.text_get() + "; Added: cb_del")
+  o.alert("  obj: " + o.text_get() + "; cb_deleted")
 
 def thaw_ba(o):
-  print "size:", o.size_get()
+  print "  size:", o.size_get()
   p_but.event_thaw()
 
 def cb_clicked(o):
-  o.alert("obj: " + o.text_get())
+  o.alert("  obj: " + o.text_get())
   
 
 w1 = ElwWin(None)
-w1.size_set(270, 350)
+w1.size_set(370, 350)
 w1.visibility_set(1)
 
 
@@ -160,11 +160,14 @@ bt.color_set(159, 245, 255, 255)
 bt.text_set("Hello")
 bt.visibility_set(1)
 
+print "> adding cb on CALLBACK_ADD"
 bt.event_callback_priority_add(EoBase.CALLBACK_ADD, -100, cb_add)
+print "> adding cb on CALLBACK_DEL"
 bt.event_callback_priority_add(EoBase.CALLBACK_DEL, 0, cb_del)
-print "adding clicked"
+print "> adding cb on CLICKED"
 bt.event_callback_priority_add(ElwButton.CLICKED, -100, cb_clicked)
 #bt.event_callback_priority_add(ElwButton.CLICKED, -200, thaw_ba)
+print "> adding cb on CLICKED"
 bt.event_callback_priority_add(ElwButton.CLICKED, -200, properties_cb)
 
 del w
@@ -206,7 +209,7 @@ but.visibility_set(1)
 #but.position_set(250, 100)
 but.size_set(90, 20)
 but.color_set(255, 0, 255, 255)
-but.text_set("1st button in box")
+but.text_set("1st button in box - gl_thaw")
 but.event_callback_priority_add(ElwButton.CLICKED, 0, thaw_global)
 
 
@@ -216,7 +219,7 @@ but2.visibility_set(1)
 #but2.position_set(270, 150)
 #but2.size_set(90, 50)
 but2.color_set(255, 255, 0, 255)
-but2.text_set("2nd button in box")
+but2.text_set("2nd button in box - freeze cb")
 but2.event_callback_priority_add(ElwButton.CLICKED, 0, freeze_me)
 
 
