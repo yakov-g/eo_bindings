@@ -88,6 +88,9 @@ cdef class EoDefault:
       eodefault.eo_ref(self.eo)
       return self
 
+   def unref(self):
+      eodefault.eo_unref(self.eo)
+
    # eo_ref_get()
    def ref_get(self):
       ref_count = <object>eodefault.eo_ref_get(self.eo)
@@ -118,8 +121,21 @@ cdef class EoDefault:
    cpdef _eo_instance_set2(self, _kl, EoDefault p):
        kl = <long>_kl
        cdef Eo_Class *kl2 = <Eo_Class*>kl
-       self._eo_instance_set(eodefault.eo_add(kl2, eodefault._eo_instance_get(p)))
+       cdef Eo *o = eodefault.eo_add(kl2, eodefault._eo_instance_get(p))
+       self._eo_instance_set(o)
+       self._data_set(EoDefault.PY_EO_NAME, self)
 
+   #function added to start support custom constructors
+   def _eo_instance_set3(self, _kl, EoDefault p, *args):
+       kl = <long>_kl
+       cdef Eo_Class *kl2 = <Eo_Class*>kl
+       cdef Eo_Op _p0 = <Eo_Op>args[0]
+       cdef char *_p1 = <char*>args[1]
+       cdef int _p2 = <int>args[2]
+       print "_eo_instance_set3",_p0, _p1, _p2
+       cdef Eo *o = eodefault.eo_add_custom(kl2, eodefault._eo_instance_get(p), _p0, _p1, _p2)
+       self._eo_instance_set(o)
+       self._data_set(EoDefault.PY_EO_NAME, self)
 
    cdef int print_func_name(self, f_name):
        print self.__class__, " :: ", f_name, " :: ", sys.getsizeof(self)

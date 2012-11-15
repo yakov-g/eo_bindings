@@ -51,6 +51,7 @@ cdef extern from "Eo.h":
     Eo_Class *eo_base_class_get()
 
     Eo* eo_add(Eo_Class *klass, Eo *parent)
+    Eo* eo_add_custom(Eo_Class *klass, Eo *parent, ...)
 
     Eo* eo_ref(Eo *obj)
     void eo_unref(Eo *obj)

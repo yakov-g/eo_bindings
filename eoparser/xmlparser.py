@@ -788,6 +788,13 @@ class PyVisitor(Visitor):
          function_lines.append("  _key = pytext_to_utf8(_key)")
          function_lines.append("  cdef char* key = <char*> _key")
          function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_DATA_SET), key, <void*>_data, NULL)")
+
+         function_lines.append("")
+         function_lines.append("def _data_set(self, object _key, object _data):")
+         function_lines.append("  _key = pytext_to_utf8(_key)")
+         function_lines.append("  cdef char* key = <char*> _key")
+         function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_DATA_SET), key, <void*>_data, NULL)")
+
          if_ret = True
 
        elif _o.op_id == "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE":
