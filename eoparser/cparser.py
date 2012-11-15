@@ -237,12 +237,7 @@ class Cparser(object):
        for tup in class_desc_ops[1]:
           self.cl_data[cl_id][const.FUNCS][tup[1]] = {const.OP_ID : tup[0], const.C_MACRO: ""}
 
-       s = class_desc_ops[0]
-       if s == "NULL" and cl_name == "Eo Base":
-#FIXME: hardcoded EO_BASE_BASE_ID
-         print cl_name, "Warning: hardcoded EO_BASE_BASE_ID"
-         s = "EO_BASE_BASE_ID"
-       self.cl_data[cl_id][const.BASE_ID] = s
+       self.cl_data[cl_id][const.BASE_ID] = class_desc_ops[0]
 
 
   #  resolving parameters's types and names according to
