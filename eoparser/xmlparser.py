@@ -17,7 +17,6 @@ def O_TYPE_CHECK(o, class_type):
 def class_name_get(_o):
   return _o.__class__.__name__
 
-
 #Wrapping class to pass Visitor object and call for visit function
 class VAcceptor(object):
   def accept(self, v):
@@ -82,8 +81,6 @@ class Mod(object):
        o.accept(self.V)
 
 
-
-
 #  Visitor Design Pattern
 #  Visitor - base class for different visitors.
 #  visit function implements dispatching depending on class name of object
@@ -96,7 +93,6 @@ class Visitor(object):
       method(_p)
     else:
        print "%s is not callable attribute"%(method_name)
-
 
   def cast(self, _in):
     t = _in
@@ -150,8 +146,6 @@ class Visitor(object):
 class Abstract(object):
    def __init__(self):
       pass
-
-
 
 class JsVisitor(Visitor):
 
@@ -303,8 +297,6 @@ class JsVisitor(Visitor):
                   eo_do(eobj, eo_event_callback_add(%s, %s_wrapper, this));\n"%(ev_prefix, _o.ev_id, ev))
     self.c_file.functions.append("}\n")
     self.c_file.functions.append("\n")
-
-
 
   #is called by visit_Func to parse function as a property
   def visit_prop_set_get(self, _o):
@@ -517,9 +509,6 @@ class JsVisitor(Visitor):
     self.c_file.functions.append("}\n")
     self.c_file.functions.append("\n")
 
-
-
-
   def visit_Init(self, _o):
 
     self.c_file.name = _o.cl_obj.js_cc_file
@@ -549,7 +538,6 @@ class JsVisitor(Visitor):
     inherit = ", ".join(lst)
     self.class_info.header ="class %s : %s\n"%(_o.cl_obj.kl_id, inherit)
 
-
     if _o.cl_obj.eo_type == const.CLASS_TYPE_REGULAR:
       self.class_info.private.append("   static Persistent<FunctionTemplate> tmpl;\n")
       self.class_info.private.append("\n")
@@ -557,7 +545,7 @@ class JsVisitor(Visitor):
       #implementing constructor
       self.class_info.protected.append("   %s(Local<Object> _jsObject, CElmObject *parent);\n"%(_o.cl_obj.kl_id))
       self.c_file.functions.append("%s::%s(Local<Object> _jsObject, CElmObject *parent)\n"%(_o.cl_obj.kl_id, _o.cl_obj.kl_id))
-      self.c_file.functions.append(" : CElmObject(_jsObject, eo_add(%s , parent ? parent->GetEo() : NULL))\n"%(_o.cl_obj.macro))
+      self.c_file.functions.append(" : CElmObject(_jsObject, eo_add(%s, parent ? parent->GetEo() : NULL))\n"%(_o.cl_obj.macro))
       self.c_file.functions.append("{\n   jsObject->SetPointerInInternalField(0, static_cast<CElmObject*>(this));\n}\n")
 
       self.class_info.protected.append("   static Handle<FunctionTemplate> GetTemplate();\n")
@@ -569,7 +557,7 @@ class JsVisitor(Visitor):
       #implementing Initialize
       self.c_file.init_f.append("void %s::Initialize(Handle<Object> target)\n"%_o.cl_obj.kl_id)
       self.c_file.init_f.append("{\n")
-      self.c_file.init_f.append("   target->Set(String::NewSymbol(\"%s\") , GetTemplate()->GetFunction());\n"%_o.cl_obj.kl_id)
+      self.c_file.init_f.append("   target->Set(String::NewSymbol(\"%s\"), GetTemplate()->GetFunction());\n"%_o.cl_obj.kl_id)
       self.c_file.init_f.append("}\n")
 
       self.class_info.public.insert(0, "   virtual void DidRealiseElement(Local<Value> obj);\n")
@@ -589,9 +577,6 @@ class JsVisitor(Visitor):
     self.c_file.functions.append("%s::~%s(){} //need to add destruction of cb variables\n\n"%(_o.cl_obj.kl_id, _o.cl_obj.kl_id));
 
     self.class_info.protected.append("   virtual ~%s();\n"%(_o.cl_obj.kl_id))
-
-
-
 
   #saving data to pxi file
   def js_cc_file_to_dir_save(self, _outdir):
@@ -684,9 +669,6 @@ class JsVisitor(Visitor):
       f.write(line)
     f.close()
 
-
-
-
 #  PyVisitor
 #  Py code generation. Generates code depending on object type(input data)
 #  Under  "object type" we understand just some set of data, which has 
@@ -695,9 +677,11 @@ class JsVisitor(Visitor):
 
 class PyVisitor(Visitor):
 
-  def __init__(self):
+  def __init__(self, _module_name):
      #  PyVisitor generates 2 types of files: pxi and pxd
      #  head, ev, funcs_parsed - are hooks for different parts of source code
+
+     self.py_module_name = _module_name
 
      self.visited_properties = []
 
@@ -707,17 +691,21 @@ class PyVisitor(Visitor):
      self.pxi.ev = []
      self.pxi.funcs_parsed = []
 
-
      self.pxd = Abstract()
      self.pxd.name = ""
      self.pxd.head = []
      self.pxd.ev = []
 
+     self.pxd2 = Abstract()
+     self.pxd2.name = ""
+     self.pxd2.head = []
+     self.pxd2.ev = []
+
      self._funcs = {"instance_set2" : "_eo_instance_set2",
                     "instance_get" : "_eo_instance_get",
                     "do" : "eo_do"}
 
-     self.basemodule = {"macro" : "EO_DEFAULT_CLASS",
+     self.eodefault = {"macro" : "EO_DEFAULT_CLASS",
                            "module" : "eodefault",
                            "name": "EoDefault",
                            "parentmodule": "NULL",
@@ -741,13 +729,13 @@ class PyVisitor(Visitor):
   def visit_Func(self, _o):
 #     print "func Func: ", _o.name, _o.op_id, _o.c_macro, _o.parameters
      eo_base_ops = ["EO_BASE_SUB_ID_EVENT_FREEZE", "EO_BASE_SUB_ID_EVENT_FREEZE_GET", \
-                       "EO_BASE_SUB_ID_EVENT_THAW", "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE",
-                       "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE_GET",\
-                       "EO_BASE_SUB_ID_EVENT_GLOBAL_THAW", "EO_BASE_SUB_ID_DATA_SET", \
-                       "EO_BASE_SUB_ID_DATA_GET", "EO_BASE_SUB_ID_DATA_DEL", \
-                       "EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD",
-                       "EO_BASE_SUB_ID_EVENT_CALLBACK_DEL", \
-                       "EO_BASE_SUB_ID_EVENT_CALLBACK_CALL"]
+                    "EO_BASE_SUB_ID_EVENT_THAW", "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE",
+                    "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE_GET",\
+                    "EO_BASE_SUB_ID_EVENT_GLOBAL_THAW", "EO_BASE_SUB_ID_DATA_SET", \
+                    "EO_BASE_SUB_ID_DATA_GET", "EO_BASE_SUB_ID_DATA_DEL", \
+                    "EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD",
+                    "EO_BASE_SUB_ID_EVENT_CALLBACK_DEL", \
+                    "EO_BASE_SUB_ID_EVENT_CALLBACK_CALL"]
 
      in_params = []
      pass_params =[]
@@ -914,7 +902,6 @@ class PyVisitor(Visitor):
      function_lines.append("")
      self.pxi.funcs_parsed += function_lines
 
-
   #generating __init_function, and all header data for files
   def visit_Init(self, _o):
     cl_obj = _o.cl_obj
@@ -939,26 +926,30 @@ class PyVisitor(Visitor):
       function_lines.append(l)
       l = "  self.%s(klass, parent)"%self._funcs["instance_set2"]
       function_lines.append(l)
-      l = "  self.data_set(EoDefault.PY_EO_NAME, self)"
-      function_lines.append(l)
+#      l = "  self.data_set(EoDefault.PY_EO_NAME, self)"
+#      function_lines.append(l)
     function_lines.append("")
 
     function_lines.append("")
 
     self.pxi.funcs_parsed += function_lines
 
-
     self.pxi.name = cl_obj.mod_name + ".pxi"
-    self.pxd.name = cl_obj.mod_name  + ".pxd"
+    self.pxd.name = cl_obj.mod_name + ".pxd"
 
     pattern = "########################################################"
     l = '%s\n##\n## generated from from \"%s\"\n##\n%s'%(pattern, cl_obj.source_file, pattern)
     self.pxi.head.append(l + '\n')
     self.pxd.head.append(l + '\n')
 
-
     #inserting cimports
-    l = "cimport %s"%cl_obj.mod_name
+    #l = "cimport %s"%cl_obj.mod_name
+
+    #now we have one pxd for all extern definitions
+    #so we cimport it with preper name
+    #proper name only for nice
+
+    l = "cimport %s as %s"%(self.py_module_name, cl_obj.mod_name)
     self.pxi.head.append(l)
     l = "cimport %s"%cl_obj.basemodule
     self.pxi.head.append(l + '\n')
@@ -970,15 +961,15 @@ class PyVisitor(Visitor):
 
     if cl_obj.kl_id == "EoBase":
        parents = []
-       parents.append(self.basemodule["name"])
-       l = "from %s import %s"%(self.basemodule["module"], self.basemodule["name"])
+       parents.append(self.eodefault["name"])
+       l = "from %s import %s"%(self.eodefault["module"], self.eodefault["name"])
        self.pxi.head.append(l + "\n")
 
     if "EoBase" in parents:
        l = "from %s import %s"%("eobase", "EoBase")
        self.pxi.head.append(l + "\n")
 
-    l = "from %s import %s"%(self.basemodule["module"], "pytext_to_utf8")
+    l = "from %s import %s"%(self.eodefault["module"], "pytext_to_utf8")
     self.pxi.head.append(l + "\n")
 
     #defining _id function
@@ -991,7 +982,6 @@ class PyVisitor(Visitor):
     #defining class
     parents = ','.join(parents)
     l = 'class %s(%s):'%(cl_obj.kl_id, parents)
-
     self.pxi.head.append(l)
 
     #inserting cimports
@@ -1001,11 +991,13 @@ class PyVisitor(Visitor):
     #inserting externs from H
     l = "cdef extern from \"%s\":"%(cl_obj.includes[0])
     self.pxd.head.append(l + '\n')
+    self.pxd2.head.append(l + '\n')
 
 
     if cl_obj.extern_base_id != "":
        l = '  %s %s'%("Eo_Op", cl_obj.extern_base_id)
        self.pxd.head.append(l + '\n')
+       self.pxd2.head.append(l + '\n')
 
     enum_lines = []
     enum_lines.append("  ctypedef enum:")
@@ -1018,12 +1010,14 @@ class PyVisitor(Visitor):
     if len(enum_lines) > 1:
         for l in enum_lines:
             self.pxd.head.append(l)
+            self.pxd2.head.append(l)
         self.pxd.head.append('\n')
+        self.pxd2.head.append('\n')
 
     for v in cl_obj.extern_funcs:
         l = '  %s %s'%(v[1], v[0])
         self.pxd.head.append(l)
-
+        self.pxd2.head.append(l)
 
   #generating event defenitions
   def visit_Ev(self, _o):
@@ -1037,7 +1031,7 @@ class PyVisitor(Visitor):
     self.pxi.ev.append(l)
     l = '  %s %s'%("Eo_Event_Description *", v)
     self.pxd.ev.append(l)
-
+    self.pxd2.ev.append(l)
 
   #saving data to pxi file
   def pxi_file_to_dir_save(self, _outdir):
@@ -1059,7 +1053,6 @@ class PyVisitor(Visitor):
     f.write("\n")
     f.close()
 
-
   #saving data to pxd file
   def pxd_file_to_dir_save(self, _outdir):
 
@@ -1075,7 +1068,20 @@ class PyVisitor(Visitor):
     f.write("\n")
     f.close()
 
+  #saving data to pxd file
+  def get_pxd_lines_from_module(self):
 
+    ret = []
+    lst = self.pxd2.head
+    for l in lst:
+       ret.append(l+'\n')
+    ret.append('\n')
+
+    lst = self.pxd.ev
+    for l in lst:
+       ret.append(l+'\n')
+    ret.append('\n')
+    return (ret, self.pxd.name)
 
 class XMLparser(object):
     def __init__(self):
@@ -1228,6 +1234,7 @@ class XMLparser(object):
 
     def module_parse(self, _module_name, _xml_files, _incl_dirs):
 
+      #parsing each XML
       for f in _xml_files:
         self.parse(f)
 
@@ -1280,8 +1287,6 @@ class XMLparser(object):
         if len(parents_to_find) != 0:
           print "ERROR: XML files weren't found for %s classes... Aborting"%(",".join(parents_to_find))
           exit(1)
-
-
 
 
     def parents_to_find_get(self):
@@ -1360,7 +1365,6 @@ class XMLparser(object):
       l = list(set(l + prnts))
       return l
 
-
     #normalize all names and ids, which depend in C class name.
     #T.e. Some_Class name -> SomeClassName
     def normalize_module_names(self):
@@ -1372,8 +1376,7 @@ class XMLparser(object):
         objects_tmp[o.kl_id] = o
       self.objects = objects_tmp
 
-
-    def py_code_generate(self, module_name ,outdir):
+    def py_code_generate(self, module_name, outdir):
       #normalizing names for each class object (Evas_Object Class -> EvasObjectClass)
       self.normalize_module_names()
 
@@ -1381,15 +1384,30 @@ class XMLparser(object):
       for n, o in self.objects.items():
         o.parents = self.reorder_parents(o.parents)
 
-        o.V = PyVisitor()
+        o.V = PyVisitor(module_name)
         o.resolve()
 
+      lines = []
+      names = []
       #saving files
       for n, o in self.objects.items():
         o.V.pxi_file_to_dir_save(outdir)
-        o.V.pxd_file_to_dir_save(outdir)
+        #o.V.pxd_file_to_dir_save(outdir)
+        (l, name) = o.V.get_pxd_lines_from_module()
+        lines += l
+        names.append(name)
 
-      #generating  "pyx" module file,
+      f = open (os.path.join(outdir, module_name + ".pxd"), 'w')
+      
+      pattern = "########################################################"
+      l = '%s\n##\n## generated from \"%s\"\n##\n%s'%(pattern, ", ".join(names), pattern)
+      f.write(l + "\n")
+      f.write("from eodefault cimport *\n\n")
+      for l in lines:
+        f.write(l)
+      f.close()
+
+      #generating "pyx" module file,
       #which simply includes source files "pxi" of each class
       #building right order of including files
       cl_parents = {}
