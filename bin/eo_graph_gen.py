@@ -171,7 +171,7 @@ def main():
       if parent in graph:
         p_type = graph[parent].eo_type
       else:
-        p_type = types["REGULAR"]
+        p_type = TYPE_REGULAR
       line = "      \"%s\" -> \"%s\" [style = \"%s\", color=\"%s\"];"%(n, parent, "solid", n_color[p_type])
       lines.append(line)
     for l in ext:
@@ -194,13 +194,11 @@ def main():
   verbose_print("Dot file: '%s' was generated"%(tmp_dot_file))
   verbose_print("Graph file: '%s was generated"%(outfile))
   os.system("dot -Tpng %s -o %s"%(tmp_dot_file, outfile))
-  """
   os.system("neato -Tpng %s -o %s_neato"%(tmp_dot_file, outfile))
   os.system("twopi -Tpng %s -o %s_twopi"%(tmp_dot_file, outfile))
   os.system("circo -Tpng %s -o %s_circo"%(tmp_dot_file, outfile))
   os.system("fdp -Tpng %s -o %s_fdp"%(tmp_dot_file, outfile))
   os.system("sfdp -Tpng %s -o %s_sfdp"%(tmp_dot_file, outfile))
-  """
 
 if __name__ == "__main__":
   main()
