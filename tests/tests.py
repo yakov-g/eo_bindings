@@ -61,6 +61,26 @@ class testP(unittest.TestCase):
        self.assertEqual(normalize_names(_in), _out)
 
 
+    def test_get_param_dir_from_comment(self):
+       s = """
+             @param[in,out] a
+             @param[in] a
+             @param[out] a
+             parem[in]
+             @param [in] a
+             @param    [out] a
+             @param[in, out] a
+             @param in
+             @param [  in  ]
+             @param [  out, in  ]
+             @param sdf [ out  ]
+           """
+       _out = ["in,out", "in", "out", "in", "out", "in,out", "in,out", "in", "in,out", "in,out"]
+       ret = self.c_parser.get_param_dir_from_comment(s)
+       self.assertEqual(ret, _out)
+
+
+
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(testP))

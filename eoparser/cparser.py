@@ -34,6 +34,13 @@ class Cparser(object):
     self.typedefs = {"Evas_Coord" : "int",
                      "Evas_Angle":"int",
                      "Evas_Font_Size" : "int",
+                     "Evas_Object" : "Eo",
+                     "Evas_Smart" : "Eo",
+                     "Evas_Map" : "Eo",
+                     "Evas_Text_Style_Type" : "Eo",
+                     "Evas_Colorspace" : "Eo",
+                     "Evas_Render_Op" : "Eo",
+                     "Evas_Aspect_Control" : "Eo",
                      "Eina_Bool" : "bool",
                      "Eo_Callback_Priority": "short"}
 
@@ -381,6 +388,15 @@ class Cparser(object):
     f.write(res)
     f.close()
 
+  def get_param_dir_from_comment(self, com):
+     res = re.findall("@param.*", com)
+     l_tmp = []
+     for s in res:
+       s = s.replace(" ", "")
+       ret = re.match("@param\[([inout,]*)\]", s)
+       l_tmp.append(ret.group(1) if (ret != None and ret.group(1) in ["in", "out", "in,out"]) else "in,out");
+     return l_tmp
+
   #parsing header file
   def h_file_data_get(self, filename):
     f = open (filename, 'r')
@@ -409,14 +425,8 @@ class Cparser(object):
             continue
 
          macro_name = res.group(1)
-
          #looking for parameters direction in comment
-         res = re.findall("@param[\[]*([inout,]*)[\]]*", comment_tmp)
-         l_tmp = []
-         for l in res:
-            l_tmp.append(l if len(l) else "in,out");
-
-         macro[macro_name] = l_tmp
+         macro[macro_name] = self.get_param_dir_from_comment(comment_tmp)
 
     #looking for class_get function to get class macro
     current_class = ""
