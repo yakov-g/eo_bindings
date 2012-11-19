@@ -1,9 +1,29 @@
+##################
+
+EO Introspection
+
+##################
+
+EO introspection is set of tools to generate high-level
+language bindings for C libraries based on Eo(E Object) library,
+which is a part of Enlightenent Foundation Libraries.
+http://svn.enlightenment.org/svn/e/trunk/efl/
+
+Eo library provides an opportunity
+to use object oriented concepts in C.
+
+EO Introspection provides easy generation
+of Python and JS bindings for your library based on Eo.
+
 #####################################################
 
-EO Introspection - Scanner, Graph Generator
+Tools:
+      Scanner
+      Graph Generator
+      Python code generator
+      JS code generator
 
 #####################################################
-
 Scanner is a part of EObject introspection module.
 It analyzes source and header C files, which can contain EO-styled class definition,
    and generates XML - description for each found class
