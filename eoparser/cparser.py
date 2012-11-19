@@ -37,10 +37,23 @@ class Cparser(object):
                      "Evas_Object" : "Eo",
                      "Evas_Smart" : "Eo",
                      "Evas_Map" : "Eo",
-                     "Evas_Text_Style_Type" : "Eo",
-                     "Evas_Colorspace" : "Eo",
-                     "Evas_Render_Op" : "Eo",
-                     "Evas_Aspect_Control" : "Eo",
+                     "Evas_Text_Style_Type" : "int",#enum
+                     "Evas_Colorspace" : "int",#enum
+                     "Evas_Render_Op" : "int",#enum
+                     "Evas_Aspect_Control" : "int",#enum
+                     "Evas_Object_Pointer_Mode" : "int", #enum
+                     "Evas_Image_Scale_Hint" : "int", #enum
+                     "Evas_Image_Content_Hint" : "int", #enum
+                     "Evas_Image_Animated_Loop_Hint" : "int", #enum
+                     "Evas_Border_Fill_Mode" : "int", #enum
+                     "Evas_Object_Table_Homogeneous_Mode" : "int", #enum
+                     "Evas_Textgrid_Font_Style" : "int",
+                     "Evas_Textgrid_Palette" : "int",
+                     "Evas_Modifier_Mask" : "unsigned long long",
+                     "Evas_Button_Flags" : "int",
+                     "Evas_Fill_Spread" : "int",
+                     "Evas_Event_Flags" : "int",
+                     "Evas_Font_Hinting_Flags" : "int",
                      "Eina_Bool" : "bool",
                      "Eo_Callback_Priority": "short"}
 

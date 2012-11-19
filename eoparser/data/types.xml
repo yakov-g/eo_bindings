@@ -8,12 +8,21 @@
   <type from="Eo_Callback_Priority" to="short"/>
   <type from="Evas_Smart" to="Eo"/>
   <type from="Evas_Map" to="Eo"/>
-  <type from="Evas_Text_Style_Type" to="Eo"/>
-  <type from="Evas_Colorspace" to="Eo"/>
-  <type from="Evas_Render_Op" to="Eo"/>
-  <type from="Evas_Aspect_Control" to="Eo"/>
-  <type from="a" to="int"/>
-  <type from="b" to="a*"/>
-  <type from="c" to="char"/>
-  <type from="d" to="c*"/>
+  <type from="Evas_Text_Style_Type" to="int"/>
+  <type from="Evas_Colorspace" to="int"/>
+  <type from="Evas_Render_Op" to="int"/>
+  <type from="Evas_Aspect_Control" to="int"/>
+  <type from="Evas_Object_Ponter_Mode" to="int"/>
+  <type from="Evas_Image_Scale_Hint" to="int"/>
+  <type from="Evas_Image_Content_Hint" to="int"/>
+  <type from="Evas_Image_Animated_Loop_Hint" to="int"/>
+  <type from="Evas_Border_Fill_Mode" to="int"/>
+  <type from="Evas_Object_Table_Homogeneous_Mode" to="int"/>
+  <type from="Evas_Textgrid_Font_Style" to="int"/>
+  <type from="Evas_Textgrid_Palette" to="int"/>
+  <type from="Evas_Modifier_Mask" to="unsigned long long"/>
+  <type from="Evas_Button_Flags" to="int"/>
+  <type from="Evas_Fill_Spread" to="int"/>
+  <type from="Evas_Event_Flags" to="int"/>
+  <type from="Evas_Font_Hinting_Flags" to="int"/>
 </types>
