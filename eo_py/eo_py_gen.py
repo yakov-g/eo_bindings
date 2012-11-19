@@ -132,7 +132,9 @@ def main():
   f_pxd = os.path.join(sourcedir, "eodefault.pxd")
   f_init = os.path.join(sourcedir, "__init__.py")
   try:
-    shutil.copy(f_pyx, outdir)
+    #this file is needed only to build eodefault.
+    if args.module  == "eobase":
+      shutil.copy(f_pyx, outdir)
     shutil.copy(f_pxd, outdir)
     shutil.copy(f_init, outdir)
   except IOError as ex:
