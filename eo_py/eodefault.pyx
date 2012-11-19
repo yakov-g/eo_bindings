@@ -112,28 +112,26 @@ cdef class EoDefault:
 
    def name_get(self):
       return self.name
-
+   #this func can be called only from this (c-styled)module
    cdef int _eo_instance_set(self, Eo *eo):
        assert self.eo == NULL, "Object must be clean"
        self.eo = eo
        self.name = self.__class__.__name__
 
-   cpdef _eo_instance_set2(self, _kl, EoDefault p):
-       kl = <long>_kl
-       cdef Eo_Class *kl2 = <Eo_Class*>kl
-       cdef Eo *o = eodefault.eo_add(kl2, eodefault._eo_instance_get(p))
+   # this func is main routine to add new object
+   # using default constructor
+   # and connect C and Py objects
+   cpdef _eo_instance_set2(self, unsigned long long _kl, EoDefault p):
+       cdef Eo_Class *kl = <Eo_Class*>_kl
+       cdef Eo *o = eodefault.eo_add(kl, eodefault._eo_instance_get(p))
        self._eo_instance_set(o)
        self._data_set(EoDefault.PY_EO_NAME, self)
 
-   #function added to start support custom constructors
-   def _eo_instance_set3(self, _kl, EoDefault p, *args):
-       kl = <long>_kl
-       cdef Eo_Class *kl2 = <Eo_Class*>kl
-       cdef Eo_Op _p0 = <Eo_Op>args[0]
-       cdef char *_p1 = <char*>args[1]
-       cdef int _p2 = <int>args[2]
-       print "_eo_instance_set3",_p0, _p1, _p2
-       cdef Eo *o = eodefault.eo_add_custom(kl2, eodefault._eo_instance_get(p), _p0, _p1, _p2)
+   # this func can be called outside(this c-styled module), because receives Eo* as long.
+   # it was added to be able to call eo_add_custom with different params
+   # and connect C and Py objects after it
+   def _eo_instance_set3(self, unsigned long long _eo):
+       cdef Eo *o = <Eo*>_eo
        self._eo_instance_set(o)
        self._data_set(EoDefault.PY_EO_NAME, self)
 

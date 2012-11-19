@@ -80,7 +80,7 @@ cdef class EoDefault:
    cdef object name
    cdef int print_func_name(self, f_name)
    cdef int _eo_instance_set(self, Eo *eo)
-   cpdef _eo_instance_set2(self, klass, EoDefault parent)
+   cpdef _eo_instance_set2(self, unsigned long long klass, EoDefault parent)
 
 cdef Eo* _eo_instance_get(EoDefault pyobj)
 cdef Eina_Bool _object_callback(void *data, Eo *o, Eo_Event_Description *desc, void *event_info)
