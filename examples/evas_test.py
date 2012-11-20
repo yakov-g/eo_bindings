@@ -41,19 +41,20 @@ def properties_cb(obj):
 
 ########################   setting data  ##########################
 def data_cb(obj):
-  print "setting data"
+  print "setting data - int : 5"
   i = 5
   obj.data_set("int", i)
   i = 999999
 
   f = obj.data_get("int")
+  print "getting data"
   print f, type(f)
   f = obj.data_del("int")
 
 #ebb.data_set("list", ["a", "bb", "cc", "asdfasfd", "1234124", "asdf", "123", "12"])
-#ebb.data_set("list", ["xx", "yy", "zz"])
-#f = ebb.data_get("list")
-#print f, type(f)
+  #ebb.data_set("list", ["xx", "yy", "zz"])
+  #f = ebb.data_get("list")
+  #print f, type(f)
 
 #l = ["a", "b", "c", "asd", "123"]
 #ebb.data_set("list2", l)
@@ -62,12 +63,14 @@ def data_cb(obj):
 #  f = obj.data_get("list2")
 #  print f, type(f)
 
+  print "setting data - char : string data"
   obj.data_set("char", "string data")
   f = obj.data_get("char")
   print f, type(f)
 
   obj.data_set("object",pb)
   f = obj.data_get("object")
+  print "getting data"
   print f, type(f)
 #f.text_set("neeew name")
 #f = ebb.data_del("object")
