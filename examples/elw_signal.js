@@ -1,4 +1,4 @@
-var elm = require('jssimple');
+var elm = require('jssignal');
 
 
 function cb_add(par){
