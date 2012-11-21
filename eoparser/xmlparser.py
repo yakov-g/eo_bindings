@@ -109,7 +109,7 @@ class Visitor(object):
                               "char**" : "char*"}
 
   internal_types = {
-                                "void*": ["void*", "object"],
+                                "void*": ["void*", "object", "ToObject"], #FIXME "ToObject?"
                                 "char*": ["char*", "object", "ToString"],
                                 "Eo*":  ["Eo*", "EoDefault", "ToObject"],
                                 "short" : ["int", "int", "ToInt32"],
@@ -310,7 +310,7 @@ class JsVisitor(Visitor):
     add_this_func = True
     for i, (n, c_t, d, p_t) in enumerate(_o.parameters):
        if d != direction:
-         print "Warning wrong direction: property: %s; parameter: %s; direction:      %s"%(prop_name + "_get", n, d)
+         print "Warning wrong direction: class: \"%s\"; property: \"%s\"; parameter: \"%s\"; direction: \"%s\""%(_o.cl_obj.c_name, prop_name + "_get", n, d)
          print "Property \"%s\" will not be defined"%(prop_name + "_get")
          add_this_func = False
          break
@@ -324,7 +324,7 @@ class JsVisitor(Visitor):
          js_type = self.internal_types[c_t_tmp][2]
          params_tmp.append((c_t, n, d, c_t_internal, js_type))
        else:
-         print "Warning: type: \"%s\" wasn't found in self.internal_types. Funct ion \"%s\" will not be defined"%(c_t_tmp, prop_name + "_get")
+         print "Warning: type: \"%s\" wasn't found in self.internal_types.\n   Function \"%s\", from class \"%s\" will not be defined"%(c_t_tmp, prop_name + "_get", _o.cl_obj.c_name)
          add_this_func = False
          break
 
@@ -374,7 +374,7 @@ class JsVisitor(Visitor):
         c_t_internal = self.internal_types[c_t_tmp][0]
         js_type = self.internal_types[c_t_tmp][2]
       else:
-        print "Warning: type: \"%s\" wasn't found in self.internal_types. Function \"%s\" will not be defined"%(c_t_tmp, m)
+        print "Warning: type: \"%s\" wasn't found in self.internal_types. Function \"%s\" from class \"%s\" will not be defined"%(c_t_tmp, n, _o.cl_obj.c_name)
         continue
 
       if d == "in":
@@ -825,7 +825,7 @@ class PyVisitor(Visitor):
             c_t_internal = self.internal_types[c_t_tmp][0]
             py_type = self.internal_types[c_t_tmp][1]
          else:
-            print "Warning: type: \"%s\" wasn't found in self.internal_types. Function \"%s\" will not be defined"%(c_t_tmp, _o.name)
+            print "Warning: type: \"%s\" wasn't found in self.internal_types.\n   Function \"%s\" from class: \"%s\" will not be defined"%(c_t_tmp, _o.name, _o.cl_obj.c_name)
             return
 
          if d == "in":
@@ -1370,7 +1370,7 @@ class XMLparser(object):
     def normalize_module_names(self):
       objects_tmp = {}
       for n, o in self.objects.items():
-        o.c_name = normalize_names([o.c_name])[0]
+        #o.c_name = normalize_names([o.c_name])[0]
         o.kl_id = normalize_names([o.kl_id])[0]
         o.parents = normalize_names(o.parents)
         objects_tmp[o.kl_id] = o
