@@ -54,6 +54,8 @@ class Cparser(object):
                      "Evas_Fill_Spread" : "int",
                      "Evas_Event_Flags" : "int",
                      "Evas_Font_Hinting_Flags" : "int",
+                     "Evas_Load_Error" : "int",
+                     "Elm_Photocam_Zoom_Mode" : "int",
                      "Eina_Bool" : "bool",
                      "Eo_Callback_Priority": "short"}
 

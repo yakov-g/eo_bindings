@@ -25,4 +25,6 @@
   <type from="Evas_Fill_Spread" to="int"/>
   <type from="Evas_Event_Flags" to="int"/>
   <type from="Evas_Font_Hinting_Flags" to="int"/>
+  <type from="Evas_Load_Error" to="int"/>
+  <type from="Elm_Photocam_Zoom_Mode" to="int"/>
 </types>
