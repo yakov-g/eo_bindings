@@ -300,6 +300,7 @@ class Cparser(object):
              i = 0
              for tup in ss:
                 lst = list(tup)
+                modifier = "const" if lst[0].find("const") != -1 else ""
                 lst[0] = lst[0].replace("const", "")
                 lst[0] = " ".join(lst[0].split())
                 lst[0] = lst[0].replace(" *", "*")
@@ -307,7 +308,7 @@ class Cparser(object):
                 if len(lst) == 2:
                    try:
                      tok = params_direction[i]
-                     params.append((lst[1], lst[0], tok))
+                     params.append((lst[1], modifier, lst[0], tok))
                    except IndexError:
                      print "Warning: error in description %s in  %s"%(s_tmp,self.cl_data[cl_id][const.H_FILE])
 
@@ -383,8 +384,8 @@ class Cparser(object):
         #defining parameter type
         if const.PARAMETERS in cl_data[const.FUNCS][k]:
           params = cl_data[const.FUNCS][k][const.PARAMETERS]
-          for v, t, d in params:
-             p = SubElement(m, const.PARAMETER, {const.NAME:v, const.C_TYPENAME:t, const.PRIMARY_TYPE : self.typedef_resolve(t),const.DIRECTION:d})
+          for v_name, modifier, t, d in params:
+             p = SubElement(m, const.PARAMETER, {const.NAME:v_name, const.MODIFIER:modifier, const.C_TYPENAME:t, const.PRIMARY_TYPE : self.typedef_resolve(t),const.DIRECTION:d})
 
 
     if const.EV_DESC in cl_data:

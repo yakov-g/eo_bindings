@@ -311,7 +311,7 @@ class JsVisitor(Visitor):
 
     params_tmp = []
     add_this_func = True
-    for i, (n, c_t, d, p_t) in enumerate(_o.parameters):
+    for i, (n, modifier, c_t, d, p_t) in enumerate(_o.parameters):
        if d != direction:
          print "Warning wrong direction: class: \"%s\"; property: \"%s\"; parameter: \"%s\"; direction: \"%s\""%(_o.cl_obj.c_name, prop_name + "_get", n, d)
          print "Property \"%s\" will not be defined"%(prop_name + "_get")
@@ -328,7 +328,7 @@ class JsVisitor(Visitor):
             add_this_func = False
             break
          js_type = self.internal_types[c_t_tmp][2]
-         params_tmp.append((c_t, n, d, c_t_internal, js_type))
+         params_tmp.append((modifier, c_t, n, d, c_t_internal, js_type))
        else:
          print "Warning: type: \"%s\" wasn't found in self.internal_types.\n   Function \"%s\", from class \"%s\" will not be defined"%(c_t_tmp, prop_name + "_get", _o.cl_obj.c_name)
          add_this_func = False
@@ -374,7 +374,7 @@ class JsVisitor(Visitor):
     in_param_counter = 0
 
     add_this_func = True
-    for i, (n, c_t, d, p_t) in enumerate(_o.parameters):
+    for i, (n, modifier, c_t, d, p_t) in enumerate(_o.parameters):
       c_t_tmp = self.cast(p_t)
 
       js_type = ""
@@ -399,7 +399,7 @@ class JsVisitor(Visitor):
       if d == "in":
         self.c_file.functions.append("   Local<Value> _%s = args[%d];\n"%(n, in_param_counter))
         in_param_counter += 1
-        self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
+        self.c_file.functions.append("   %s %s %s;\n"%(modifier, c_t_internal, n))
 
         if js_type == "ToString":
           self.c_file.functions.append("  %s = strdup(*String::Utf8Value(_%s->%s()));\n"%(n, n, js_type))
@@ -412,7 +412,7 @@ class JsVisitor(Visitor):
         else:
           pass_params.append(n)
       elif d == "out":
-        self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
+        self.c_file.functions.append("   %s %s %s;\n"%(modifier, c_t_internal, n))
         pass_params.append('&' + n)
 
         js_constr = self.c_to_js_constr[js_type]
@@ -421,14 +421,14 @@ class JsVisitor(Visitor):
       elif d == "in,out":
         self.c_file.functions.append("   Local<Value> _%s = args[%d];\n"%(n, in_param_counter))
         in_param_counter += 1
-        self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
+        self.c_file.functions.append("   %s %s %s;\n"%(modifier, c_t_internal, n))
 
         if js_type == "ToString":
           self.c_file.functions.append("  %s = strdup(*String::Utf8Value(_%s->%s()));\n"%(n, n, js_type))
         elif js_type == "ToEo":
-          self.c_file.functions.append("   %s = static_cast<CElmObject*>(_%s->ToObject()->GetPointerFromInternalField(0))->GetEo();\n"%(n, n))
+          self.c_file.functions.append("  %s = static_cast<CElmObject*>(_%s->ToObject()->GetPointerFromInternalField(0))->GetEo();\n"%(n, n))
         else:
-          self.c_file.functions.append("   %s = _%s->%s()->Value();\n"%(n, n, js_type))
+          self.c_file.functions.append("  %s = _%s->%s()->Value();\n"%(n, n, js_type))
 
         pass_params.append('&' + n)
         js_constr = self.c_to_js_constr[js_type]
@@ -463,9 +463,9 @@ class JsVisitor(Visitor):
 
     pass_params = []
     ret_params = []
-    for (c_t, n, d, c_t_internal, js_type) in params_tmp:
+    for (modifier, c_t, n, d, c_t_internal, js_type) in params_tmp:
 
-      self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
+      self.c_file.functions.append("   %s %s %s;\n"%(modifier, c_t_internal, n))
       pass_params.append('&' + n)
 
       js_constr = self.c_to_js_constr[js_type]
@@ -504,9 +504,9 @@ class JsVisitor(Visitor):
     if len(params_tmp) > 1:
       self.c_file.functions.append("   Local<Object> __o = val->ToObject();\n")
 
-      for (c_t, n, d, c_t_internal, js_type) in params_tmp:
+      for (modifier, c_t, n, d, c_t_internal, js_type) in params_tmp:
 
-        self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
+        self.c_file.functions.append("   %s %s %s;\n"%(modifier, c_t_internal, n))
         if js_type == "ToString":
            self.c_file.functions.append("   %s = strdup(*String::Utf8Value(__o->Get(String::NewSymbol(\"%s\"))->%s()));\n"%(n, n, js_type))
         else:
@@ -518,7 +518,7 @@ class JsVisitor(Visitor):
           pass_params.append(n)
 
     elif len(params_tmp) == 1:
-      for (c_t, n, d, c_t_internal, js_type) in params_tmp:
+      for (modifier, c_t, n, d, c_t_internal, js_type) in params_tmp:
          self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
          if js_type == "ToString":
            self.c_file.functions.append("   %s = strdup(*String::Utf8Value(val->%s()));\n"%(n, js_type))
@@ -1151,7 +1151,7 @@ class XMLparser(object):
             name = attrs[const.NAME]
             if name in self.python_reserved:
               name += "__"
-            par_att.append((name, attrs[const.C_TYPENAME], attrs[const.DIRECTION], attrs[const.PRIMARY_TYPE]))
+            par_att.append((name, attrs[const.MODIFIER], attrs[const.C_TYPENAME], attrs[const.DIRECTION], attrs[const.PRIMARY_TYPE]))
 
         elif name == const.INCLUDE:
             self.includes.append(attrs[const.NAME])
