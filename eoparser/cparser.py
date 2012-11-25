@@ -331,6 +331,8 @@ class Cparser(object):
 
     module = Element(const.MODULE)
     module.set(const.NAME, cl_data[const.C_NAME])
+
+    SubElement(module, const.PARSE_VERSION, {const.NUM : const.VER_NUM} )
     SubElement(module, const.INCLUDE, {const.NAME: os.path.split(cl_data[const.H_FILE])[1]})
 
     cl_parent = ""

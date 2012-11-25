@@ -1127,6 +1127,7 @@ class XMLparser(object):
         self.ev_ids = []
         self.op_ids = []
         self.extern_funcs = []
+        self.xml_ver = False
 
         self.class_data = {}
         self.functions = {} #function names with parameters
@@ -1143,6 +1144,9 @@ class XMLparser(object):
         if name == const.METHOD:
             self.current_func = attrs[const.NAME]
             self.functions.setdefault(self.current_func, {const.OP_ID : attrs[const.OP_ID], const.C_MACRO : attrs[const.C_MACRO], const.PARAMETERS:[]})
+        elif name == const.PARSE_VERSION:
+           if attrs[const.NUM] == const.VER_NUM:
+            self.xml_ver = True
 
         elif name == const.PARAMETER:
             func_att = self.functions[self.current_func]
@@ -1186,6 +1190,10 @@ class XMLparser(object):
 
         if self.class_data == {}:
            return
+
+        if self.xml_ver == False:
+           print "Wrong xml file version: %s"%(fName)
+           exit()
         mod_name = normalize_names([self.class_data[const.C_NAME]])[0].lower()
         #defining _id function
         if self.class_data[const.BASE_ID] != "":
@@ -1257,6 +1265,7 @@ class XMLparser(object):
         self.ev_ids = []
         self.extern_funcs = []
         self.class_data = {}
+        self.xml_ver = False
 
 
     #For each class(object) in current tree, checks if parent is also in current tree.
