@@ -376,6 +376,7 @@ class JsVisitor(Visitor):
     add_this_func = True
     for i, (n, modifier, c_t, d, p_t) in enumerate(_o.parameters):
       c_t_tmp = self.cast(p_t)
+      casting = "(%s %s)"%(modifier, c_t)
 
       js_type = ""
       c_t_internal = ""
@@ -398,18 +399,28 @@ class JsVisitor(Visitor):
       if d == "in":
         self.c_file.functions.append("   Local<Value> _%s = args[%d];\n"%(n, in_param_counter))
         in_param_counter += 1
-        self.c_file.functions.append("   %s %s %s;\n"%(modifier, c_t_internal, n))
+        self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
 
         if js_type == "ToString":
           self.c_file.functions.append("  %s = strdup(*String::Utf8Value(_%s->%s()));\n"%(n, n, js_type))
+          pass_params.append(casting + n)
         elif js_type == "ToEo":
           self.c_file.functions.append("   %s = static_cast<CElmObject*>(_%s->ToObject()->GetPointerFromInternalField(0))->GetEo();\n"%(n, n))
+          pass_params.append(casting + n)
         else:
           self.c_file.functions.append("   %s = _%s->%s()->Value();\n"%(n, n, js_type))
+
+          if c_t.find("*") != -1:
+            pass_params.append(casting + '&' + n)
+          else:
+            pass_params.append(casting + n)
+        """
         if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
           pass_params.append('&' + n)
         else:
           pass_params.append(n)
+        """
+
       elif d == "out":
         self.c_file.functions.append("   %s %s %s;\n"%(modifier, c_t_internal, n))
         pass_params.append('&' + n)
@@ -420,16 +431,16 @@ class JsVisitor(Visitor):
       elif d == "in,out":
         self.c_file.functions.append("   Local<Value> _%s = args[%d];\n"%(n, in_param_counter))
         in_param_counter += 1
-        self.c_file.functions.append("   %s %s %s;\n"%(modifier, c_t_internal, n))
+        self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
 
         if js_type == "ToString":
-          self.c_file.functions.append("  %s = strdup(*String::Utf8Value(_%s->%s()));\n"%(n, n, js_type))
+          self.c_file.functions.append("   %s = strdup(*String::Utf8Value(_%s->%s()));\n"%(n, n, js_type))
         elif js_type == "ToEo":
-          self.c_file.functions.append("  %s = static_cast<CElmObject*>(_%s->ToObject()->GetPointerFromInternalField(0))->GetEo();\n"%(n, n))
+          self.c_file.functions.append("   %s = static_cast<CElmObject*>(_%s->ToObject()->GetPointerFromInternalField(0))->GetEo();\n"%(n, n))
         else:
-          self.c_file.functions.append("  %s = _%s->%s()->Value();\n"%(n, n, js_type))
+          self.c_file.functions.append("   %s = _%s->%s()->Value();\n"%(n, n, js_type))
 
-        pass_params.append('&' + n)
+        pass_params.append(casting + '&' + n)
         js_constr = self.c_to_js_constr[js_type]
         ret_params.append((n, js_type, js_constr))
 
@@ -463,9 +474,10 @@ class JsVisitor(Visitor):
     pass_params = []
     ret_params = []
     for (modifier, c_t, n, d, c_t_internal, js_type) in params_tmp:
+      casting = "(%s %s)"%(modifier, c_t)
 
-      self.c_file.functions.append("   %s %s %s;\n"%(modifier, c_t_internal, n))
-      pass_params.append('&' + n)
+      self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
+      pass_params.append(casting + '&' + n)
 
       js_constr = self.c_to_js_constr[js_type]
       ret_params.append((n, js_type, js_constr))
@@ -504,34 +516,54 @@ class JsVisitor(Visitor):
       self.c_file.functions.append("   Local<Object> __o = val->ToObject();\n")
 
       for (modifier, c_t, n, d, c_t_internal, js_type) in params_tmp:
+        casting = "(%s %s)"%(modifier, c_t)
 
         self.c_file.functions.append("   %s %s %s;\n"%(modifier, c_t_internal, n))
         if js_type == "ToString":
            self.c_file.functions.append("   %s = strdup(*String::Utf8Value(__o->Get(String::NewSymbol(\"%s\"))->%s()));\n"%(n, n, js_type))
+           pass_params.append(casting + n)
+
         else:
            self.c_file.functions.append("   %s = __o->Get(String::NewSymbol(\"%s\"))->%s()->Value();\n"%(n, n, js_type))
-
+            
+           if c_t.find("*") != -1:
+             pass_params.append(casting + '&' + n)
+           else:
+             pass_params.append(casting + n)
+        """
         if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
           pass_params.append('&' + n)
         else:
           pass_params.append(n)
+          """
 
     elif len(params_tmp) == 1:
       for (modifier, c_t, n, d, c_t_internal, js_type) in params_tmp:
-         self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
+         casting = "(%s %s)"%(modifier, c_t)
          if js_type == "ToString":
+           self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
            self.c_file.functions.append("   %s = strdup(*String::Utf8Value(val->%s()));\n"%(n, js_type))
            add_end_func.append("  free(%s);"%n)
+           pass_params.append(casting + n)
          elif js_type == "ToEo":
+           self.c_file.functions.append("  %s %s %s;\n"%(modifier, c_t_internal, n))
            self.c_file.functions.append("   %s = static_cast<CElmObject*>(val->ToObject()->GetPointerFromInternalField(0))->GetEo();\n"%(n))
+           pass_params.append(casting + n)
          else:
+           self.c_file.functions.append("  %s %s %s;\n"%(modifier, c_t_internal, n))
            self.c_file.functions.append("   %s = val->%s()->Value();\n"%(n, js_type))
 
+           if c_t.find("*") != -1:
+             pass_params.append(casting + '&' + n)
+           else:
+             pass_params.append(casting + n)
 
+         """ 
          if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
            pass_params.append('&' + n)
          else:
            pass_params.append(n)
+           """
 
     self.c_file.functions.append("   eo_do(eobj, %s(%s));\n"%(_o.c_macro, ", ".join(pass_params)))
     self.c_file.functions += add_end_func
@@ -845,7 +877,7 @@ class PyVisitor(Visitor):
 
      if True:#"parameters" in fparams:
 
-       for i, (n, c_t, d, p_t) in enumerate(_o.parameters):
+       for i, (n, modifier, c_t, d, p_t) in enumerate(_o.parameters):
          c_t_tmp = self.cast(p_t)
 
          py_type = ""
