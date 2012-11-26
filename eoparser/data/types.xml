@@ -27,4 +27,56 @@
   <type from="Evas_Font_Hinting_Flags" to="int"/>
   <type from="Evas_Load_Error" to="int"/>
   <type from="Elm_Photocam_Zoom_Mode" to="int"/>
+  <type from="Elm_Bg_Option" to="int"/>
+  <type from="Elm_Fileselector_Mode" to="int"/>
+  <type from="Elm_Object_Select_Mode" to="int"/>
+  <type from="Elm_Actionslider_Pos" to="int"/>
+  <type from="Elm_Web_Zoom_Mode" to="int"/>
+  <type from="Elm_Icon_Type" to="int"/>
+  <type from="Elm_Colorselector_Mode" to="int"/>
+  <type from="Elm_List_Mode" to="int"/>
+  <type from="Elm_Image_Orient" to="int"/>
+  <type from="Elm_Map_Route_Type" to="int"/>
+  <type from="Elm_Map_Zoom_Mode" to="int"/>
+  <type from="Elm_Map_Source_Type" to="int"/>
+  <type from="Elm_Clock_Edit_Mode" to="int"/>
+  <type from="Elm_Dayselector_Day" to="int"/>
+  <type from="Elm_Thumb_Animation_Setting" to="int"/>
+  <type from="Elm_Win_Keyboard_Mode" to="int"/>
+  <type from="Elm_Toolbar_Shrink_Mode" to="int"/>
+  <type from="Elm_Icon_Lookup_Order" to="int"/>
+  <type from="Elm_Datetime_Field_Type" to="int"/>
+  <type from="Elm_Gesture_Type" to="int"/>
+  <type from="Evas_BiDi_Direction" to="int"/>
+  <type from="Elm_Bubble_Pos" to="int"/>
+  <type from="Ecore_X_Window" to="unsigned int"/>
+
+  <type from="Elm_Flip_Interaction" to="int"/>
+  <type from="Elm_Flip_Direction" to="int"/>
+  <type from="Elm_Flip_Interaction" to="int"/>
+  <type from="Elm_Flip_Mode" to="int"/>
+  <type from="Elm_Calendar_Weekday" to="int"/>
+  <type from="Elm_Calendar_Selectable" to="int"/>
+  <type from="Elm_Calendar_Weekday" to="int"/>
+  <type from="Elm_Calendar_Select_Mode" to="int"/>
+  <type from="Elm_Illume_Command" to="int"/>
+  <type from="Elm_Win_Keyboard_Mode" to="int"/>
+  <type from="Elm_Win_Indicator_Opacity_Mode" to="int"/>
+  <type from="Elm_Win_Indicator_Mode" to="int"/>
+  <type from="Ecore_Wl_Window" to="int"/>
+  <type from="Elm_GLView_Render_Policy" to="int"/>
+  <type from="Elm_GLView_Mode" to="int"/>
+  <type from="Elm_Panel_Orient" to="int"/>
+  <type from="Elm_Popup_Orient" to="int"/>
+  <type from="Elm_Wrap_Type" to="int"/>
+  <type from="Elm_Cnp_Mode" to="int"/>
+  <type from="Elm_Input_Panel_Lang" to="int"/>
+  <type from="Elm_Text_Format" to="int"/>
+  <type from="Elm_Input_Panel_Return_Key_Type" to="int"/>
+  <type from="Elm_Wrap_Type" to="int"/>
+  <type from="Elm_Autocapital_Type" to="int"/>
+  <type from="Elm_Text_Format" to="int"/>
+  <type from="Elm_Object_Select_Mode" to="int"/>
+  <type from="Elm_List_Mode" to="int"/>
+
 </types>

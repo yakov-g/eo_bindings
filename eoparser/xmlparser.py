@@ -134,10 +134,10 @@ class Visitor(object):
                                 "unsigned long long": ["unsigned long long", "unsigned long long", "ToNumber"],
                                 "unsigned long long*": ["unsigned long long", "unsigned long long", "ToNumber"],
                                 "float": ["float", "float", "ToNumber"],
-                                "double": ["double", "double", "ToNumber" ],
-                                "long double": ["long double", "long double", "ToNumber"],
                                 "float*": ["float", "float", "ToNumber"],
+                                "double": ["double", "double", "ToNumber" ],
                                 "double*": ["double", "double", "ToNumber" ],
+                                "long double": ["long double", "long double", "ToNumber"],
                                 "long double*": ["long double", "long double", "ToNumber"],
                                 "Eo_Event_Description*":["long","long", "ToNumber"],
                                 "Eo_Event_Cb":["Eo_Event_Cb","object", "ToNumber"]
@@ -392,7 +392,6 @@ class JsVisitor(Visitor):
         add_this_func = False
 
       if not add_this_func:
-        print "putting back funcs"
         self.c_file.functions = list(functions_tmp_save)
         return
 
@@ -871,7 +870,6 @@ class PyVisitor(Visitor):
                function_lines.append(l)
              l = "  cdef %s %s = <%s> _%s"%(c_t_internal, n, c_t_internal, n)
            function_lines.append(l)
-
 
            if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
              pass_params.append('&' + n)
