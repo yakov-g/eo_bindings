@@ -41,7 +41,7 @@ d = w1.screen_dpi_get()
 print d
 d = w1.role_get()
 print d
-d = w1.fullscreen_set(1)
+#d = w1.fullscreen_set(1)
 
 
 elem_run()
