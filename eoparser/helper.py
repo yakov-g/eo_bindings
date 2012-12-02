@@ -20,7 +20,7 @@ class _const:
     self.MODULE = "module" #used as xml-tag
     self.PARSE_VERSION = "parse_version" #used as xml-tag
     self.NUM = "num" #used as xml-tag
-    self.VER_NUM = "1.0.0"
+    self.VER_NUM = "1.0.1"
     self.TYPE = "type" #used as xml-tag
     self.CLASS_CONSTRUCTOR = "class_constructor"
     self.BASE_ID = "base_id"
