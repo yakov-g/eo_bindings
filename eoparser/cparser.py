@@ -216,7 +216,8 @@ class Cparser(object):
       for t in ids_and_descs:
          op_id = t[0] #op_id
          func_name = re.findall("SUB_ID_(.*)", op_id)
-         op_list.append((op_id, func_name[0].lower()))
+         func_name = func_name[0].lower()
+         op_list.append((op_id, func_name))
 
       op_desc[tup[0]] = op_list
 
@@ -334,9 +335,12 @@ class Cparser(object):
     #and checking if it is in macros list. If not - we forgot to add comment
     #if yes - cutting types from define
     for op, f in op_desc:
+       found = False
        for d in defines:
+         # looking for #define elm_obj_flip_get ELM_OBJ_FLIP_ID(ELM_OBJ_FLIP_SUB_ID_GET)
          o = re.match("#define ([\w]*)\([^\)]*\) %s\(%s\).*"%(b_id_macro, op), d)
          if o != None:
+           found = True
            s_tmp = o.group(1)
 
            if s_tmp not in macros:
@@ -369,13 +373,16 @@ class Cparser(object):
                 i += 1
              self.cl_data[cl_id][const.FUNCS][f][const.PARAMETERS] = params
              self.cl_data[cl_id][const.FUNCS][f][const.C_MACRO] = s_tmp
+         
+       if not found:
+         print "Warning: no API for %s in  %s"%(op, self.cl_data[cl_id][const.H_FILE])
+         print "Function won't be added"
+         self.cl_data[cl_id][const.FUNCS].pop(f)
+
 
 
   #generating XML
   def build_xml(self, cl_id):
-    #FIXME: because i don't parse several EO_DEFINE_CLASS in file
-    #if const.C_NAME not in self.cl_data[cl_id]:
-     # return
     self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, normalize_names([self.cl_data[cl_id][const.C_NAME]])[0] + ".xml")
 
     cl_data = self.cl_data[cl_id]
@@ -429,10 +436,13 @@ class Cparser(object):
     for k in cl_data[const.FUNCS]:
         SubElement(op_tag, const.XML_SUB_ID, {const.NAME:cl_data[const.FUNCS][k][const.OP_ID]})
 
+        c_macro = cl_data[const.FUNCS][k][const.C_MACRO]
+        #if generating XML not for base class, change func name to avoid name clash
+        func_name = k if cl_id == "EO_BASE_CLASS" else c_macro
 
-        m = SubElement(m_tag, const.METHOD, {const.NAME : k,
+        m = SubElement(m_tag, const.METHOD, {const.NAME : func_name,
                                       const.OP_ID:cl_data[const.FUNCS][k][const.OP_ID],
-                                      const.C_MACRO:cl_data[const.FUNCS][k][const.C_MACRO]})
+                                      const.C_MACRO:c_macro})
 
         #defining parameter type
         if const.PARAMETERS in cl_data[const.FUNCS][k]:

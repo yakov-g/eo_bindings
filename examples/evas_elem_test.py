@@ -11,35 +11,35 @@ print "Init res:", py_elm_init(sys.argv)
 print ""
 
 w1 = ElmWin(None, "my win name", 0)
-w1.title_set("first_title")
-t = w1.title_get()
+w1.elm_obj_win_title_set("first_title")
+t = w1.elm_obj_win_title_get()
 print "title:", t
-w1.size_set(370, 350)
-xx,yy = w1.size_get()
+w1.evas_obj_size_set(370, 350)
+xx,yy = w1.evas_obj_size_get()
 print "size : " ,  xx, yy
-w1.visibility_set(1)
-v = w1.visibility_get()
+w1.evas_obj_visibility_set(1)
+v = w1.evas_obj_visibility_get()
 print "v=", v
 
 bg = ElmBg(w1)
-bg.size_hint_weight_set(1.0, 1.0)
-w1.resize_object_add(bg)
-bg.visibility_set(1)
+bg.evas_obj_size_hint_weight_set(1.0, 1.0)
+w1.elm_obj_win_resize_object_add(bg)
+bg.evas_obj_visibility_set(1)
 
 
 box = ElmBox(w1)
-box.size_hint_weight_set(1.0, 1.0)
-w1.resize_object_add(box)
-box.visibility_set(1)
+box.evas_obj_size_hint_weight_set(1.0, 1.0)
+w1.elm_obj_win_resize_object_add(box)
+box.evas_obj_visibility_set(1)
 
 but = ElmButton(w1)
 #but.text_set("Button")
-box.pack_end(but)
-but.visibility_set(1)
+box.elm_obj_box_pack_end(but)
+but.evas_obj_visibility_set(1)
 
-d = w1.screen_dpi_get()
+d = w1.elm_obj_win_screen_dpi_get()
 print d
-d = w1.role_get()
+d = w1.elm_obj_win_role_get()
 print d
 #d = w1.fullscreen_set(1)
 
