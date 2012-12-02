@@ -27,9 +27,8 @@ class VAcceptor(object):
 #Class to save data about each function
 #This is one item from Mod.functions list
 class Func(VAcceptor):
-   def __init__(self, _name, _prop_name,_op_id, _c_macro, _parameters, _prop_type, _cl_obj):
+   def __init__(self, _name, _op_id, _c_macro, _parameters, _prop_type, _cl_obj):
      self.name = _name
-     self.prop_name = _prop_name
      self.op_id = _op_id
      self.c_macro = _c_macro
      self.parameters = _parameters
@@ -212,27 +211,27 @@ class JsVisitor(Visitor):
        self.visit_prop_set_get(_o)
        prop_name = _o.name[:-4]
        self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_SET_CALLBACK(%s, %s);\n"%(_o.cl_obj.kl_id, prop_name))
-       self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_GET_EMPTY_CALLBACK(%s, %s);\n"%(_o.cl_obj.kl_id, prop_name))
+       #self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_GET_EMPTY_CALLBACK(%s, %s);\n"%(_o.cl_obj.kl_id, prop_name))
 
-       self.class_info.public.append("   Handle<Value> %s%s_get() const;\n"%(self.func_name_prefix, prop_name))
+       #self.class_info.public.append("   Handle<Value> %s%s_get() const;\n"%(self.func_name_prefix, prop_name))
        self.class_info.public.append("   void %s%s_set(Handle<Value> val);\n"%(self.func_name_prefix, prop_name))
 
-       self.c_file.tmpl.append("   PROPERTY(%s)"% prop_name)
-       self.h_file.prop_cb_headers.append("   Handle<Value> Callback_%s_get(Local<String>, const AccessorInfo &info);\n"%(prop_name))
+       self.c_file.tmpl.append("   PROPERTY_SO(%s)"% prop_name)
+       #self.h_file.prop_cb_headers.append("   Handle<Value> Callback_%s_get(Local<String>, const AccessorInfo &info);\n"%(prop_name))
        self.h_file.prop_cb_headers.append("   void Callback_%s_set(Local<String>, Local<Value> val, const AccessorInfo &info);\n"%(prop_name))
 
      elif _o.prop_type == const.GET_ONLY:
        self.visit_prop_set_get(_o)
        prop_name = _o.name[:-4]
        self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_GET_CALLBACK(%s, %s);\n"%(_o.cl_obj.kl_id, prop_name))
-       self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_SET_EMPTY_CALLBACK(%s, %s);\n"%(_o.cl_obj.kl_id, prop_name))
+       #self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_SET_EMPTY_CALLBACK(%s, %s);\n"%(_o.cl_obj.kl_id, prop_name))
 
        self.class_info.public.append("   Handle<Value> %s%s_get() const;\n"%(self.func_name_prefix, prop_name))
-       self.class_info.public.append("   void %s%s_set(Handle<Value> val);\n"%(self.func_name_prefix, prop_name))
+       #self.class_info.public.append("   void %s%s_set(Handle<Value> val);\n"%(self.func_name_prefix, prop_name))
 
-       self.c_file.tmpl.append("   PROPERTY(%s)"% prop_name)
+       self.c_file.tmpl.append("   PROPERTY_RO(%s)"% prop_name)
        self.h_file.prop_cb_headers.append("   Handle<Value> Callback_%s_get(Local<String>, const AccessorInfo &info);\n"%(prop_name))
-       self.h_file.prop_cb_headers.append("   void Callback_%s_set(Local<String>, Local<Value> val, const AccessorInfo &info);\n"%(prop_name))
+       #self.h_file.prop_cb_headers.append("   void Callback_%s_set(Local<String>, Local<Value> val, const AccessorInfo &info);\n"%(prop_name))
 
      elif _o.prop_type == const.METHOD:
        self.visit_method(_o)
@@ -311,12 +310,12 @@ class JsVisitor(Visitor):
     direction = "out" if prop_type == "_get" else "in"
 
     params_tmp = []
-    add_this_func = True
+    add_this_func_with_error = False
     for i, (n, modifier, c_t, d, p_t) in enumerate(_o.parameters):
        if d != direction:
-         print "Warning wrong direction: class: \"%s\"; property: \"%s\"; parameter: \"%s\"; direction: \"%s\""%(_o.cl_obj.c_name, prop_name + "_get", n, d)
-         print "Property \"%s\" will not be defined"%(prop_name + "_get")
-         add_this_func = False
+         print "Warning wrong direction: class: \"%s\"; property: \"%s\"; parameter: \"%s\"; direction: \"%s\""%(_o.cl_obj.c_name, _o.name, n, d)
+         print "Property \"%s\", from class \"%s\" will be added with message error"%(_o.name, _o.cl_obj.c_name)
+         add_this_func_with_error = True
          break
 
        c_t_tmp = self.cast(p_t)
@@ -326,19 +325,23 @@ class JsVisitor(Visitor):
        if c_t_tmp in self.internal_types:
          c_t_internal = self.internal_types[c_t_tmp][0]
          if len(self.internal_types[c_t_tmp]) < 3:
-            add_this_func = False
+            add_this_func_with_error = True
             break
          js_type = self.internal_types[c_t_tmp][2]
          params_tmp.append((modifier, c_t, n, d, c_t_internal, js_type))
        else:
-         print "Warning: type: \"%s\" wasn't found in self.internal_types.\n   Function \"%s\", from class \"%s\" will not be defined"%(c_t_tmp, prop_name + "_get", _o.cl_obj.c_name)
-         add_this_func = False
+         print "Warning: type: \"%s\" wasn't found in self.internal_types.\n   Property \"%s\", from class \"%s\" will be added with error message"%(c_t_tmp, _o.name, _o.cl_obj.c_name)
+         add_this_func_with_error = True
          break
 
-    if not add_this_func:
-       return
+    if add_this_func_with_error:
+       if prop_type == "_get":
+          self.prop_get_err_generate(_o, params_tmp)
+       elif prop_type == "_set":
+          self.prop_set_err_generate(_o, params_tmp)
 
-    if prop_type == "_get":
+       
+    elif prop_type == "_get":
        self.prop_get_generate(_o, params_tmp)
 
     elif prop_type == "_set":
@@ -375,7 +378,10 @@ class JsVisitor(Visitor):
     in_param_counter = 0
 
     add_this_func = True
+    add_end_func = []
+    args_not_used = True
     for i, (n, modifier, c_t, d, p_t) in enumerate(_o.parameters):
+      args_not_used = False
       c_t_tmp = self.cast(p_t)
       casting = "(%s %s)"%(modifier, c_t)
 
@@ -403,7 +409,9 @@ class JsVisitor(Visitor):
         self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
 
         if js_type == "ToString":
-          self.c_file.functions.append("  %s = strdup(*String::Utf8Value(_%s->%s()));\n"%(n, n, js_type))
+          self.c_file.functions.append("   %s = strdup(*String::Utf8Value(_%s->%s()));\n"%(n, n, js_type))
+          self.c_file.functions.append("   if (!strcmp(%s, \"null\")) %s = NULL;\n"%(n, n))
+          add_end_func.append("   free(%s);\n"%n)
           pass_params.append(casting + n)
         elif js_type == "ToEo":
           self.c_file.functions.append("   %s = static_cast<CElmObject*>(_%s->ToObject()->GetPointerFromInternalField(0))->GetEo();\n"%(n, n))
@@ -423,8 +431,8 @@ class JsVisitor(Visitor):
         """
 
       elif d == "out":
-        self.c_file.functions.append("   %s %s %s;\n"%(modifier, c_t_internal, n))
-        pass_params.append('&' + n)
+        self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
+        pass_params.append(casting + '&' + n)
 
         js_constr = self.c_to_js_constr[js_type]
         ret_params.append((n, js_type, js_constr))
@@ -436,6 +444,8 @@ class JsVisitor(Visitor):
 
         if js_type == "ToString":
           self.c_file.functions.append("   %s = strdup(*String::Utf8Value(_%s->%s()));\n"%(n, n, js_type))
+          self.c_file.functions.append("   if (!strcmp(%s, \"null\")) %s = NULL;\n"%(n, n))
+          add_end_func.append("   free(%s);\n"%n)
         elif js_type == "ToEo":
           self.c_file.functions.append("   %s = static_cast<CElmObject*>(_%s->ToObject()->GetPointerFromInternalField(0))->GetEo();\n"%(n, n))
         else:
@@ -448,19 +458,31 @@ class JsVisitor(Visitor):
     self.c_file.functions.append("   eo_do(eobj, %s(%s));\n"%( _o.c_macro, ", ".join(pass_params)))
 
     if len(ret_params) == 1:
+      args_not_used = False
       for par, js_type, js_constr in ret_params:
 #FIXME: case then we work with EO
         if js_type in ["ToEo", "ToVoid"]:
           self.c_file.functions.append("   return Undefined(); //need to fix case when returning object!\n")
         else:
+          self.c_file.functions += add_end_func
+          add_end_func = []
           self.c_file.functions.append("   return scope.Close(%s::New(%s));//need to put proper values\n"%(js_constr, par))
     elif len(ret_params) > 1:
+      args_not_used = False
       self.c_file.functions.append("   Local<Object> obj__ = Object::New();\n")
       for par, js_type, js_constr in ret_params:
          self.c_file.functions.append("   obj__->Set(String::NewSymbol(\"%s\"), %s::New(%s));\n"%(par, js_constr, par))
+      self.c_file.functions += add_end_func
+      add_end_func = []
       self.c_file.functions.append("   return scope.Close(obj__); //should be right\n")
     else:
+      self.c_file.functions += add_end_func
+      add_end_func = []
       self.c_file.functions.append("   return Undefined();\n")
+      #if no return params
+
+    if  args_not_used:
+      self.c_file.functions.append("   (void)args;\n")
 
     self.c_file.functions.append("}\n")
     self.c_file.functions.append("\n")
@@ -503,7 +525,6 @@ class JsVisitor(Visitor):
 
     self.c_file.functions.append("}\n\n")
 
-
   # is called by prop_set_get_visit, to generate body for property setter
   def prop_set_generate(self, _o, params_tmp):
     self.c_file.functions.append("/* generated by 'prop_set_generate() ' */\n")
@@ -519,9 +540,11 @@ class JsVisitor(Visitor):
       for (modifier, c_t, n, d, c_t_internal, js_type) in params_tmp:
         casting = "(%s %s)"%(modifier, c_t)
 
-        self.c_file.functions.append("   %s %s %s;\n"%(modifier, c_t_internal, n))
+        self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
         if js_type == "ToString":
            self.c_file.functions.append("   %s = strdup(*String::Utf8Value(__o->Get(String::NewSymbol(\"%s\"))->%s()));\n"%(n, n, js_type))
+           self.c_file.functions.append("   if (!strcmp(%s, \"null\")) %s = NULL;\n"%(n, n))
+           add_end_func.append("   free(%s);\n"%n)
            pass_params.append(casting + n)
 
         else:
@@ -544,14 +567,15 @@ class JsVisitor(Visitor):
          if js_type == "ToString":
            self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
            self.c_file.functions.append("   %s = strdup(*String::Utf8Value(val->%s()));\n"%(n, js_type))
-           add_end_func.append("  free(%s);"%n)
+           self.c_file.functions.append("   if (!strcmp(%s, \"null\")) %s = NULL;\n"%(n, n))
+           add_end_func.append("   free(%s);\n"%n)
            pass_params.append(casting + n)
          elif js_type == "ToEo":
-           self.c_file.functions.append("  %s %s %s;\n"%(modifier, c_t_internal, n))
+           self.c_file.functions.append("  %s %s;\n"%(c_t_internal, n))
            self.c_file.functions.append("   %s = static_cast<CElmObject*>(val->ToObject()->GetPointerFromInternalField(0))->GetEo();\n"%(n))
            pass_params.append(casting + n)
          else:
-           self.c_file.functions.append("  %s %s %s;\n"%(modifier, c_t_internal, n))
+           self.c_file.functions.append("  %s %s;\n"%(c_t_internal, n))
            self.c_file.functions.append("   %s = val->%s()->Value();\n"%(n, js_type))
 
            if c_t.find("*") != -1:
@@ -571,6 +595,26 @@ class JsVisitor(Visitor):
     add_end_func = []
     self.c_file.functions.append("}\n")
     self.c_file.functions.append("\n")
+
+  # is called by prop_set_get_visit, to generate body for property getter
+  def prop_get_err_generate(self, _o, params_tmp):
+    self.c_file.functions.append("/* generated by 'prop_get_err_generate() ' */\n")
+    self.c_file.functions.append("Handle<Value> %s::%s%s() const\n"%(_o.cl_obj.kl_id, self.func_name_prefix, _o.name))
+    self.c_file.functions.append("{\n")
+    self.c_file.functions.append("   printf(\"%s : This method wasn't implemented becase of type issue\\n\",__func__);\n")
+
+    self.c_file.functions.append("   return Undefined(); //need to fix case when returning object!\n")
+    self.c_file.functions.append("}\n\n")
+
+  # is called by prop_set_get_visit, to generate body for property setter
+  def prop_set_err_generate(self, _o, params_tmp):
+    self.c_file.functions.append("/* generated by 'prop_set_err_generate() ' */\n")
+    self.c_file.functions.append("void %s::%s%s(Handle<Value> val)\n"%(_o.cl_obj.kl_id, self.func_name_prefix, _o.name))
+    self.c_file.functions.append("{\n")
+    self.c_file.functions.append("   printf(\"%s : This method wasn't implemented becase of type issue\\n\",__func__);")
+    self.c_file.functions.append("}\n")
+    self.c_file.functions.append("\n")
+
 
   def visit_Init(self, _o):
 
@@ -1258,29 +1302,62 @@ class XMLparser(object):
         # Saving function's description as Func object
         # Defining if current function can be set/get property, property type is saved in seperate field
         # Properties are relevant only for JS
+        func_name_list_not_visited = []
+        for name in self.functions:
+          func_name_list_not_visited.append(name)
+
         for i in self.functions:
           T = ""
-          prop_name = i
           if mod_o.kl_id == "Eo Base":
             T = const.METHOD
-            mod_o.visitees[i] = Func(i, prop_name, self.functions[i][const.OP_ID], self.functions[i][const.C_MACRO], self.functions[i][const.PARAMETERS], T, mod_o)
+            mod_o.visitees[i] = Func(i, self.functions[i][const.OP_ID], self.functions[i][const.C_MACRO], self.functions[i][const.PARAMETERS], T, mod_o)
             continue
-          if i[-4:] == "_set":
-            prop_name = i[:-4]
-            if i[:-4]+"_get" in self.functions:
-              T = const.SET_GET
-            else:
-              T = const.SET_ONLY
-          elif i[-4:] == "_get":
-            prop_name = i[:-4]
-            if i[:-4]+"_set" in self.functions:
-              T = const.SET_GET
-            else:
-              T = const.GET_ONLY
+
+          #check if both properties are in tree; and if they are in,
+          # if their parameters are all in or out
+          prefix = i[:-4] 
+          postfix = i[-4:]
+          if postfix in ["_set", "_get"]:
+             if prefix + "_set" in func_name_list_not_visited and prefix + "_get" in func_name_list_not_visited:
+                T = const.SET_GET
+                for (n, m ,t1, d, t2) in self.functions[prefix+"_set"][const.PARAMETERS]:
+                  if d != "in":
+                    T = const.METHOD
+
+                for (n, m ,t1, d, t2) in self.functions[prefix+"_get"][const.PARAMETERS]:
+                  if d != "out":
+                    T = const.METHOD
+
+                n = prefix + "_get"
+                mod_o.visitees[n] = Func(n, self.functions[n][const.OP_ID], self.functions[n][const.C_MACRO], self.functions[n][const.PARAMETERS], T, mod_o)
+                func_name_list_not_visited.remove(n)
+
+                n = prefix + "_set"
+                mod_o.visitees[n] = Func(n, self.functions[n][const.OP_ID], self.functions[n][const.C_MACRO], self.functions[n][const.PARAMETERS], T, mod_o)
+                func_name_list_not_visited.remove(n)
+
+             elif prefix + "_set" in func_name_list_not_visited:
+                T = const.SET_ONLY
+                for (n, m ,t1, d, t2) in self.functions[prefix+"_set"][const.PARAMETERS]:
+                  if d != "in":
+                    T = const.METHOD
+                n = prefix + "_set"
+                mod_o.visitees[n] = Func(n, self.functions[n][const.OP_ID], self.functions[n][const.C_MACRO], self.functions[n][const.PARAMETERS], T, mod_o)
+                func_name_list_not_visited.remove(n)
+
+             elif prefix + "_get" in func_name_list_not_visited:
+                T = const.GET_ONLY
+                for (n, m ,t1, d, t2) in self.functions[prefix+"_get"][const.PARAMETERS]:
+                  if d != "out":
+                    T = const.METHOD
+                n = prefix + "_get"
+                mod_o.visitees[n] = Func(n, self.functions[n][const.OP_ID], self.functions[n][const.C_MACRO], self.functions[n][const.PARAMETERS], T, mod_o)
+                func_name_list_not_visited.remove(n)
+
           else:
             T = const.METHOD
-          mod_o.visitees[i] = Func(i, prop_name, self.functions[i][const.OP_ID], self.functions[i][const.C_MACRO], self.functions[i][const.PARAMETERS], T, mod_o)
-
+            mod_o.visitees[i] = Func(i, self.functions[i][const.OP_ID], self.functions[i][const.C_MACRO], self.functions[i][const.PARAMETERS], T, mod_o)
+            func_name_list_not_visited.remove(i)
 
         for i in self.ev_ids:
           mod_o.visitees[i] = Ev(i, mod_o)
@@ -1569,9 +1646,13 @@ class XMLparser(object):
                       o.V.c_file.tmpl.append("   METHOD(%s)"%f.name)
                       continue
                if f.prop_type == const.METHOD:
-                 o.V.c_file.tmpl.append("   METHOD(%s)"%f.prop_name)
-               else:
-                 o.V.c_file.tmpl.append("   PROPERTY(%s)"%f.prop_name)
+                 o.V.c_file.tmpl.append("   METHOD(%s)"%f.name)
+               elif f.prop_type == const.SET_GET:
+                 o.V.c_file.tmpl.append("   PROPERTY(%s)"%f.name[:-4])
+               elif f.prop_type == const.SET_ONLY:
+                 o.V.c_file.tmpl.append("   PROPERTY_SO(%s)"%f.name[:-4])
+               elif f.prop_type == const.GET_ONLY:
+                 o.V.c_file.tmpl.append("   PROPERTY_RO(%s)"%f.name[:-4])
             elif f.__class__.__name__ == "Ev":
                o.V.c_file.tmpl.append("   PROPERTY(%s)"%f.ev_id.lower())
 

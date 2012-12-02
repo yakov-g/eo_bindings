@@ -31,6 +31,7 @@ box = ElmBox(w1)
 box.evas_obj_size_hint_weight_set(1.0, 1.0)
 w1.elm_obj_win_resize_object_add(box)
 box.evas_obj_visibility_set(1)
+box.elm_wdg_text_part_set(None, "Button")
 
 but = ElmButton(w1)
 #but.text_set("Button")

@@ -66,6 +66,12 @@ extern int log_domain;
 #define PROPERTY(name_) \
    #name_, Callback_## name_ ##_get, Callback_## name_ ##_set, NULL
 
+#define PROPERTY_RO(name_) \
+   #name_, Callback_## name_ ##_get, NULL, NULL
+
+#define PROPERTY_SO(name_) \
+   #name_, NULL, Callback_## name_ ##_set, NULL
+
 #define METHOD(name_) \
    #name_, NULL, NULL, Callback_## name_
 
