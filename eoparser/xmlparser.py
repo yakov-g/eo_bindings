@@ -938,15 +938,20 @@ class PyVisitor(Visitor):
          if d == "in":
            in_params.append(py_type + ' _' + n)
            if c_t_internal == "Eo*":
-             l = "  cdef %s %s = <%s> _%s"%(c_t_internal, n, c_t_internal, n + ".eo")
+             l = "  cdef %s %s = NULL if _%s is None else <%s> _%s"%(c_t_internal, n, n, c_t_internal, n + ".eo")
+             function_lines.append(l)
            elif c_t_internal == "Eo_Event_Cb":
              l = "  cdef %s %s = <%s> %s"%(c_t_internal, n, c_t_internal, "eodefault._object_callback")
+             function_lines.append(l)
            else:
              if c_t_internal == "char*" :
-               l = "  _%s = pytext_to_utf8(_%s)"%(n, n)
+               l = "  _%s = None if _%s is None else pytext_to_utf8(_%s)"%(n, n, n)
                function_lines.append(l)
-             l = "  cdef %s %s = <%s> _%s"%(c_t_internal, n, c_t_internal, n)
-           function_lines.append(l)
+               l = "  cdef %s %s =  NULL if _%s is None else <%s> _%s"%(c_t_internal, n, n, c_t_internal, n)
+               function_lines.append(l)
+             else:
+               l = "  cdef %s %s = <%s> _%s"%(c_t_internal, n, c_t_internal, n)
+               function_lines.append(l)
 
            if c_t.find(c_t_internal) != -1 and c_t.replace(c_t_internal, "") == "*":
              pass_params.append('&' + n)
@@ -963,7 +968,7 @@ class PyVisitor(Visitor):
            in_params.append('_' + n)
            pass_params.append('&' + n)
            if c_t_internal == "Eo*":
-             l = "  cdef %s %s = <%s> _%s"%(c_t_internal, n, c_t_internal, n + ".eo")
+             l = "  cdef %s %s = NULL if _%s is None else <%s> _%s"%(c_t_internal, n, n, c_t_internal, n + ".eo")
            else:
              l = "  cdef %s %s = <%s> _%s"%(c_t_internal, n, c_t_internal, n)
            ret_params.append((n + '_', c_t_internal))
