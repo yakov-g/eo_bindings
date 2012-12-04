@@ -857,9 +857,10 @@ class PyVisitor(Visitor):
           return
        if _o.op_id == "EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD":
          function_lines.append("def event_callback_priority_add(self, long _desc, int _priority, object _cb):")
-         function_lines.append("  if not callable(_cb):")
+         function_lines.append("  if not callable(_cb[0]):")
          function_lines.append("    raise TypeError(\"func must be callable\")")
          function_lines.append("  cdef Eo_Event_Cb cb = <Eo_Event_Cb> eodefault._object_callback")
+         function_lines.append("  Py_INCREF(_cb)")
          function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD), _desc, _priority, cb, <void*>_cb)")
          if_ret = True
 
@@ -867,6 +868,7 @@ class PyVisitor(Visitor):
          function_lines.append("def event_callback_del(self, long _desc, object _func):")
          function_lines.append("  cdef Eo_Event_Cb func = <Eo_Event_Cb> eodefault._object_callback")
          function_lines.append("  eodefault.eo_do(eodefault._eo_instance_get(self), eobase_sub_id(eobase.EO_BASE_SUB_ID_EVENT_CALLBACK_DEL), _desc, func, <void*>_func)")
+         function_lines.append("  Py_DECREF(_func)")
 
          function_lines.append("\n")
          if_ret = True
@@ -1074,6 +1076,8 @@ class PyVisitor(Visitor):
        parents = []
        parents.append(self.eodefault["name"])
        l = "from %s import %s"%(self.eodefault["module"], self.eodefault["name"])
+       self.pxi.head.append(l + "\n")
+       l = "from cpython cimport Py_INCREF, Py_DECREF"
        self.pxi.head.append(l + "\n")
 
     if "EoBase" in parents:

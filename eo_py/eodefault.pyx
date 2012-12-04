@@ -150,8 +150,11 @@ cdef Eina_Bool _object_callback(void *data, Eo *o,
    eodefault.eo_do(o, eodefault.EO_BASE_BASE_ID+eodefault.EO_BASE_SUB_ID_DATA_GET, <const_char_ptr>EoDefault.PY_EO_NAME, &c_py_obj)
    py_obj = <object>c_py_obj
 
-   f = <object>data
-   res = f(py_obj)
+   #cb_struct is tuple: (func, data)
+   cb_struct = <object>data
+   f = cb_struct[0]
+   cb_data = cb_struct[1]
+   res = f(py_obj, cb_data)
 
    if res == CALLBACK_STOP:
      return EINA_FALSE
