@@ -1,0 +1,60 @@
+
+
+
+Callbacks in Python.
+  Issues:
+    Pass data to callback.
+    Add callback to Evas_Object
+
+  Description:
+    All callbacks are added to Eo object on registered event in this/parent class.
+    To add callback EoBase.event_callback_priority_add() is used.
+    Callback can be added for introspected events.
+
+    Adding callback:
+
+      func(obj, data)
+
+      cb_obj = (func, data)
+      py_obj.event_callback_priority_add(class.EVENT_ID, 0, cb_obj)
+      py_obj.event_callback_del(class.EVENT_ID, cb_obj)
+
+      it's also possible to add callback like this:
+    
+        py_obj.event_callback_priority_add(class.EVENT_ID, 0, (func, data))
+
+      reference of (func, data) object is incremented,
+      so callback will be called properly.
+      But it won't be possible to delete it.
+   
+    What's going on inside:
+      Proxy _callback() function(eo signature) is added to real C
+      object for desired event; Py cb_obj is set as data.
+      When event occurs, _callback() is called with data; Py func and data are fetched
+      and Py cb is called.
+
+      Maybe it's not the best idea to add data like this, but the idea
+      is to give Eo as much work as possible.
+      So no internal lists are managed to pass and keep
+      callback data as (*args **kwargs).
+
+
+    Adding callbacks to Evas_Object:
+      In C callbacks are added with evas_object_event_callback_add(),
+      which is not in eo indrospection at all.
+      Evas Events are also not in introspection scope,
+      because they are not added to Eo objects.
+ 
+    Issue:
+      What to do with Evas events?
+      It's possible to add stuff manually:
+        - define extern evas_object_event_callback_add()
+        - define extern event's enum
+        - define public event_add/del funcs for class
+   
+
+
+
+
+
+
