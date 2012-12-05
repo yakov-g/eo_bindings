@@ -271,7 +271,7 @@ class JsVisitor(Visitor):
     self.c_file.functions.append("Eina_Bool %s::%s%s_wrapper(void *data, Eo *obj, const Eo_Event_Description *desc, void *event_info)\n"%(_o.cl_obj.kl_id, self.func_name_prefix, ev))
     self.c_file.functions.append("{\n\
                            HandleScope scope;\n\
-                           static_cast<%s*>(data)->%s%s(event_info);\n\
+                           dynamic_cast<%s*>(static_cast<CElmObject*>(data))->%s%s(event_info);\n\
                            return EINA_TRUE;\n\
                            (void) obj;\n\
                            (void) desc;\n\
@@ -294,10 +294,10 @@ class JsVisitor(Visitor):
                   {\n\
                      cb.%s.Dispose();\n\
                      cb.%s.Clear();\n\
-                     eo_do(eobj, eo_event_callback_del(%s, %s%s_wrapper, this));\n\
+                     eo_do(eobj, eo_event_callback_del(%s, %s%s_wrapper, dynamic_cast<CElmObject*>(this)));\n\
                   }\n"%(ev_prefix, ev_prefix, ev_prefix, _o.ev_id, self.func_name_prefix, ev))
     self.c_file.functions.append("  cb.%s = Persistent<Value>::New(val);\n\
-                  eo_do(eobj, eo_event_callback_add(%s, %s%s_wrapper, this));\n"%(ev_prefix, _o.ev_id, self.func_name_prefix, ev))
+                  eo_do(eobj, eo_event_callback_add(%s, %s%s_wrapper, dynamic_cast<CElmObject*>(this)));\n"%(ev_prefix, _o.ev_id, self.func_name_prefix, ev))
     self.c_file.functions.append("}\n")
     self.c_file.functions.append("\n")
 
