@@ -52,6 +52,95 @@ Callbacks in Python.
         - define extern event's enum
         - define public event_add/del funcs for class
    
+Callbacks in JS:
+    In elev8 one callback per event was implemented, without adding cb data.
+
+    There are some ideas how to put several callbacks and data if needed, but it must be checked.
+
+
+Constructing object:
+    Now objects are constructed with default constuctor.
+    Some classes provide custom constructors and some ONLY custom constructors.
+
+    example for window:
+    eo_add_custom(eo, elm_win_constructor("my win", ELM_WIN_BASIC))
+
+    in Python:
+      can be called like this
+      win = ElmWin("my win", ELM_WIN_BASIC)
+
+    in JS??
+      in elev8 - this is hardcoded, ("main" ELM_WIN_BASIC) is created
+
+    Issues: 
+       How to fetch custom constructors from source?
+          Add decorators to comments. Looks like fine.
+
+       How to call custom constructors with same signature, but with different name?
+          eo_add_custom(eo, elm_win_constructor_one("my win", ELM_WIN_BASIC))
+          eo_add_custom(eo, elm_win_constructor_two("my win", ELM_WIN_BASIC))
+
+          What to do in Python?
+            Define additional variable?
+            win = ElmWin(win.CONSTR1, "my win", ELM_WIN_BASIC)
+
+            and provide the way to parse argv[] in __init__ func?
+
+
+Parameter's Types;
+    Basic types can be detected; 
+    also "types" file can be provided which says how to cas to basic types:
+       <type from="Evas_Font_Size" to="int"/>
+       <type from="Eo_Callback_Priority" to="short"/>
+       <type from="Evas_Smart" to="Eo"/>
+
+    if some type wasn't found, function will not be generated.
+
+    Issues:
+       Types like Eina_List, arrays, structs?
+         can be done by providing decorators, but requires work.
+
+       Returning existing Object or new one.
+         Need to check returning instance with eo_base_data_get();
+         if o != NULL: 
+           return o
+         else: ( need to create one:)
+           get class name,
+           find constructor
+           create object
+       
+           Requires work.
+
+
+Enums from headers.
+    Need to provide decorators, to understand how to fetch it
+
+Adding elm_init() and other additional funcs
+        
+    Sometimes some additional functions like elmi_init(), elm_run()
+      are needed. These functions are not introspectable.
+              
+    So they must be added manually.
+                     
+    To do this user must provide definitions in *.pxd *.pxi files,
+     include *.pxi into generated 'module_name.pyx' file and compile
+                                   
+     'elm_add.pxi', 'elm_add.pxd' added to eo_py folder
+
+
+Property parsing
+
+all funcs are public, impossible to override not needed
+
+Visibility in CElmObject
+                                                        
+
+
+
+
+          
+
+
 
 
 
