@@ -70,11 +70,6 @@ cdef extern from "Eo.h":
     Eina_Bool eo_class_do(Eo_Class *klass, ...)
 
 
-cdef extern from "Elementary.h":
-   int elm_init(int argc, char **argv)
-   void elm_run()
-
-
 cdef class EoDefault:
    cdef Eo *eo
    cdef object name

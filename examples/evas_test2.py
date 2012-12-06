@@ -1,15 +1,15 @@
 # -*- coding: UTF-8 -*-
 import sys
 
-from base.eodefault import py_elm_init, elem_run
 from eobase import EoBase
 from evas.py2.evas_py import ElwWin, ElwBox, ElwButton, ElwBoxedbutton, ExEvasObject
+from evas.py2.evas_py import elm_run, elm_init
 
 
 lst = [56, "elm", 56.76]
 
 print "Initializing Elementary..."
-print "Init res:", py_elm_init(sys.argv)
+print "Init res:", elm_init(sys.argv)
 print ""
 
 global_obj = None
@@ -145,9 +145,9 @@ ba.elw_button_text_set("(B) ADD cb")
 cb_obj5 = (cb_clicked, lst)
 print cb_obj5
 ba.event_callback_priority_add(ElwButton.CLICKED, 0, cb_obj5)
-ba.event_callback_del(ElwButton.CLICKED, cb_obj5)
+#ba.event_callback_del(ElwButton.CLICKED, cb_obj5)
 
 print "Running Elementary..."
 
-elem_run()
+elm_run()
 

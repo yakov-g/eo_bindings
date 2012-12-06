@@ -18,21 +18,6 @@ CALLBACK_STOP = 12345
 def init():
     return bool(eodefault.eo_init())
 
-def elem_run():
-   eodefault.elm_run()
-
-def py_elm_init(argv):
-    cdef void *p
-#    s = " ".join(argv)
-#    cdef char *cstr
-#    cdef char **p_cstr
-#    cstr = <char*>s
-#    print "cstr = ", cstr
-#    c_csrt = <char**>cstr
-#    print "p_cstr[0] = ", p_cstr[0]
-    p = NULL
-    return <int>(eodefault.elm_init(len(argv), NULL))
-
 #########################################################
 
 cdef Eo *_eo_instance_get(EoDefault pyobj):
