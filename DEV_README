@@ -117,23 +117,65 @@ Enums from headers.
 
 Adding elm_init() and other additional funcs
         
-    Sometimes some additional functions like elmi_init(), elm_run()
-      are needed. These functions are not introspectable.
-              
-    So they must be added manually.
+    Sometimes some additional functions like elm_init(), elm_run()
+      are needed. These functions are not introspectable,
+      they must be added manually.
                      
-    To do this user must provide definitions in *.pxd *.pxi files,
-     include *.pxi into generated 'module_name.pyx' file and compile
-                                   
-     'elm_add.pxi', 'elm_add.pxd' added to eo_py folder
+    To do this user must provide definitions in *.pxd, *.pxi files,
+     include *.pxi into generated 'module_name.pyx' file and compile.
+
+     Usual workflow:
+     - generating XML
+     - generating source files, makefiles
+                          < add files manually 
+     - run makefile
 
 
-Property parsing
+Generating function names
+  In the beginning there was idea to cut func name from OP_ID.
+
+  There is OP_ID 'SOME_CLASS_SUB_ID_COLOR_GET' and public function
+  'some_class_color_get()' which connected with OP_ID,
+  so 'color_get()' will be generated.
+
+  If there is another class ANOTHER_CLASS(SOME_CLASS) with
+  'ANOTHER_CLASS_SUB_ID_COLOR_GET' and 'another_class_color_get()'
+  public function, another 'color_get()' func will be generated.
+
+  I don't check for names clash.
+  There won't be an error and function will be simply overloaded, 
+  but it will be completely wrong.
+
+  There shouldn't be function overloading at all, that's all done
+  in library itself, in bindings I call only for most base public func.
+
+  Contflict should be resolved in library itself. If we want single
+  'color_set()' for all classes, they need to be overloaded 
+  in proper way.
+
+  At the moment full names like some_class_color_set() and 
+  another_class_color_set() will be generated.
+
+
+
+
+Properties names parsing
+   If func name ends with '_set'/'_get'
+    parameters are checked on direction 'in' for 'set' prop 
+    and on 'out' for 'get' prop.
+    If it's wrong, this function will be generated as a method
 
 all funcs are public, impossible to override not needed
 
 Visibility in CElmObject
                                                         
+Issues about elementary:
+   After parsing sources, found headers are included 
+   into generated files.
+
+   All include error must be fixed manually, t.e. issues with
+   including elm_*.h and Elementary.h and compilation flags like
+   -DELM_INTERNAL_API_ARGESFSDFEFC=1
 
 
 
