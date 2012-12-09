@@ -1,4 +1,110 @@
 
+Yakov Goldberg <yakov.g@samsung.com>
+
+EO introspection is set of tools to generate high-level
+language bindings for C libraries based on Eo(E Object) library,
+     Usual workflow:
+     - parsing C-sources and generating XML
+     - generating source files, makefiles
+       < include additional modules 
+     - compile module
+
+  This document describes current development issues,
+    and supposes, that reader has some knowledge
+    about Eo, Elementary, Python and JS bindings
+
+
+Generating function names
+
+  Issues:
+     Names of funcs to be generated, name clashes.
+
+     In the beginning there was idea to cut func name from OP_ID.
+
+     There is OP_ID 'SOME_CLASS_SUB_ID_COLOR_GET' and public function
+     'some_class_color_get()' which connected with OP_ID,
+     so 'color_get()' will be generated.
+
+     If there is another class ANOTHER_CLASS(SOME_CLASS) with
+     'ANOTHER_CLASS_SUB_ID_COLOR_GET' and 'another_class_color_get()'
+     public function, another 'color_get()' func will be generated.
+
+     I don't check for names clash.
+     There won't be an error and function will be simply overloaded, 
+     but it will be completely wrong.
+
+     There shouldn't be function overloading at all, that's all done
+     in library itself, in bindings I call only for most base func.
+
+     Contflict should be resolved in library itself. If we want single
+     'color_set()' for all classes, they need to be overloaded 
+     in proper way.
+
+     At the moment full names like some_class_color_set() and 
+     another_class_color_set() will be generated.
+
+Properties names parsing
+    If func name ends with '_set'/'_get'
+    parameters are checked on direction 'in' for 'set' prop 
+    and on 'out' for 'get' prop.
+    If it's wrong, this function will be generated as a method.
+
+    Too common implementation. Need to provide descriptions(comments).
+
+
+
+Parameter's Types;
+    Basic types can be detected; 
+    also "types" file can be provided which says how to cas to basic types:
+       <type from="Evas_Font_Size" to="int"/>
+       <type from="Eo_Callback_Priority" to="short"/>
+       <type from="Evas_Smart" to="Eo"/>
+
+    if some type wasn't found, function will not be generated.
+
+    Issues:
+       Types like Eina_List, arrays, structs?
+         can be done by providing descriptions(comments), but requires work.
+
+       Returning existing Object or new one.
+         Need to check returning instance with eo_base_data_get();
+         if o != NULL: 
+           return o
+         else: ( need to create one:)
+           get class name,
+           find constructor
+           create object
+       
+           Requires work.
+
+
+Constructing object:
+    Now objects are constructed with default constuctor.
+    Some classes provide custom constructors and some ONLY custom constructors.
+
+    example for window:
+    eo_add_custom(eo, elm_win_constructor("my win", ELM_WIN_BASIC))
+
+    in Python:
+      can be called like this
+      win = ElmWin("my win", ELM_WIN_BASIC)
+
+    in JS??
+      in elev8 - this is hardcoded, ("main" ELM_WIN_BASIC) is created
+
+    Issues: 
+       How to fetch custom constructors from source?
+          Add decorators to comments. Looks like fine.
+
+       How to call custom constructors with same signature, but with different name?
+          eo_add_custom(eo, elm_win_constructor_one("my win", ELM_WIN_BASIC))
+          eo_add_custom(eo, elm_win_constructor_two("my win", ELM_WIN_BASIC))
+
+          What to do in Python?
+            Define additional variable?
+            win = ElmWin(win.CONSTR1, "my win", ELM_WIN_BASIC)
+
+            and provide the way to parse argv[] in __init__ func?
 
 
 Callbacks in Python.
@@ -58,69 +164,13 @@ Callbacks in JS:
     There are some ideas how to put several callbacks and data if needed, but it must be checked.
 
 
-Constructing object:
-    Now objects are constructed with default constuctor.
-    Some classes provide custom constructors and some ONLY custom constructors.
-
-    example for window:
-    eo_add_custom(eo, elm_win_constructor("my win", ELM_WIN_BASIC))
-
-    in Python:
-      can be called like this
-      win = ElmWin("my win", ELM_WIN_BASIC)
-
-    in JS??
-      in elev8 - this is hardcoded, ("main" ELM_WIN_BASIC) is created
-
-    Issues: 
-       How to fetch custom constructors from source?
-          Add decorators to comments. Looks like fine.
-
-       How to call custom constructors with same signature, but with different name?
-          eo_add_custom(eo, elm_win_constructor_one("my win", ELM_WIN_BASIC))
-          eo_add_custom(eo, elm_win_constructor_two("my win", ELM_WIN_BASIC))
-
-          What to do in Python?
-            Define additional variable?
-            win = ElmWin(win.CONSTR1, "my win", ELM_WIN_BASIC)
-
-            and provide the way to parse argv[] in __init__ func?
-
-
-Parameter's Types;
-    Basic types can be detected; 
-    also "types" file can be provided which says how to cas to basic types:
-       <type from="Evas_Font_Size" to="int"/>
-       <type from="Eo_Callback_Priority" to="short"/>
-       <type from="Evas_Smart" to="Eo"/>
-
-    if some type wasn't found, function will not be generated.
-
-    Issues:
-       Types like Eina_List, arrays, structs?
-         can be done by providing decorators, but requires work.
-
-       Returning existing Object or new one.
-         Need to check returning instance with eo_base_data_get();
-         if o != NULL: 
-           return o
-         else: ( need to create one:)
-           get class name,
-           find constructor
-           create object
-       
-           Requires work.
-
-
-Enums from headers.
-    Need to provide decorators, to understand how to fetch it
-
 Adding elm_init() and other additional funcs
         
     Sometimes some additional functions like elm_init(), elm_run()
-      are needed. These functions are not introspectable,
-      they must be added manually.
-                     
+    are needed. These functions are not introspectable,
+    they must be added manually.
+    
+    Example for python:
     To do this user must provide definitions in *.pxd, *.pxi files,
      include *.pxi into generated 'module_name.pyx' file and compile.
 
@@ -128,47 +178,12 @@ Adding elm_init() and other additional funcs
      - generating XML
      - generating source files, makefiles
                           < add files manually 
-     - run makefile
+     - compile module
 
 
-Generating function names
-  In the beginning there was idea to cut func name from OP_ID.
+Enums from headers.
+   Need to provide descriptions(comments), to understand how to fetch it
 
-  There is OP_ID 'SOME_CLASS_SUB_ID_COLOR_GET' and public function
-  'some_class_color_get()' which connected with OP_ID,
-  so 'color_get()' will be generated.
-
-  If there is another class ANOTHER_CLASS(SOME_CLASS) with
-  'ANOTHER_CLASS_SUB_ID_COLOR_GET' and 'another_class_color_get()'
-  public function, another 'color_get()' func will be generated.
-
-  I don't check for names clash.
-  There won't be an error and function will be simply overloaded, 
-  but it will be completely wrong.
-
-  There shouldn't be function overloading at all, that's all done
-  in library itself, in bindings I call only for most base public func.
-
-  Contflict should be resolved in library itself. If we want single
-  'color_set()' for all classes, they need to be overloaded 
-  in proper way.
-
-  At the moment full names like some_class_color_set() and 
-  another_class_color_set() will be generated.
-
-
-
-
-Properties names parsing
-   If func name ends with '_set'/'_get'
-    parameters are checked on direction 'in' for 'set' prop 
-    and on 'out' for 'get' prop.
-    If it's wrong, this function will be generated as a method
-
-all funcs are public, impossible to override not needed
-
-Visibility in CElmObject
-                                                        
 Issues about elementary:
    After parsing sources, found headers are included 
    into generated files.
@@ -176,16 +191,6 @@ Issues about elementary:
    All include error must be fixed manually, t.e. issues with
    including elm_*.h and Elementary.h and compilation flags like
    -DELM_INTERNAL_API_ARGESFSDFEFC=1
-
-
-
-
-          
-
-
-
-
-
 
 
 
