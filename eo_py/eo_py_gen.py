@@ -69,8 +69,8 @@ def main():
   parser.add_argument("-i", "--include", dest="xmldir", default=sys.path,
                   action="append", help="Include eobase directory")
 
-  parser.add_argument("--pkg", dest="pkg", default = "elementary eo",
-        action="store", help="pkg-confing libraries. Default: \"elementary eo\"")
+  parser.add_argument("--pkg", dest="pkg", default = "eo",
+        action="store", help="pkg-confing libraries. Default: \"eo\"")
 
   parser.add_argument("-m", "--module", dest="module",
                   action="store", help="Name of module to generate")

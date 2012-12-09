@@ -17,14 +17,26 @@ python module.
       If include file wasn't found, explicit --include=INCLUDE_DIR dir is needed
 
       Files to be generated:
-      - MODULE_NAME.pyx
-      - *.pxi, *.pxd will be created for each *.xml
+      - *.pxi files will be created for each *.xml
+      - *.pxd will be created one for module.
+      - MODULE_NAME.pyx (only one pyx allowed for compiling module)
+        this file includes all *.pxi
       - setup.py
-        setup.py can be edited in order to add include paths and libraries,
-        which were not mentioned in --pkg option
+        setup.py can be edited in order to add include paths, libraries
+        (which were not mentioned in --pkg option)
+        compile options
+
+      Addition:
+         Sometimes, additional functions, which are not introspectable,
+         must be included. User must implement and add them manually.
+         (Cython knowledge is required)
+    
+         To do this user must provide definitions in *.pxd, *.pxi files,
+         include *.pxi into generated 'module_name.pyx' file and compile.
+
    b. Compiling module:
       > python setup.py build_ext --inplace
-      - py_module.so will be generated.
+      - module_name.so will be generated.
 
       Put module into python search path and import into your code.
 
@@ -41,7 +53,7 @@ python module.
       - eobase.xml will be created in PY_EOBASE
    c. Creating eobase python sources:
       > python eo_py_gen.py  --dir=PY_EOBASE --outdir=PY_EOBASE --module=eobase
-      --pkg="elementary eo"
+      --pkg="eo"
       To create base module, option --module must be "eobase"
       - eobase.pxd, eobase.pyx - will be created
       - eodefault.pxd, eodefault.pyx - will be copied into PY_EOBASE
