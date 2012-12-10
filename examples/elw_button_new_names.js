@@ -1,5 +1,6 @@
 //var elm = require('jse');
 var elm = require('jse');
+//var elm = require('/opt/e17/lib/elev8/linux-gnu-i686-0.1.0/libjse.so');
 
 //var m = new elm.Mixin()
 

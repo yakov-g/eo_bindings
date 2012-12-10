@@ -622,7 +622,7 @@ class JsVisitor(Visitor):
     self.h_file.name = _o.cl_obj.js_h_file
 
     self.c_file.header.append("/**\n * generated from \"%s\"\n */\n"%(_o.cl_obj.source_file))
-    self.c_file.header.append("#include \"%s\"\n"%(os.path.split(_o.cl_obj.js_h_file)[1] ))
+    self.c_file.header.append("#include \"%s\"\n"%_o.cl_obj.js_h_file)
     self.c_file.header.append("namespace elm {\n\n")
     self.c_file.header.append("using namespace v8;\n\n")
 
@@ -685,7 +685,7 @@ class JsVisitor(Visitor):
 
     self.class_info.protected.append("   virtual ~%s();\n"%(_o.cl_obj.kl_id))
 
-  #saving data to pxi file
+  #saving data to cc file
   def js_cc_file_to_dir_save(self, _outdir):
     lines = []
 
@@ -712,7 +712,9 @@ class JsVisitor(Visitor):
         lines.append(line)
 
     lines.append("\n} //end namespace elm\n\n")
-    f = open (self.c_file.name, 'w')
+
+
+    f = open(os.path.join(_outdir, self.c_file.name), 'w')
     for line in lines:
       f.write(line)
     f.close()
@@ -771,7 +773,7 @@ class JsVisitor(Visitor):
     lines.append("\n")
     lines.append("#endif\n")
 
-    f = open (self.h_file.name, 'w')
+    f = open(os.path.join(_outdir, self.h_file.name), 'w')
     for line in lines:
       f.write(line)
     f.close()
@@ -1549,7 +1551,8 @@ class XMLparser(object):
       #saving files
       for n, o in self.objects.items():
         o.V.pxi_file_to_dir_save(outdir)
-        #o.V.pxd_file_to_dir_save(outdir)
+
+        #saving all pxd data in one file
         (l, name) = o.V.get_pxd_lines_from_module()
         lines += l
         names.append(name)
@@ -1606,8 +1609,8 @@ class XMLparser(object):
 
       self.normalize_module_names()
       for n, o in self.objects.items():
-         o.js_h_file = os.path.join(outdir, "_" + o.mod_name + ".h")
-         o.js_cc_file = os.path.join(outdir, "_" + o.mod_name + ".cc")
+         o.js_h_file = "_" + o.mod_name + ".h"
+         o.js_cc_file = "_" + o.mod_name + ".cc"
 
       eo_base_ops = ["INIT", "EO_BASE_SUB_ID_EVENT_FREEZE", "EO_BASE_SUB_ID_EVENT_FREEZE_GET", "EO_BASE_SUB_ID_EVENT_THAW", "EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE", "EO_BASE_SUB_ID_EVENT_GLOBAL_THAW"]
 
