@@ -24,6 +24,8 @@ def makefile_file_generate(args, c_files, outdir):
    lib_paths = args.library_paths
    cpp_defines = args.cpp_defines
 
+   #if someone wants to add -DSOME_STR=\"str\"
+   #I will add one more escape symbol, because I also generate Makefile
    if cpp_defines is not None:   
      lst_tmp = []
      for d in cpp_defines:

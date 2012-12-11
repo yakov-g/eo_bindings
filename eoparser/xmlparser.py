@@ -1,7 +1,7 @@
 import xml.parsers.expat, os, shutil
 from eoparser.helper import isXML, abs_path_get, dir_files_get
 from helper import normalize_names, _const
-import copy
+import copy, sys
 
 const = _const()
 
@@ -70,6 +70,8 @@ class Mod(object):
      self.sub_id_function = ""
      self.source_file = ""
      self.parents = []
+     self.path = ""
+     self.objects_incl = {}
      self.V = None
 
      # dictionary to save all object which have to be visited: Func, Ev, Init
@@ -800,10 +802,12 @@ class PyVisitor(Visitor):
      self.pxi.ev = []
      self.pxi.funcs_parsed = []
 
+     """
      self.pxd = Abstract()
      self.pxd.name = ""
      self.pxd.head = []
      self.pxd.ev = []
+     """
 
      self.pxd2 = Abstract()
      self.pxd2.name = ""
@@ -816,6 +820,7 @@ class PyVisitor(Visitor):
 
      self.eodefault = {"macro" : "EO_DEFAULT_CLASS",
                            "module" : "eodefault",
+                           "prefix" : const.PREFIX,
                            "name": "EoDefault",
                            "parentmodule": "NULL",
                            "type" :"EO_CLASS_TYPE_REGULAR_NO_INSTANCE",
@@ -1050,12 +1055,12 @@ class PyVisitor(Visitor):
     self.pxi.funcs_parsed += function_lines
 
     self.pxi.name = cl_obj.mod_name + ".pxi"
-    self.pxd.name = cl_obj.mod_name + ".pxd"
+    self.pxd2.name = cl_obj.mod_name + ".pxd"
 
     pattern = "########################################################"
     l = '%s\n##\n## generated from from \"%s\"\n##\n%s'%(pattern, cl_obj.source_file, pattern)
     self.pxi.head.append(l + '\n')
-    self.pxd.head.append(l + '\n')
+    #REMOVEself.pxd.head.append(l + '\n')
 
     #inserting cimports
     #l = "cimport %s"%cl_obj.mod_name
@@ -1066,8 +1071,9 @@ class PyVisitor(Visitor):
 
     l = "cimport %s as %s"%(self.py_module_name, cl_obj.mod_name)
     self.pxi.head.append(l)
-    l = "cimport %s"%cl_obj.basemodule
-    self.pxi.head.append(l + '\n')
+
+    #l = "cimport %s"%cl_obj.basemodule
+    #self.pxi.head.append(l + '\n')
 
     #defining class
     parents = []
@@ -1083,10 +1089,29 @@ class PyVisitor(Visitor):
        self.pxi.head.append(l + "\n")
 
     if "EoBase" in parents:
-       l = "from %s import %s"%("eobase", "EoBase")
+       l = "from %s.%s import %s"%(self.eodefault["prefix"], "eobase", "EoBase")
        self.pxi.head.append(l + "\n")
+    
+    for p in parents:
+       #if we have some parent obj to incl, t.e. it is not in the tree
+       if p in cl_obj.objects_incl:
+         path = cl_obj.objects_incl[p].path
+         sys_path = list(sys.path)
+         sys_path.sort(key = len, reverse = True)
+         #this parent should be in search path
+         for pth in sys_path:
+            if pth in path:
+               (d, n) = os.path.split(path)
+               prefix = d.replace(pth, "").replace("/", ".").lstrip(".")
 
-    l = "from %s import %s"%(self.eodefault["module"], "pytext_to_utf8")
+               #FIXME 
+               #now prefix is like dir1.dir2
+               #so we can make from dir1.dir2.mod_name import ParentClass
+               # but I don't know mod_name, t.e. *.so!
+  
+
+
+    l = "from %s.%s import %s"%(self.eodefault["prefix"], self.eodefault["module"], "pytext_to_utf8")
     self.pxi.head.append(l + "\n")
 
     #defining _id function
@@ -1102,18 +1127,18 @@ class PyVisitor(Visitor):
     self.pxi.head.append(l)
 
     #inserting cimports
-    l = "from %s cimport *"%(cl_obj.basemodule)
-    self.pxd.head.append(l + '\n')
+    #REMOVEl = "from %s cimport *"%(cl_obj.basemodule)
+    #REMOVEself.pxd.head.append(l + '\n')
 
     #inserting externs from H
     l = "cdef extern from \"%s\":"%(cl_obj.includes[0])
-    self.pxd.head.append(l + '\n')
+    #REMOVEself.pxd.head.append(l + '\n')
     self.pxd2.head.append(l + '\n')
 
 
     if cl_obj.extern_base_id != "":
        l = '  %s %s'%("Eo_Op", cl_obj.extern_base_id)
-       self.pxd.head.append(l + '\n')
+       #REMOVEself.pxd.head.append(l + '\n')
        self.pxd2.head.append(l + '\n')
 
     enum_lines = []
@@ -1126,14 +1151,14 @@ class PyVisitor(Visitor):
 
     if len(enum_lines) > 1:
         for l in enum_lines:
-            self.pxd.head.append(l)
+            #REMOVEself.pxd.head.append(l)
             self.pxd2.head.append(l)
-        self.pxd.head.append('\n')
+        #REMOVEself.pxd.head.append('\n')
         self.pxd2.head.append('\n')
 
     for v in cl_obj.extern_funcs:
         l = '  %s %s'%(v[1], v[0])
-        self.pxd.head.append(l)
+        #REMOVEself.pxd.head.append(l)
         self.pxd2.head.append(l)
 
   #generating event defenitions
@@ -1147,7 +1172,7 @@ class PyVisitor(Visitor):
     l = "  %s = <long>%s.%s"%(name, _o.cl_obj.mod_name, v)
     self.pxi.ev.append(l)
     l = '  %s %s'%("Eo_Event_Description *", v)
-    self.pxd.ev.append(l)
+    #REMOVEself.pxd.ev.append(l)
     self.pxd2.ev.append(l)
 
   #saving data to pxi file
@@ -1171,6 +1196,7 @@ class PyVisitor(Visitor):
     f.close()
 
   #saving data to pxd file
+  """
   def pxd_file_to_dir_save(self, _outdir):
 
     f = open(os.path.join(_outdir, self.pxd.name), 'w')
@@ -1184,6 +1210,7 @@ class PyVisitor(Visitor):
        f.write(l+'\n')
     f.write("\n")
     f.close()
+"""
 
   #saving data to pxd file
   def get_pxd_lines_from_module(self):
@@ -1194,11 +1221,11 @@ class PyVisitor(Visitor):
        ret.append(l+'\n')
     ret.append('\n')
 
-    lst = self.pxd.ev
+    lst = self.pxd2.ev
     for l in lst:
        ret.append(l+'\n')
     ret.append('\n')
-    return (ret, self.pxd.name)
+    return (ret, self.pxd2.name)
 
 class XMLparser(object):
     def __init__(self):
@@ -1309,6 +1336,7 @@ class XMLparser(object):
         mod_o.sub_id_function = self.class_data["sub_id_function"]
         mod_o.source_file = self.source_file
         mod_o.parents = parent_list
+        mod_o.path = fName
 
         # Saving function's description as Func object
         # Defining if current function can be set/get property, property type is saved in seperate field
@@ -1424,7 +1452,7 @@ class XMLparser(object):
         xml_files = filter(isXML, xml_files)
 
         if len(xml_files) == 0:
-          print "ERROR: no include files found for %s classes... Aborting...(Use: --include=INCLUDE_DIR)"% ",".join(parents_to_find)
+          print "ERROR: no include files found for %s classes... Aborting...(Use: -X(--xmldir=)XML_DIR)"% ",".join(parents_to_find)
           exit(1)
 
     #Creating temp parser to look for parents in include files.
@@ -1433,7 +1461,7 @@ class XMLparser(object):
           xp_incl.parse(f)
 
         #Looking for parents, and saving proper object in include dictionary
-        #FIXME: but later I never use it ??
+        #FIXME: but later I never use it USED! 12.12.12
         for n, o in xp_incl.objects.items():
           if n in parents_to_find:
             i = parents_to_find.index(n)
@@ -1533,7 +1561,16 @@ class XMLparser(object):
         o.kl_id = normalize_names([o.kl_id])[0]
         o.parents = normalize_names(o.parents)
         objects_tmp[o.kl_id] = o
-      self.objects = objects_tmp
+      self.objects = dict(objects_tmp)
+      del objects_tmp
+
+      #self.objects_incl - all parents which wasn't founc in current tree
+      #o.objects_incl - parents for current obj, which wasn't found in
+      #curren tree and need to import
+      for n, o in self.objects.items():
+         for p in o.parents:
+           if p in self.objects_incl:
+             o.objects_incl[p] = self.objects_incl[p]
 
     def py_code_generate(self, module_name, outdir):
       #normalizing names for each class object (Evas_Object Class -> EvasObjectClass)
@@ -1562,7 +1599,11 @@ class XMLparser(object):
       pattern = "########################################################"
       l = '%s\n##\n## generated from \"%s\"\n##\n%s'%(pattern, ", ".join(names), pattern)
       f.write(l + "\n")
-      f.write("from eodefault cimport *\n\n")
+      pv = PyVisitor("tmp")
+      f.write("from %s.eodefault cimport *\n\n"%pv.eodefault["prefix"])
+      f.write("cimport %s.eodefault as eodefault\n\n"%pv.eodefault["prefix"])
+      del pv
+
       for l in lines:
         f.write(l)
       f.close()
@@ -1595,7 +1636,8 @@ class XMLparser(object):
         exit(1)
 
       lines = []
-      lines.append("from eodefault cimport *\n")
+      #put it into pxd 12.12.12
+      #lines.append("from eodefault cimport *\n")
       for k in lst:
         lines.append("include \"%s\""%self.objects[k].V.pxi.name)
         #FIXME adding filenames of include modules?

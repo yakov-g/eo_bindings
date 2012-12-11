@@ -13,6 +13,7 @@ class _const:
     # most of constants are used as internal dict keys,
     # but some of them are also used as tags in XML
     # Changing this constans will only spoil the view of XML
+    self.PREFIX = "eorepo" #used as xml-tag
 
     self.NAME = "name" #used as xml-tag
     self.C_NAME = "c_name" #used as xml-tag
@@ -73,25 +74,28 @@ class _const:
     self.DIRECTION = "direction" #used as xml-tag
 
 
-def isC(s):
+def isC(_path):
   #FIXME when parsing eobase we can catch "eo.c" with EO_DEFINE_CLASS
-  path_lst = s.split('.')
-  if len(path_lst) == 2:
-    return True if path_lst[1] in ["c", "cc", "cpp"] else False
+  (d, f) = os.path.split(_path)
+  f_name = f.split('.')
+  if len(f_name) == 2:
+    return True if f_name[1] in ["c", "cc", "cpp"] else False
   else:
     return False
 
-def isH(s):
-  path_lst = s.split('.')
-  if len(path_lst) == 2:
-    return True if path_lst[1] in ["h"] else False
+def isH(_path):
+  (d, f) = os.path.split(_path)
+  f_name = f.split('.')
+  if len(f_name) == 2:
+    return True if f_name[1] in ["h"] else False
   else:
     return False
 
-def isXML(s):
-  path_lst = s.split('.')
-  if len(path_lst) == 2:
-    return True if path_lst[1] in ["xml"] else False
+def isXML(_path):
+  (d, f) = os.path.split(_path)
+  f_name = f.split('.')
+  if len(f_name) == 2:
+    return True if f_name[1] in ["xml"] else False
   else:
     return False
 

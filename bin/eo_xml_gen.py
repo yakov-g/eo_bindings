@@ -27,7 +27,7 @@ def main():
   parser.add_argument("-t", "--typedefs", dest="typedefs",
                   action="store", help="Additional typedefs for parser")
 
-  parser.add_argument("-i", "--include", dest="xmldir", default = sys.path,
+  parser.add_argument("-X", "--xmldir", dest="xmldir", default = sys.path,
                   action="append", help="Include xml directory")
 
   parser.add_argument("-v", "--verbose",

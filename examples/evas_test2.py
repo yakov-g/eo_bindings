@@ -1,9 +1,10 @@
 # -*- coding: UTF-8 -*-
 import sys
 
-from eobase import EoBase
-from evas.py2.evas_py import ElwWin, ElwBox, ElwButton, ElwBoxedbutton, ExEvasObject
-from evas.py2.evas_py import elm_run, elm_init
+
+from eorepo.eobase import EoBase
+from eorepo.evas_py import ElwWin, ElwBox, ElwButton, ElwBoxedbutton, ExEvasObject
+from eorepo.evas_py import elm_run, elm_init
 
 
 lst = [56, "elm", 56.76]

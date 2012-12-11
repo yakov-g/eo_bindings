@@ -1,0 +1,90 @@
+<?xml version="1.0" ?>
+<module name="Eo Base">
+  <parse_version num="1.0.1"/>
+  <include name="Eo.h"/>
+  <extern_function name="eo_base_class_get()" typename="Eo_Class*"/>
+  <class c_name="Eo Base" extensions="" get_function="eo_base_class_get" instantiateable="False" macro="EO_BASE_CLASS" parent="" type="EO_CLASS_TYPE_REGULAR_NO_INSTANT">
+    <op_id>
+      <base_id name="EO_BASE_BASE_ID"/>
+      <sub_id name="EO_BASE_SUB_ID_WREF_DEL"/>
+      <sub_id name="EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE"/>
+      <sub_id name="EO_BASE_SUB_ID_EVENT_CALLBACK_FORWARDER_DEL"/>
+      <sub_id name="EO_BASE_SUB_ID_EVENT_GLOBAL_THAW"/>
+      <sub_id name="EO_BASE_SUB_ID_EVENT_CALLBACK_DEL"/>
+      <sub_id name="EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE_GET"/>
+      <sub_id name="EO_BASE_SUB_ID_DATA_SET"/>
+      <sub_id name="EO_BASE_SUB_ID_EVENT_THAW"/>
+      <sub_id name="EO_BASE_SUB_ID_WREF_ADD"/>
+      <sub_id name="EO_BASE_SUB_ID_DESTRUCTOR"/>
+      <sub_id name="EO_BASE_SUB_ID_DATA_GET"/>
+      <sub_id name="EO_BASE_SUB_ID_DATA_DEL"/>
+      <sub_id name="EO_BASE_SUB_ID_CONSTRUCTOR"/>
+      <sub_id name="EO_BASE_SUB_ID_EVENT_CALLBACK_CALL"/>
+      <sub_id name="EO_BASE_SUB_ID_EVENT_FREEZE_GET"/>
+      <sub_id name="EO_BASE_SUB_ID_EVENT_FREEZE"/>
+      <sub_id name="EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD"/>
+      <sub_id name="EO_BASE_SUB_ID_EVENT_CALLBACK_FORWARDER_ADD"/>
+    </op_id>
+    <events>
+      <event name="EO_EV_CALLBACK_ADD"/>
+      <event name="EO_EV_CALLBACK_DEL"/>
+      <event name="EO_EV_DEL"/>
+    </events>
+    <methods>
+      <method c_macro="eo_wref_del" name="wref_del" op_id="EO_BASE_SUB_ID_WREF_DEL">
+        <parameter c_typename="Eo**" direction="in,out" modifier="" name="wref" primary_type="Eo**"/>
+      </method>
+      <method c_macro="eo_event_global_freeze" name="event_global_freeze" op_id="EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE"/>
+      <method c_macro="eo_event_callback_forwarder_del" name="event_callback_forwarder_del" op_id="EO_BASE_SUB_ID_EVENT_CALLBACK_FORWARDER_DEL">
+        <parameter c_typename="Eo_Event_Description*" direction="in" modifier="const" name="desc" primary_type="Eo_Event_Description*"/>
+        <parameter c_typename="Eo*" direction="in" modifier="" name="new_obj" primary_type="Eo*"/>
+      </method>
+      <method c_macro="eo_event_global_thaw" name="event_global_thaw" op_id="EO_BASE_SUB_ID_EVENT_GLOBAL_THAW"/>
+      <method c_macro="eo_event_callback_del" name="event_callback_del" op_id="EO_BASE_SUB_ID_EVENT_CALLBACK_DEL">
+        <parameter c_typename="Eo_Event_Description*" direction="in" modifier="const" name="desc" primary_type="Eo_Event_Description*"/>
+        <parameter c_typename="Eo_Event_Cb" direction="in" modifier="" name="func" primary_type="Eo_Event_Cb"/>
+        <parameter c_typename="void*" direction="in" modifier="const" name="user_data" primary_type="void*"/>
+      </method>
+      <method c_macro="eo_event_global_freeze_get" name="event_global_freeze_get" op_id="EO_BASE_SUB_ID_EVENT_GLOBAL_FREEZE_GET">
+        <parameter c_typename="int*" direction="out" modifier="" name="fcount" primary_type="int*"/>
+      </method>
+      <method c_macro="eo_base_data_set" name="data_set" op_id="EO_BASE_SUB_ID_DATA_SET">
+        <parameter c_typename="char*" direction="in" modifier="const" name="key" primary_type="char*"/>
+        <parameter c_typename="void*" direction="in" modifier="const" name="data" primary_type="void*"/>
+        <parameter c_typename="eo_base_data_free_func" direction="in" modifier="" name="free_func" primary_type="eo_base_data_free_func"/>
+      </method>
+      <method c_macro="eo_event_thaw" name="event_thaw" op_id="EO_BASE_SUB_ID_EVENT_THAW"/>
+      <method c_macro="eo_wref_add" name="wref_add" op_id="EO_BASE_SUB_ID_WREF_ADD">
+        <parameter c_typename="Eo**" direction="in,out" modifier="" name="wref" primary_type="Eo**"/>
+      </method>
+      <method c_macro="eo_destructor" name="destructor" op_id="EO_BASE_SUB_ID_DESTRUCTOR"/>
+      <method c_macro="eo_base_data_get" name="data_get" op_id="EO_BASE_SUB_ID_DATA_GET">
+        <parameter c_typename="char*" direction="in" modifier="const" name="key" primary_type="char*"/>
+        <parameter c_typename="void**" direction="out" modifier="" name="data" primary_type="void**"/>
+      </method>
+      <method c_macro="eo_base_data_del" name="data_del" op_id="EO_BASE_SUB_ID_DATA_DEL">
+        <parameter c_typename="char*" direction="in" modifier="const" name="key" primary_type="char*"/>
+      </method>
+      <method c_macro="eo_constructor" name="constructor" op_id="EO_BASE_SUB_ID_CONSTRUCTOR"/>
+      <method c_macro="eo_event_callback_call" name="event_callback_call" op_id="EO_BASE_SUB_ID_EVENT_CALLBACK_CALL">
+        <parameter c_typename="Eo_Event_Description*" direction="in" modifier="const" name="desc" primary_type="Eo_Event_Description*"/>
+        <parameter c_typename="void*" direction="in" modifier="const" name="event_info" primary_type="void*"/>
+        <parameter c_typename="Eina_Bool*" direction="out" modifier="" name="aborted" primary_type="bool*"/>
+      </method>
+      <method c_macro="eo_event_freeze_get" name="event_freeze_get" op_id="EO_BASE_SUB_ID_EVENT_FREEZE_GET">
+        <parameter c_typename="int*" direction="out" modifier="" name="fcount" primary_type="int*"/>
+      </method>
+      <method c_macro="eo_event_freeze" name="event_freeze" op_id="EO_BASE_SUB_ID_EVENT_FREEZE"/>
+      <method c_macro="eo_event_callback_priority_add" name="event_callback_priority_add" op_id="EO_BASE_SUB_ID_EVENT_CALLBACK_PRIORITY_ADD">
+        <parameter c_typename="Eo_Event_Description*" direction="in" modifier="const" name="desc" primary_type="Eo_Event_Description*"/>
+        <parameter c_typename="Eo_Callback_Priority" direction="in" modifier="" name="priority" primary_type="short"/>
+        <parameter c_typename="Eo_Event_Cb" direction="in" modifier="" name="cb" primary_type="Eo_Event_Cb"/>
+        <parameter c_typename="void*" direction="in" modifier="const" name="data" primary_type="void*"/>
+      </method>
+      <method c_macro="eo_event_callback_forwarder_add" name="event_callback_forwarder_add" op_id="EO_BASE_SUB_ID_EVENT_CALLBACK_FORWARDER_ADD">
+        <parameter c_typename="Eo_Event_Description*" direction="in" modifier="const" name="desc" primary_type="Eo_Event_Description*"/>
+        <parameter c_typename="Eo*" direction="in" modifier="" name="new_obj" primary_type="Eo*"/>
+      </method>
+    </methods>
+  </class>
+</module>

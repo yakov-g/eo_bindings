@@ -1,13 +1,13 @@
 # -*- coding: UTF-8 -*-
 import sys
 
-from base.eodefault import py_elm_init, elem_run
+from eorepo.evas_elem_py import elm_init, elm_run
 #from eobase import EoBase
 #from evas_lib.py.evas_l import Evas, EvasObjectRectangle, EvasObjectLine
-from evas_elem_l.py.evas_elem_py import ElmWin, ElmBg, ElmBox, ElmButton
+from eorepo.evas_elem_py import ElmWin, ElmBg, ElmBox, ElmButton
 
 print "Initializing Elementary..."
-print "Init res:", py_elm_init(sys.argv)
+print "Init res:", elm_init(sys.argv)
 print ""
 
 w1 = ElmWin(None, "my win name", 0)
@@ -45,7 +45,7 @@ print d
 #d = w1.fullscreen_set(1)
 
 
-elem_run()
+elm_run()
 
 """
 ev = Evas(None)

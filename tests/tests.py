@@ -42,6 +42,8 @@ class testP(unittest.TestCase):
 
     def test_isXML(self):
         self.assertTrue(isXML("abc.xml"))
+        self.assertTrue(isXML("/abc/def/abc.xml"))
+        self.assertTrue(isXML("/abc/py2.7/abc.xml"))
         self.assertFalse(isXML("abc.h"))
         self.assertFalse(isXML("abc.qwe.xml"))
 
