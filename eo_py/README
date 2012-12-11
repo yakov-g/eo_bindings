@@ -11,7 +11,7 @@ python module.
 
 1. Generating python module for classes defined in XMLs:
     a. > python eo_py_gen.py --dir=XML_FOLDER --outdir=OUTDIR --pkg="lib1 lib2"
-         --module=MODULE_NAME --include=INCLUDE_DIR
+         --module=MODULE_NAME --xmldir=INCLUDE_XML_DIR -lname -I/include
       In case if some class is needed (usually parent class, which is not in the tree being analyzed),
       include XMLs are searched in python system paths.
       If include file wasn't found, explicit --include=INCLUDE_DIR dir is needed

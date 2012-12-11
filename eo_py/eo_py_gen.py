@@ -12,7 +12,13 @@ def verbose_false(mes):
   pass
 
 
-def setup_file_generate(module_name, pkg, outdir):
+def setup_file_generate(args, outdir):
+   module_name = args.module   
+   pkg = args.pkg
+   incl_paths = args.include_paths
+   libs = args.libraries
+   lib_paths = args.library_paths
+
    module_file = module_name + ".pyx"
 
    lines = []
@@ -31,9 +37,28 @@ def setup_file_generate(module_name, pkg, outdir):
    lines.append("(e_compile_args, e_link_args) = pkgconfig(\"%s\")"%pkg)
    lines.append("")
 
-   lines.append("e_include_dirs = [\".\"]")
-   lines.append("e_library_dirs = []")
-   lines.append("e_libraries = []")
+   include_dirs = ["\".\""]
+   if incl_paths is not None:   
+     for i in incl_paths:
+       include_dirs.append("\"%s\""%i)
+   lines.append("e_include_dirs = [%s]"%', '.join(include_dirs))
+   del include_dirs
+
+   lib_dirs = []
+   if lib_paths is not None:   
+     for i in lib_paths:
+       lib_dirs.append("\"%s\""%i)
+   lines.append("e_library_dirs = [%s]"%', '.join(lib_dirs))
+   del lib_dirs
+
+   lib_names = []
+   if libs is not None:   
+     for i in libs:
+       lib_names.append("\"%s\""%i)
+   lines.append("e_libraries = [%s]"%', '.join(lib_names))
+   del lib_names
+
+
    lines.append("")
 
    lines.append("setup(")
@@ -66,7 +91,7 @@ def main():
                   action="store_true", dest="verbose", default=False,
                   help="Print status messages to stdout. Default: False")
 
-  parser.add_argument("-i", "--include", dest="xmldir", default=sys.path,
+  parser.add_argument("-X", "--xmldir", dest="xmldir", default=sys.path,
                   action="append", help="Include eobase directory")
 
   parser.add_argument("--pkg", dest="pkg", default = "eo",
@@ -74,6 +99,15 @@ def main():
 
   parser.add_argument("-m", "--module", dest="module",
                   action="store", help="Name of module to generate")
+
+  parser.add_argument("-I", "--include", dest="include_paths",
+                  action="append", help="Pre-processor include path")
+
+  parser.add_argument("-l", "--library", dest="libraries",
+                  action="append", help="Libraries of this unit")
+
+  parser.add_argument("-L", "--library-path", dest="library_paths",
+                  action="append", help="Directories to search for libraries")
 
   args = parser.parse_args()
 
@@ -114,7 +148,7 @@ def main():
   xp.module_parse(args.module, xml_files, incl_dirs)
   xp.py_code_generate(args.module ,outdir)
 
-  setup_file_generate(args.module, args.pkg, outdir)
+  setup_file_generate(args, outdir)
 
   #Looking for "eodefault.pxd" module. Needed to include
   for d in incl_dirs:
