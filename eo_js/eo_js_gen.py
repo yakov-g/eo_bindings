@@ -15,10 +15,21 @@ def verbose_true(mes):
 def verbose_false(mes):
   pass
 
-def makefile_file_generate(module_name, args, c_files, outdir):
+def makefile_file_generate(args, c_files, outdir):
+   module_name = args.module
    pkg = args.pkg
+   incl_paths = ["."]
+   incl_paths += args.include_paths
    libs = args.libraries
-   incl = args.includedirs
+   lib_paths = args.library_paths
+   cpp_defines = args.cpp_defines
+
+   if cpp_defines is not None:   
+     lst_tmp = []
+     for d in cpp_defines:
+       lst_tmp.append(d.replace("\"", "\\\""))
+     cpp_defines = list(lst_tmp)
+     del lst_tmp
 
    makefile_file = "Makefile"
    default_c_files = ['main.cc', 'CElmObject.cc', '_eobase.cc', '_module.cc']
@@ -38,20 +49,29 @@ def makefile_file_generate(module_name, args, c_files, outdir):
 
    lines.append("")
    lines.append("lib_CFLAGS = \\")
-   lines.append("-I. \\")
-   lines.append("-DPACKAGE_DATA_DIR=\\\"/tmp\\\" \\")
-   lines.append("-DPACKAGE_TMP_DIR=\\\"/tmp\\\" \\")
+  # lines.append("-I. \\")
+  #lines.append("-DPACKAGE_DATA_DIR=\\\"/tmp\\\" \\")
+  #lines.append("-DPACKAGE_TMP_DIR=\\\"/tmp\\\" \\")
+
+   for i in incl_paths:
+     lines.append("-I%s \\"%i)
+
    for l in pkg.split():
-      lines.append("`pkg-config --cflags %s` \\"%l)
-   if incl is not None:   
-     for i in incl:
-       lines.append("-I%s \\"%i)
+     lines.append("`pkg-config --cflags %s` \\"%l)
+
+   if cpp_defines is not None:   
+     for d in cpp_defines:
+       lines.append("-D%s \\"%d)
    lines[-1] = lines[-1][:-2]
 
    lines.append("")
    lines.append("lib_LDFLAGS = \\")
    for l in pkg.split():
       lines.append("`pkg-config --libs %s` \\"%l)
+
+   if lib_paths is not None:
+     for l in lib_paths:
+       lines.append("-L%s \\"%l)
 
    if libs is not None:
      for l in libs:
@@ -91,7 +111,7 @@ def main():
                   action="store_true", dest="verbose", default=False,
                   help="Print status messages to stdout. Default: False")
 
-  parser.add_argument("-i", "--include", dest="xmldir", default=sys.path,
+  parser.add_argument("-X", "--xmldir", dest="xmldir", default=sys.path,
                   action="append", help="Include eobase directory")
 
   parser.add_argument("--pkg", dest="pkg", default = "elementary eo",
@@ -100,11 +120,18 @@ def main():
   parser.add_argument("-m", "--module", dest="module",
                   action="store", help="Name of module to generate")
 
-  parser.add_argument("-I", "--some", dest="includedirs",
-                  action="append", help="Include paths")
+  parser.add_argument("-I", "--include", dest="include_paths",
+                  action="append", help="Pre-processor include path")
 
-  parser.add_argument("-l", "--lib", dest="libraries",
-                  action="append", help="Libraries to compile with")
+  parser.add_argument("-l", "--library", dest="libraries",
+                  action="append", help="Libraries of this unit")
+
+  parser.add_argument("-L", "--library-path", dest="library_paths",
+                  action="append", help="Directories to search for libraries")
+
+  parser.add_argument("-D", "--define", dest="cpp_defines",
+                  action="append", help="Pre-processor define")
+
 
   args = parser.parse_args()
 
@@ -147,7 +174,7 @@ def main():
   for n, o in xp.objects.items():
     c_files.append(o.V.c_file.name)
  
-  makefile_file_generate(args.module, args, c_files, outdir)
+  makefile_file_generate(args, c_files, outdir)
 
   del xp
 
