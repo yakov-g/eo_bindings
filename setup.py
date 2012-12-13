@@ -17,6 +17,7 @@ e_include_dirs = ["."]
 e_library_dirs = []
 e_libraries = []
 
+cmdclass = {}
 ext_modules = []
 
 
@@ -38,7 +39,8 @@ if USE_CYTHON:
          Extension("eorepo.eobase", ['eorepo/eobase.pyx'], include_dirs = e_include_dirs, library_dirs = e_library_dirs, libraries = e_libraries, extra_compile_args = e_compile_args, extra_link_args = e_link_args),
          ]
 
-   cmdclass = {'build_ext' : build_ext},
+   #cmdclass = {'build_ext' : build_ext}
+   cmdclass.update({'build_ext' : build_ext})
 else:
    print "Not using Cython"
    ext_modules += [
@@ -50,13 +52,16 @@ else:
 
 
 setup(
+      cmdclass = cmdclass,
       name='eoparser_eorepo',
       version='0.1dev',
       author='Yakov Goldberg',
       author_email='yakov.goldberg@gmail.com',
       packages=['eoparser', 'eorepo'],
       package_data={'eoparser': ['data/types.xml'],
-         'eorepo': ['EoBase.xml', 'eodefault.pxd']
+         'eorepo': ['EoBase.xml',
+                    'eodefault.pxd', 'eobase.pxd',
+                    'eodefault.c', 'eobase.c']
          },
       ext_modules = ext_modules,
 

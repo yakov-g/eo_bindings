@@ -16,6 +16,34 @@ EO Introspection provides easy generation
 of Python and JS bindings for your library based on Eo.
 
 #####################################################
+COMPILING AND INSTALLING
+
+   python-dev package is required, 
+   because package needs to compile source c files
+     Install python-dev package:
+     > sudo apt-get install python-dev build-essential
+
+   Installing eoparser:
+
+     > python setup.py build
+     (do this as root unless you are installing in your users directories)
+     > python setup.py install
+
+
+   To compile Cython files, cython (0.17)  is required.
+     Install pip (python installs packages):
+     > sudo apt-get install python-pip
+     Install cython:
+     > pip install cython
+     or upgrade:
+     > pip install --upgrade cython
+
+
+
+
+#
+#
+#####################################################
 
 Tools:
       Scanner
