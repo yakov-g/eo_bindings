@@ -19,7 +19,8 @@ class testP(unittest.TestCase):
                                            "test_class_name", 
                                            "EO_CLASS_TYPE_REGULAR", 
                                                ["ELM_OBJ_PAN_BASE_ID", 
-                                               [("ELM_OBJ_PAN_SUB_ID_POS_SET", "pos_set"), ("ELM_OBJ_PAN_SUB_ID_POS_GET", "pos_get")],
+                                               [("ELM_OBJ_PAN_SUB_ID_POS_SET", "pos_set"),
+                                                ("ELM_OBJ_PAN_SUB_ID_POS_GET", "pos_get")],
                                                 "ELM_OBJ_PAN_SUB_ID_LAST"], 
                                            ["EO_EV_CALLBACK_ADD", "EO_EV_CALLBACK_DEL", "EO_EV_DEL"]
                                            ]}
@@ -34,18 +35,22 @@ class testP(unittest.TestCase):
         self.assertTrue(isC("abc.cpp"))
         self.assertFalse(isC("abc.cp"))
         self.assertFalse(isC("abc.def.c"))
+        self.assertTrue(isC("/abc/def/file.c"))
+        self.assertTrue(isC("/abc/def2.7/file.c"))
 
     def test_isH(self):
         self.assertTrue(isH("abc.h"))
         self.assertFalse(isH("abc.c"))
         self.assertFalse(isH("abc.def.h"))
+        self.assertTrue(isH("/abc/def/file.h"))
+        self.assertTrue(isH("/abc/def2.7/file.h"))
 
     def test_isXML(self):
         self.assertTrue(isXML("abc.xml"))
-        self.assertTrue(isXML("/abc/def/abc.xml"))
-        self.assertTrue(isXML("/abc/py2.7/abc.xml"))
         self.assertFalse(isXML("abc.h"))
         self.assertFalse(isXML("abc.qwe.xml"))
+        self.assertTrue(isXML("/abc/def/abc.xml"))
+        self.assertTrue(isXML("/abc/py2.7/abc.xml"))
 
     def test_abs_path_get(self):
        _in = "test_data.in"
