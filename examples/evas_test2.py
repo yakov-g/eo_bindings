@@ -137,9 +137,9 @@ print type(w)
 ba = ElwButton(w);
 ba.exevas_obj_visibility_set(1)
 ba.exevas_obj_position_set(30, 100)
+ba.elw_button_text_set("(B) ADD cb")
 ba.exevas_obj_size_set(100, 50)
 ba.exevas_obj_color_set(255, 0, 255, 255)
-ba.elw_button_text_set("(B) ADD cb")
 
 
 

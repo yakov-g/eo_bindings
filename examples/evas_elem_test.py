@@ -37,6 +37,7 @@ box.elm_obj_box_pack_end(but)
 but.evas_obj_visibility_set(1)
 but.evas_obj_color_set(255, 255, 0, 255)
 but.elm_wdg_text_part_set(None, "Button")
+but.evas_obj_size_set(100, 30)
 
 d = w1.elm_obj_win_screen_dpi_get()
 print d

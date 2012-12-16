@@ -3,7 +3,7 @@
 from eoparser.helper import isXML, dir_files_get, abs_path_get
 from eoparser.xmlparser import XMLparser
 from argparse import ArgumentParser
-import os
+import os, sys
 
 def verbose_true(mes):
   print mes
@@ -14,14 +14,14 @@ def verbose_false(mes):
 def main():
   parser = ArgumentParser()
   parser.add_argument("-d", "--dir", dest="directory",
-                  action="append", help="Source files directory")
+                  action="append", help="Path to XML descriptions", required=True)
 
   parser.add_argument("-o", "--outfile", dest="outfile",
-                  action="store", help="Path for output files")
+        action="store", help="Out file in png format. Default: \"out.png\"", default="out.png")
 
   parser.add_argument("-v", "--verbose",
                   action="store_true", dest="verbose", default=False,
-                  help="Print status messages to stdout")
+                  help="Verbose output")
   """
   parser.add_argument("--graphstyle", action="store", dest="graphstyle", default="digraph",
                   help="Set graph style. Default: \"digraph\"")
@@ -47,7 +47,6 @@ def main():
 
   parser.add_argument("--long-names", action="store", dest="short_long", default="short",
                   help="Node shape.[\"short\", \"long\"] Default: \"short\"")
-
 
   styles = {}
 
@@ -99,32 +98,17 @@ def main():
   else:
     verbose_print = verbose_false
 
-  verbose_print("Options: %s"%args)
+  directories = args.directory + sys.path
+  directories = abs_path_get(directories, False)
 
-  directories = []
-  outfile = ""
+  outfile = args.outfile
+  outfile = os.path.expanduser(outfile)
+  outfile = os.path.abspath(outfile)
 
-  if args.directory == None:
-    print "ERROR: no source directory was provided"
+  outdir = os.path.split(outfile)[0]
+  if not os.path.exists(outdir):
+    print "ERROR: output directory %s doesn't exists... Aborting..."%outdir
     exit(1)
-  elif args.outfile == None:
-    print "ERROR: no output file was provided"
-    exit(1)
-
-  else:
-    directories = abs_path_get(args.directory)
-
-    outfile = args.outfile
-    outfile = os.path.expanduser(outfile)
-    outfile = os.path.abspath(outfile)
-
-    outdir = os.path.split(outfile)[0]
-    if not os.path.exists(outdir):
-      print "ERROR: output directory %s doesn't exists... Aborting..."%outdir
-      exit(1)
-
-  verbose_print("Dirs: %s"%directories)
-  verbose_print("Outfile: %s"%outfile)
 
   xml_files = dir_files_get(directories)
   xml_files = filter(isXML, xml_files)
@@ -194,11 +178,11 @@ def main():
   verbose_print("Dot file: '%s' was generated"%(tmp_dot_file))
   verbose_print("Graph file: '%s was generated"%(outfile))
   os.system("dot -Tpng %s -o %s"%(tmp_dot_file, outfile))
-  os.system("neato -Tpng %s -o %s_neato"%(tmp_dot_file, outfile))
-  os.system("twopi -Tpng %s -o %s_twopi"%(tmp_dot_file, outfile))
-  os.system("circo -Tpng %s -o %s_circo"%(tmp_dot_file, outfile))
-  os.system("fdp -Tpng %s -o %s_fdp"%(tmp_dot_file, outfile))
-  os.system("sfdp -Tpng %s -o %s_sfdp"%(tmp_dot_file, outfile))
+  #os.system("neato -Tpng %s -o %s_neato"%(tmp_dot_file, outfile))
+  #os.system("twopi -Tpng %s -o %s_twopi"%(tmp_dot_file, outfile))
+  #os.system("circo -Tpng %s -o %s_circo"%(tmp_dot_file, outfile))
+  #os.system("fdp -Tpng %s -o %s_fdp"%(tmp_dot_file, outfile))
+  #os.system("sfdp -Tpng %s -o %s_sfdp"%(tmp_dot_file, outfile))
 
 if __name__ == "__main__":
   main()

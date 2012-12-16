@@ -152,6 +152,8 @@ def abs_path_get(_paths, _warning = True):
          if _warning:
            print "ERROR: path %s doesn't exist... Aborting..."%path_tmp
            exit(1)
+         else:
+           print "Warning: path %s doesn't exist..."%path_tmp
      return res
 
 

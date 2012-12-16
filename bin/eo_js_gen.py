@@ -19,7 +19,8 @@ def makefile_file_generate(args, c_files, outdir):
    module_name = args.module
    pkg = args.pkg
    incl_paths = ["."]
-   incl_paths += args.include_paths
+   if args.include_paths is not None:
+     incl_paths += args.include_paths
    libs = args.libraries
    lib_paths = args.library_paths
    cpp_defines = args.cpp_defines
@@ -98,29 +99,26 @@ def makefile_file_generate(args, c_files, outdir):
      f.write(l + "\n")
    f.close()
 
-
-
-
 def main():
   parser = ArgumentParser()
   parser.add_argument("-d", "--dir", dest="directory",
-                  action="append", help="Source files")
+                  action="append", help="Path to XML descriptions", required=True)
 
   parser.add_argument("-o", "--outdir", dest="outdir",
-                  action="store", help="Output directory")
+                  action="store", help="Output directory", required=True)
 
   parser.add_argument("-v", "--verbose",
                   action="store_true", dest="verbose", default=False,
-                  help="Print status messages to stdout. Default: False")
+                  help="Verbose output")
 
   parser.add_argument("-X", "--xmldir", dest="xmldir", default=sys.path,
-                  action="append", help="Include eobase directory")
+                  action="append", help="Directory to search for parent classes's XMLs")
 
-  parser.add_argument("--pkg", dest="pkg", default = "elementary eo",
-        action="store", help="pkg-confing libraries. Default: \"elementary eo\"")
+  parser.add_argument("--pkg", dest="pkg", default = "eo",
+        action="store", help="pkg-confing libraries. Default: \"eo\"")
 
   parser.add_argument("-m", "--module", dest="module",
-                  action="store", help="Name of module to generate")
+                  action="store", help="Name of module", required=True)
 
   parser.add_argument("-I", "--include", dest="include_paths",
                   action="append", help="Pre-processor include path")
@@ -138,35 +136,19 @@ def main():
   args = parser.parse_args()
 
   verbose_print = verbose_true if args.verbose is True else verbose_false
-  verbose_print("Options: %s"%args)
 
   directories = []
   outdir = ""
   sourcedir = ""
   incl_dirs = []
 
-  if args.directory == None:
-    print "ERROR: No source directory was provided"
-    exit(1)
-  elif args.outdir == None:
-    print "ERROR: No out directory was provided"
-    exit(1)
-  elif args.module == None:
-    print "ERROR: No module name was provided"
-    exit(1)
-  else:
-    directories = abs_path_get(args.directory)
-    outdir = abs_path_get([args.outdir])[0]
-    if args.xmldir is not None:
-      incl_dirs = abs_path_get(args.xmldir, False)
-
-  verbose_print("Dirs: %s"%directories)
-  verbose_print("Outdir: %s"%outdir)
-  verbose_print("Include dirs: %s"%incl_dirs)
+  directories = abs_path_get(args.directory)
+  outdir = abs_path_get([args.outdir])[0]
+  if args.xmldir is not None:
+    incl_dirs = abs_path_get(args.xmldir, False)
 
   xml_files = dir_files_get(directories, False)
   xml_files = filter(isXML, xml_files)
-  verbose_print("In Files: %s"%xml_files)
 
   xp = XMLparser()
   xp.module_parse(args.module, xml_files, incl_dirs)
