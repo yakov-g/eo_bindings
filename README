@@ -37,7 +37,7 @@ EO Introspection
   Graph generator
     builds classes diagram according to XML-descriptions.
 
-  Pyhton code generator
+  Python code generator
     analyzes XML files and generates Cython files that are compiled
     into Python module.
 
@@ -80,10 +80,10 @@ EO Introspection
 
    2.1 Folder introspection
     Scanner runs recursively on defined folders
-      > eo_xml_gen.py --dir=IN_DIR --dir=IN_DIR2 --outdir=OUT_DIR
-      script searches for dependencies in Python env paths.
-      If dependencies are not in Python search path,
-      --xmldir=XML_DIR can be needed
+      > eo_xml_gen.py --dir IN_DIR --dir IN_DIR2 --outdir OUT_DIR
+
+      Parent's classes should be found automatically in python search path.
+      --xmldir=XML_DIR can be used to add additional search paths.
 
    2.2 Building classes graph chart:
       Graph generator runs recursively on defined folders
@@ -92,8 +92,8 @@ EO Introspection
 #      > python eo_graph_gen.py --dir=FOLDER_WITH_XML1 --dir=FOLDER_WITH_XMLS --outfile=OUTFILE.dot
 #      > dot -Tpng OUTFILE.dot -o out.png
 #      > eog out.png
-      > eo_graph_gen.py --dir=FOLDER_WITH_XML1
-        --dir=FOLDER_WITH_XMLS --outfile=graph.png
+      > eo_graph_gen.py --dir FOLDER_WITH_XML1
+        --dir FOLDER_WITH_XMLS --outfile graph.png
       > eog graph.png
 
 
@@ -101,12 +101,24 @@ EO Introspection
 3. Generating python bindings
 
    3.1 Generating python module for classes defined in XMLs:
-      > eo_py_gen.py --dir=XML_FOLDER --outdir=OUTDIR
-      --pkg="lib1 lib2" --module=MODULE_NAME --xmldir=INCLUDE_XML_DIR
+      > eo_py_gen.py --dir XML_DIR --outdir OUTDIR --module MODULE_NAME
+      --pkg "lib1 lib2" --xmldir INCLUDE_XML_DIR
       -lname -I/include -DSOME_VAR=1
 
-      --xmldir=XML_DIR - path to search for parent classes
+      Parent's classes should be found automatically in python search path.
+      --xmldir=XML_DIR can be used to add additional search paths.
+
+      --xmldir XML_DIR - path to search for parent classes
       (XMLs fith parent classes descriptions)
+      --outdir OUTDIR - directory for output. 
+      --module - name of module to generate
+      --pkg "lib1 lib2" - provide libraries compilation information with pkg-config
+      --xmldir - path to parent's classes XMLSw, which are not in search path
+
+      -I - to include search path for headers
+      -L - to include search path for libraries
+      -l - library to link with
+      -D - to define macros
 
       Files to be generated:
       - *.pxi files will be created for each *.xml
@@ -136,8 +148,6 @@ EO Introspection
       Installing module (root maybe required)
       > python setup.py install
 
-########################################################################
-########################################################################
 ########################################################################
 
    3.3 Creating PY base module for Eo base class:
@@ -186,34 +196,42 @@ EO Introspection
 #####################################################################
 
 4. Generating js module for classes defined in XMLs:
-    a. > eo_js_gen.py --dir=XML_FOLDER --outdir=OUTDIR
-         --module=MODULE_NAME --xmldir=INCLUDE_XML_DIR -lname -I/include
-         -DSOME_PATH=\"/path\"
+     > eo_js_gen.py --dir=XML_FOLDER --outdir=OUTDIR
+       --module=MODULE_NAME --xmldir=INCLUDE_XML_DIR -lname -I/include
+       -DSOME_PATH=\"/path\"
 
-      In case if some class is needed
-      (usually parent class, which is not in the tree being analyzed),
-      include XMLs are searched in python system paths.
-      If include file wasn't found,
-      explicit --xmldir=INCLUDE_DIR dir is needed
+      Parent's classes should be found automatically in python search path.
+      --xmldir=XML_DIR can be used to add additional search paths.
+
+      --xmldir XML_DIR - path to search for parent classes
+      (XMLs fith parent classes descriptions)
+      --outdir OUTDIR - directory for output. 
+      --module - name of module to generate
+      --pkg "lib1 lib2" - provide libraries compilation information with pkg-config
+      --xmldir - path to parent's classes XMLSw, which are not in search path
+
+      -I - to include search path for headers
+      -L - to include search path for libraries
+      -l - library to link with
+      -D - to define macros
 
       Files to be generated:
-      - *.cc, *.h will be created for each *.xml
-      - _module.cc with EoRegisterModule()
-        if you need to call any functions on module load,
-        add them in this func.
-      - Makefile
-   b. Compiling module:
-      You can edit generated Makefile, if you need to add some additional flags
-      > make 
-      - modul_name.so will be genrated
+       - *.cc, *.h will be created for each *.xml
+       - _module.cc with EoRegisterModule() func
+         if you need to call any functions on module load,
+         add them in this func.
+       - Makefile
 
-      following files are needed to compile
-      main.cc
-      elm.h
-      CElmObject.cc
-      CElmObject.h
+     Compiling module:
+       You can edit generated Makefile, if you need to add some additional flags
+       > make 
+       - modul_name.so will be compiled
 
-      *.so module will be compiled
+
+       /*
+         Need to copy followinf files to compile module, (or static link?)
+         main.cc, elm.h, CElmObject.cc, CElmObject.h, _eobase.h, _eobase.c"
+       */
 
 ####################################################################
 
