@@ -13,10 +13,15 @@ class _const:
     # most of constants are used as internal dict keys,
     # but some of them are also used as tags in XML
     # Changing this constans will only spoil the view of XML
+    self.PREFIX = "eorepo" #used as xml-tag
 
     self.NAME = "name" #used as xml-tag
     self.C_NAME = "c_name" #used as xml-tag
+    self.MODIFIER = "modifier" #used as xml-tag
     self.MODULE = "module" #used as xml-tag
+    self.PARSE_VERSION = "parse_version" #used as xml-tag
+    self.NUM = "num" #used as xml-tag
+    self.VER_NUM = "1.0.1"
     self.TYPE = "type" #used as xml-tag
     self.CLASS_CONSTRUCTOR = "class_constructor"
     self.BASE_ID = "base_id"
@@ -69,31 +74,30 @@ class _const:
     self.DIRECTION = "direction" #used as xml-tag
 
 
-def isC(s):
+def isC(_path):
   #FIXME when parsing eobase we can catch "eo.c" with EO_DEFINE_CLASS
-  path_lst = s.split('.')
-  if len(path_lst) == 2:
-    if path_lst[1] in ["c", "cc", "cpp"]:
-      return True
-    else:
-      return False
+  (d, f) = os.path.split(_path)
+  f_name = f.split('.')
+  if len(f_name) == 2:
+    return True if f_name[1] in ["c", "cc", "cpp"] else False
+  else:
+    return False
 
+def isH(_path):
+  (d, f) = os.path.split(_path)
+  f_name = f.split('.')
+  if len(f_name) == 2:
+    return True if f_name[1] in ["h"] else False
+  else:
+    return False
 
-def isH(s):
-  path_lst = s.split('.')
-  if len(path_lst) == 2:
-    if path_lst[1] in ["h"]:
-      return True
-    else:
-      return False
-
-def isXML(s):
-  path_lst = s.split('.')
-  if len(path_lst) == 2:
-    if path_lst[1] in ["xml"]:
-      return True
-    else:
-      return False
+def isXML(_path):
+  (d, f) = os.path.split(_path)
+  f_name = f.split('.')
+  if len(f_name) == 2:
+    return True if f_name[1] in ["xml"] else False
+  else:
+    return False
 
 #  dir_files_get(_directories, func, recursive)
 #
@@ -148,6 +152,8 @@ def abs_path_get(_paths, _warning = True):
          if _warning:
            print "ERROR: path %s doesn't exist... Aborting..."%path_tmp
            exit(1)
+         else:
+           print "Warning: path %s doesn't exist..."%path_tmp
      return res
 
 

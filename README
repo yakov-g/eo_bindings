@@ -1,70 +1,238 @@
 #####################################################
 
-EO Introspection - Scanner, Graph Generator
+EO Introspection
+
+#####################################################
+0. About
+1. Compiling and installing
+2. Folder Introspection and class graph
+3. Generating python bindings
+4. Generating JS bindings (elev8 and V8 are required)
+
+####################################################
+0. About
+
+  EO introspection is a set of tools to generate high-level
+  language bindings for C libraries based on Eo (E Object) library.
+  Eo is a part of Enlightenent Foundation Libraries.
+  http://svn.enlightenment.org/svn/e/trunk/efl/
+
+  Eo library provides an opportunity
+  to use object oriented concepts in C.
+
+  EO Introspection provides easy generation
+  of Python and JS bindings for your Eo-based library.
+
+  Set of tools:
+      Scanner
+      Graph Generator
+      Python code generator
+      JS code generator
+
+  Scanner
+    analyzes source and header C files,
+    which can contain EO-styled class definition;
+    and then it generates XML-description for each found class.
+
+  Graph generator
+    builds classes diagram according to XML-descriptions.
+
+  Python code generator
+    analyzes XML files and generates Cython files that are compiled
+    into Python module.
+
+  JS code generator
+    analyzes XML files and generates C++ files that are compiled into
+    elev8 module. Elev8 is V8-based js-engine.
 
 #####################################################
 
-Scanner is a part of EObject introspection module.
-It analyzes source and header C files, which can contain EO-styled class definition,
-   and generates XML - description for each found class
+1. Compiling and installing
+
+   1.1 Requirements:
+
+     python-dev package is required, to build extension
+     from source c files.
+       Install python-dev package:
+       > sudo apt-get install python-dev build-essential
+
+   1.2 Installing eoparser:
+
+     > python setup.py build
+     (do this as root unless you are installing in your users directories)
+     > python setup.py install
+
+     --prefix option can be used, to install package into user's dir.
+     Add install_dir into PYTHONPATH.
+
+   1.3 To compile Cython files, cython (0.17)  is required.
+
+     Install pip (python installs packages):
+     > sudo apt-get install python-pip
+     Install cython:
+     > pip install cython
+     or upgrade:
+     > pip install --upgrade cython
 
 #####################################################
 
-1. Introspecting folder:
+2. Introspecting folder and building class graph:
+
+   2.1 Folder introspection
     Scanner runs recursively on defined folders
-    a. > python eo_xml_gen.py --dir=IN_DIR --dir=IN_DIR2 --outdir=OUT_DIR -include=INCLUDE_DIR
-      script searches for dependency xmlfiles in Python env paths.
-      if PYTHONPATH wasn't set explicit --include=INCLUDE_DIR can be needed
+      > eo_xml_gen.py --dir IN_DIR --dir IN_DIR2 --outdir OUT_DIR
 
-    b. Building classes graph chart:
-      Graph generator runs recursively on defined folders and generates graphviz dot file,
-      which can be used to generate image
+      Parent's classes should be found automatically in python search path.
+      --xmldir=XML_DIR can be used to add additional search paths.
 
-      > python eo_graph_gen.py --dir=FOLDER_WITH_XML1 --dir=FOLDER_WITH_XMLS --outfile=OUTFILE.dot
-      > dot -Tpng OUTFILE.dot -o out.png
-      > eog out.png
+   2.2 Building classes graph chart:
+      Graph generator runs recursively on defined folders
+      and generates png image.
 
-2. Generating python-bindings: read /eo_py/README
+#      > python eo_graph_gen.py --dir=FOLDER_WITH_XML1 --dir=FOLDER_WITH_XMLS --outfile=OUTFILE.dot
+#      > dot -Tpng OUTFILE.dot -o out.png
+#      > eog out.png
+      > eo_graph_gen.py --dir FOLDER_WITH_XML1
+        --dir FOLDER_WITH_XMLS --outfile graph.png
+      > eog graph.png
 
 
-1. Creating eobase module:
-   a. Creating new dir - PY_EOBASE
-   b. Introspecting base module folder - EOBASE
-      > python e_scan.py --dir=EOBASE --outdir=PY_EOBASE
-      - eobase.xml will be created in PY_EOBASE
-   c. Creating eobase python sources:
-      > python e_compile.py  --dir=PY_EOBASE --outdir=PY_EOBASE --module=eobase
-      --pkg="elementary eo"
-      To create base module use option --module="eobase"
+#####################################################
+3. Generating python bindings
+
+   3.1 Generating python module for classes defined in XMLs:
+      > eo_py_gen.py --dir XML_DIR --outdir OUTDIR --module MODULE_NAME
+      --pkg "lib1 lib2" --xmldir INCLUDE_XML_DIR
+      -lname -I/include -DSOME_VAR=1
+
+      Parent's classes should be found automatically in python search path.
+      --xmldir=XML_DIR can be used to add additional search paths.
+
+      --xmldir XML_DIR - path to search for parent classes
+      (XMLs fith parent classes descriptions)
+      --outdir OUTDIR - directory for output. 
+      --module - name of module to generate
+      --pkg "lib1 lib2" - provide libraries compilation information with pkg-config
+      --xmldir - path to parent's classes XMLSw, which are not in search path
+
+      -I - to include search path for headers
+      -L - to include search path for libraries
+      -l - library to link with
+      -D - to define macros
+
+      Files to be generated:
+      - *.pxi files will be created for each *.xml
+      - *.pxd will be created one for module.
+      - MODULE_NAME.pyx (only one pyx allowed for compiling module)
+        this file includes all *.pxi
+      - setup.py
+        setup.py can be edited in order to add include paths, libraries
+        (which were not mentioned in --pkg option)
+        compile options
+
+      Addition:
+         Sometimes, additional functions, which are not introspectable,
+         must be included. User must implement and add them manually.
+         (Cython knowledge is required)
+    
+         To do this, user must provide definitions in *.pxd, *.pxi files,
+         include *.pxi into generated 'module_name.pyx' file and compile.
+
+   3.2 Creating install package and installing generated module:
+      Creating installation package for module
+      > python setup.py sdist
+
+      Building module
+      > python setup.py build
+
+      Installing module (root maybe required)
+      > python setup.py install
+
+########################################################################
+
+   3.3 Creating PY base module for Eo base class:
+      Base module folder being introspected - Eo lib itself
+        > python eo_xml_gen.py --dir=(eo lib itself) --outdir=OUTDIR
+        - eobase.xml will be created in OUTDIR folder
+      Creating eobase python sources:
+        > python eo_py_gen.py  --dir=OUTDIR --outdir=TMP --module=eobase
+        --pkg="eo" --xmldir=DEFAULT
+      To create base module, option --module must be "eobase".
+        DEFAULT - is a folder with cython files for eodefault module,
+        which provides infrastructure.
+
+        TMP folder will have following layout:
+        tmp\
+           setup.py
+           eorepo\
+              eodefault.pxd
+              eodefault.pyx
+              eobase.pyx
+              eobase.pxi
+              eobase.pxd
+              __init__.py
+
       - eobase.pxd, eobase.pyx - will be created
-      - eodefault.pxd, eodefault.pyx - will be copied from script folder
+      - eodefault.pxd, eodefault.pyx - will be copied into
+      - __init__.py - will be copied
       - setup.py will be created.
-        setup.py can be modified in order to add include paths and libraries,
-        which weren't mentioned in --pkg option
-   d. Compiling python sources into python module.
-      >  python setup.py build_ext --inplace
-      - eodefault.so, eobase.so will be created
-   e. Copy __init__.py to PY_EOBASE
-      Add PYTHONPATH = PY_EOBASE
+        setup.py can be modified in order to add include paths
+        and libraries, which weren't mentioned in command line options
+
+      Creating installation package for module
+      > python setup.py sdist
+
+      Building module
+      > python setup.py build
+
+      Installing module (root maybe required)
+      > python setup.py install
+
+      According to layout, package 'eorepo' will be installed into
+      installation path.
+      It can be used as following:
+      from eorepo.eobase import EoBase
+
+#####################################################################
+
+4. Generating js module for classes defined in XMLs:
+     > eo_js_gen.py --dir=XML_FOLDER --outdir=OUTDIR
+       --module=MODULE_NAME --xmldir=INCLUDE_XML_DIR -lname -I/include
+       -DSOME_PATH=\"/path\"
+
+      Parent's classes should be found automatically in python search path.
+      --xmldir=XML_DIR can be used to add additional search paths.
+
+      --xmldir XML_DIR - path to search for parent classes
+      (XMLs fith parent classes descriptions)
+      --outdir OUTDIR - directory for output. 
+      --module - name of module to generate
+      --pkg "lib1 lib2" - provide libraries compilation information with pkg-config
+      --xmldir - path to parent's classes XMLSw, which are not in search path
+
+      -I - to include search path for headers
+      -L - to include search path for libraries
+      -l - library to link with
+      -D - to define macros
+
+      Files to be generated:
+       - *.cc, *.h will be created for each *.xml
+       - _module.cc with EoRegisterModule() func
+         if you need to call any functions on module load,
+         add them in this func.
+       - Makefile
+
+     Compiling module:
+       You can edit generated Makefile, if you need to add some additional flags
+       > make 
+       - modul_name.so will be compiled
 
 
+       /*
+         Need to copy followinf files to compile module, (or static link?)
+         main.cc, elm.h, CElmObject.cc, CElmObject.h, _eobase.h, _eobase.c"
+       */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+####################################################################
 
 

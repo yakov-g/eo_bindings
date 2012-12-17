@@ -1,0 +1,295 @@
+
+Yakov Goldberg <yakov.g@samsung.com>
+
+EO introspection is set of tools to generate high-level
+language bindings for C libraries based on Eo (E Object) library,
+     Usual workflow:
+     - parsing C-sources and generating XML
+     - generating source files, makefiles
+       < include additional modules 
+     - compile module
+
+  This document describes current development issues,
+    and supposes that reader has some knowledge
+    about Eo, Elementary, Python and JS bindings
+
+#############################################################
+
+* Generating function names
+
+  Issues:
+     Names of funcs to be generated, name clashes.
+
+     In the beginning there was idea to cut func name from OP_ID.
+
+     There is OP_ID 'SOME_CLASS_SUB_ID_COLOR_GET' and public function
+     'some_class_color_get()' which connected with OP_ID,
+     so 'color_get()' will be generated.
+
+     If there is another class ANOTHER_CLASS(SOME_CLASS) with
+     'ANOTHER_CLASS_SUB_ID_COLOR_GET' and 'another_class_color_get()'
+     public function, another 'color_get()' func will be generated.
+
+     I don't check for names clash.
+     There won't be an error and function will be simply overloaded, 
+     but it will be completely wrong.
+
+     There shouldn't be function overloading at all, that's all done
+     in library itself, in bindings I call only for most base func.
+
+     Conflict should be resolved in library itself. If we want single
+     'color_set()' for all classes, they need to be overloaded 
+     in proper way.
+
+     At the moment full names like some_class_color_set() and 
+     another_class_color_set() will be generated.
+
+#############################################################
+
+* Properties names parsing
+    If func name ends with '_set'/'_get'
+    parameters are checked on direction 'in' for 'set' prop 
+    and on 'out' for 'get' prop.
+    If it's wrong, this function will be generated as a method.
+
+    Too common implementation. Need to provide descriptions(comments).
+
+
+#############################################################
+
+* Parameter's Types;
+    Basic types can be detected; 
+    also "types" file can be provided which says how to cast to basic types:
+       <type from="Evas_Font_Size" to="int"/>
+       <type from="Eo_Callback_Priority" to="short"/>
+       <type from="Evas_Smart" to="Eo"/>
+
+    if some type wasn't found, function will not be generated.
+
+    Issues:
+       Types like Eina_List, arrays, structs need wrapping to Python types
+         can be done by providing descriptions(comments), but requires work.
+
+       Returning existing Object or new one.
+         Need to check returning instance with eo_base_data_get("Python instance");
+         if o != NULL: 
+           return o
+         else: ( need to create one:)
+           get class name,
+           find constructor
+           create object
+       
+           Requires work.
+
+#############################################################
+
+* Constructing object:
+    Now objects are constructed with default constuctor.
+    Some classes provide custom constructors and some ONLY custom constructors.
+
+    example for window:
+    eo_add_custom(eo, elm_win_constructor("my win", ELM_WIN_BASIC))
+
+    in Python:
+      can be called like this
+      win = ElmWin("my win", ELM_WIN_BASIC)
+
+    in JS??
+      in elev8 - this is hardcoded, ("main" ELM_WIN_BASIC) is created
+
+    Issues: 
+       How to fetch custom constructors from source?
+          Add decorators to comments. Looks like fine.
+
+       How to call custom constructors with same signature, but with different name?
+          eo_add_custom(eo, elm_win_constructor_one("my win", ELM_WIN_BASIC))
+          eo_add_custom(eo, elm_win_constructor_two("my win", ELM_WIN_BASIC))
+
+          What to do in Python?
+            Define additional variable?
+            win = ElmWin(win.CONSTR1, "my win", ELM_WIN_BASIC)
+
+            and provide the way to parse argv[] in __init__ func?
+
+#############################################################
+
+* Callbacks in Python.
+    Issues:
+      Pass data to callback.
+      Add callback to Evas_Object
+  
+    Description:
+      All callbacks are added to Eo object on registered event in this/parent class.
+      To add callback EoBase.event_callback_priority_add() is used.
+      Callback can be added for introspected events.
+  
+      Adding callback:
+  
+        func(obj, data)
+  
+        cb_obj = (func, data)
+        py_obj.event_callback_priority_add(class.EVENT_ID, 0, cb_obj)
+        py_obj.event_callback_del(class.EVENT_ID, cb_obj)
+  
+        it's also possible to add callback like this:
+      
+          py_obj.event_callback_priority_add(class.EVENT_ID, 0, (func, data))
+  
+        reference of (func, data) object is incremented,
+        so callback will be called properly.
+        But it won't be possible to delete it.
+     
+      What's going on inside:
+        Proxy _callback() function(eo signature) is added to real C
+        object for desired event; Py cb_obj is set as data.
+        When event occurs, _callback() is called with data; Py func and data are fetched
+        and Py cb is called.
+  
+        Maybe it's not the best idea to add data like this, but the idea
+        is to give Eo as much work as possible.
+        So no internal lists are managed to pass and keep
+        callback data as (*args **kwargs).
+  
+  
+      Adding callbacks to Evas_Object:
+        In C, callbacks are added with evas_object_event_callback_add(),
+        which is not in eo indrospection at all.
+        Evas Events are also not in introspection scope,
+        because they are not added to Eo objects.
+   
+      Issue:
+        What to do with Evas events?
+        It's possible to add stuff manually:
+          - define extern evas_object_event_callback_add()
+          - define extern event's enum
+          - define public event_add/del funcs for class
+   
+#############################################################
+
+* Callbacks in JS:
+    In elev8 one callback per event was implemented, without adding cb data.
+
+    There are some ideas how to put several callbacks and data if needed, but it must be checked.
+
+#############################################################
+
+* Adding elm_init() and other additional funcs
+        
+    Sometimes some additional functions like elm_init(), elm_run()
+    are needed. These functions are not introspectable,
+    they must be added manually.
+    
+    Example for python:
+    To do this, the user must provide definitions in *.pxd, *.pxi files,
+     include *.pxi into generated 'module_name.pyx' file and compile.
+
+     Usual workflow:
+     - generating XML
+     - generating source files, makefiles
+                          < add files manually 
+     - compile module
+
+#############################################################
+
+* Enums from headers.
+    Need to provide descriptions(comments), to understand how to fetch it
+
+#############################################################
+
+* Issues about elementary:
+   After parsing sources, found headers are included 
+   into generated files.
+
+   All include error must be fixed manually, t.e. issues with
+   including elm_*.h and Elementary.h and compilation flags like
+   -DELM_INTERNAL_API_ARGESFSDFEFC=1
+
+#############################################################
+
+* EO repository for Python
+   initial eorepo package will be installed with eoparser package.
+   Layout:
+   eorepo /
+     eobase.so
+     eodefault.so
+     __init__.py
+     EoBase.xml
+     eobase.pxd
+     eobase.c
+     eodefault.pxd
+     eodefault.c
+
+  When generating cython files for some module:
+    - all classes are parsed
+    - EoBase will be parent for some classes,
+      so EoBase will be imported from eorepo.eobase
+      also eodeafault will be cimported from eorepo.eobase.
+    - packages will be also installed into eorepo folder.
+
+    ! but, I can't include packages different from eobase
+    ! need to provide mechanism to import any parent modules
+
+   Correct layout should be like this:
+
+     eorepo /
+       eobase /
+         c_eobase.so
+         eodefault.so
+         __init__.py
+            import eodefault
+            eodefault.eo_init()
+            from eorepo.eobase.c_eobase import EoBase
+       evas /
+          c_evas.so
+          __init__.py
+             from eorepo.evas.c_evas import EvasObj
+       elementary /
+          c_elementary.so
+          __init__.py # this can be autogenerated
+             from eorepo.elementary.c_elementary import ElmWin
+
+       if we want to create module "elementary", setup.py will be created,
+       which creates package "elementary", with "c_elementary.so" module and
+       proper __init__.py, which imports ElmWin from "c_elementary.so" into
+       elementary
+
+       Each module, being installed must provide some package desc
+       file:
+        it must content all classes of module and path to this module.
+        {EvasObj : [eorepo.evas.c_evas]}
+        {ElmWin : [eorepo.elm.c_elm]}
+        If I need to include some class, I search for this "desc file";
+        look for class name in it, and include class from package.
+
+        And so I don't need XML_INCLUDE or look for parent's XMLs.
+        And I don't need XML files at all.
+
+       Usage in users app:
+          import eorepo.elementary -
+            #this will activate __init__ in elementary folder, and will
+            # import ElmWin from c_elementary into elementary
+            # so eorepo.elementary.ElmWin can be used
+         # or like this
+          from eorepo.elementary import ElmWin
+
+#############################################################
+   
+* Eorepo for js:
+    Currently there are several base files, which must be used in module compilation:
+    CElmObject.cc/h
+    elm.h
+    main.cc
+
+    eobase.cc/h - autogenerated for Eo_Base
+
+    1. Think, if this files must be copied for compilation
+       Or statically linked...
+       ...or smth else
+
+    2. elev8 looks for modules in its folder, so I have to install module into this folder
+       need to find way to solve it
+
+    3. In repo need to save module's h files, to include into childs modules
+    4. So each module must install some desc file: {class name : header}
+
+

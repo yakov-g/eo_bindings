@@ -1,0 +1,28 @@
+
+#define MY_TEST_CLASS_NAME "test_class_name"
+
+static const Eo_Op_Description _elm_pan_op_desc[] = {
+     EO_OP_DESCRIPTION(ELM_OBJ_PAN_SUB_ID_POS_SET, "description here"),
+     EO_OP_DESCRIPTION(ELM_OBJ_PAN_SUB_ID_POS_GET, "description here"),
+     EO_OP_DESCRIPTION_SENTINEL
+};
+
+static const Eo_Event_Description *event_desc[] = {
+     EO_EV_CALLBACK_ADD,
+     EO_EV_CALLBACK_DEL,
+     EO_EV_DEL,
+     NULL
+};
+
+static const Eo_Class_Description test_class_desc = {
+     EO_VERSION,
+     MY_TEST_CLASS_NAME,
+     EO_CLASS_TYPE_REGULAR,
+     EO_CLASS_DESCRIPTION_OPS(&ELM_OBJ_PAN_BASE_ID, _elm_pan_op_desc, ELM_OBJ_PAN_SUB_ID_LAST),
+     event_desc,
+     sizeof(Elm_Pan_Smart_Data),
+     _elm_pan_class_constructor,
+     NULL
+};
+
+EO_DEFINE_CLASS(class_get, &test_class_desc, parent, brother, NULL)

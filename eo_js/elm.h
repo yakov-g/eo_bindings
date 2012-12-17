@@ -66,30 +66,36 @@ extern int log_domain;
 #define PROPERTY(name_) \
    #name_, Callback_## name_ ##_get, Callback_## name_ ##_set, NULL
 
+#define PROPERTY_RO(name_) \
+   #name_, Callback_## name_ ##_get, NULL, NULL
+
+#define PROPERTY_SO(name_) \
+   #name_, NULL, Callback_## name_ ##_set, NULL
+
 #define METHOD(name_) \
    #name_, NULL, NULL, Callback_## name_
 
 #define EO_GENERATE_PROPERTY_CALLBACKS(class_,name_) \
    Handle<Value> Callback_## name_ ##_get(Local<String>, const AccessorInfo &info) { \
       HandleScope scope; \
-      return scope.Close(GetObjectFromAccessorInfo<class_>(info)->name_ ##_get()); \
+      return scope.Close(GetObjectFromAccessorInfo<class_>(info)->__## name_ ##_get()); \
    } \
    void Callback_## name_ ##_set(Local<String>, Local<Value> value, const AccessorInfo &info) { \
       HandleScope scope; \
-      GetObjectFromAccessorInfo<class_>(info)->name_ ##_set(value); \
+      GetObjectFromAccessorInfo<class_>(info)->__## name_ ##_set(value); \
    }
 
 
 #define EO_GENERATE_PROPERTY_GET_CALLBACK(class_,name_) \
    Handle<Value> Callback_## name_ ##_get(Local<String>, const AccessorInfo &info) { \
       HandleScope scope; \
-      return scope.Close(GetObjectFromAccessorInfo<class_>(info)->name_ ##_get()); \
+      return scope.Close(GetObjectFromAccessorInfo<class_>(info)->__## name_ ##_get()); \
    }
 
 #define EO_GENERATE_PROPERTY_SET_CALLBACK(class_,name_) \
    void Callback_## name_ ##_set(Local<String>, Local<Value> value, const AccessorInfo &info) { \
       HandleScope scope; \
-      GetObjectFromAccessorInfo<class_>(info)->name_ ##_set(value); \
+      GetObjectFromAccessorInfo<class_>(info)->__## name_ ##_set(value); \
    }
 
 #define EO_GENERATE_PROPERTY_GET_EMPTY_CALLBACK(class_,name_) \
@@ -121,9 +127,13 @@ extern int log_domain;
 #define EO_GENERATE_METHOD_CALLBACKS(class_,name_) \
       Handle<Value> Callback_## name_(const Arguments& args) { \
       HandleScope scope; \
-      return scope.Close(GetObjectFromArguments<class_>(args)->name_(args)); \
+      return scope.Close(GetObjectFromArguments<class_>(args)->__## name_(args)); \
    }
 
+#define EO_GENERATE_STATIC_METHOD(class_, name_) \
+      static Handle<Value> static_## name_(const Arguments& args) { \
+      return Undefined(); \
+   }
 
 #define EO_REGISTER_STATIC_METHOD(_name) \
       GetTemplate()->GetFunction()->ToObject()->Set(String::NewSymbol(#_name),   FunctionTemplate::New(_name)->GetFunction())

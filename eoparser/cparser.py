@@ -34,7 +34,80 @@ class Cparser(object):
     self.typedefs = {"Evas_Coord" : "int",
                      "Evas_Angle":"int",
                      "Evas_Font_Size" : "int",
+                     "Evas_Object" : "Eo",
+                     "Evas_Smart" : "Eo",
+                     "Evas_Map" : "Eo",
+                     "Evas_Text_Style_Type" : "int",#enum
+                     "Evas_Colorspace" : "int",#enum
+                     "Evas_Render_Op" : "int",#enum
+                     "Evas_Aspect_Control" : "int",#enum
+                     "Evas_Object_Pointer_Mode" : "int", #enum
+                     "Evas_Image_Scale_Hint" : "int", #enum
+                     "Evas_Image_Content_Hint" : "int", #enum
+                     "Evas_Image_Animated_Loop_Hint" : "int", #enum
+                     "Evas_Border_Fill_Mode" : "int", #enum
+                     "Evas_Object_Table_Homogeneous_Mode" : "int", #enum
+                     "Evas_Textgrid_Font_Style" : "int",
+                     "Evas_Textgrid_Palette" : "int",
+                     "Evas_Modifier_Mask" : "unsigned long long",
+                     "Evas_Button_Flags" : "int",
+                     "Evas_Fill_Spread" : "int",
+                     "Evas_Event_Flags" : "int",
+                     "Evas_Font_Hinting_Flags" : "int",
+                     "Evas_Load_Error" : "int",
+                     "Elm_Photocam_Zoom_Mode" : "int",
                      "Eina_Bool" : "bool",
+                     "Elm_Bg_Option" : "int",
+                     "Elm_Fileselector_Mode" : "int",
+                     "Elm_Object_Select_Mode" : "int",
+                     "Elm_Actionslider_Pos" : "int",
+                     "Elm_Web_Zoom_Mode" : "int",
+                     "Elm_Icon_Type" : "int",
+                     "Elm_Colorselextor_Mode" : "int",
+                     "Elm_List_Mode" : "int",
+                     "Elm_Image_Orient"  : "int",
+                     "Elm_Map_Route_Type" : "int",
+                     "Elm_Map_Zoom_Mode" : "int",
+                     "Elm_Map_Source_Type" : "int",
+                     "Elm_Clock_Edit_Mode" : "int",
+                     "Elm_Dayselector_Day" : "int",
+                     "Elm_Thumb_Animation_Setting" : "int",
+                     "Elm_Win_Keyboard_Mode" : "int",
+                     "Elm_Toolbar_Shrink_Mode" : "int",
+                     "Elm_Icon_Lookup_Order" : "int",
+                     "Elm_Datetime_Field_Type" : "int",
+                     "Elm_Gesture_Type" : "int",
+                     "Evas_BiDi_Direction" : "int",
+                     "Elm_Bubble_Pos" : "int",
+                     "Ecore_X_Window" : "unsigned int",
+
+                     "Elm_Flip_Interaction" : "int",
+                     "Elm_Flip_Direction" : "int",
+                     "Elm_Flip_Interaction" : "int",
+                     "Elm_Flip_Mode" : "int",
+                     "Elm_Calendar_Weekday" : "int",
+                     "Elm_Calendar_Selectable" : "int",
+                     "Elm_Calendar_Weekday" : "int",
+                     "Elm_Calendar_Select_Mode" : "int",
+                     "Elm_Illume_Command" : "int",
+                     "Elm_Win_Keyboard_Mode" : "int",
+                     "Elm_Win_Indicator_Opacity_Mode" : "int",
+                     "Elm_Win_Indicator_Mode" : "int",
+                     "Ecore_Wl_Window" : "int",
+                     "Elm_GLView_Render_Policy" : "int",
+                     "Elm_GLView_Mode" : "int",
+                     "Elm_Panel_Orient" : "int",
+                     "Elm_Popup_Orient" : "int",
+                     "Elm_Wrap_Type" : "int",
+                     "Elm_Cnp_Mode" : "int",
+                     "Elm_Input_Panel_Lang" : "int",
+                     "Elm_Text_Format" : "int",
+                     "Elm_Input_Panel_Return_Key_Type" : "int",
+                     "Elm_Wrap_Type" : "int",
+                     "Elm_Autocapital_Type" : "int",
+                     "Elm_Text_Format" : "int",
+                     "Elm_Object_Select_Mode" : "int",
+                     "Elm_List_Mode" : "int",
                      "Eo_Callback_Priority": "short"}
 
 
@@ -114,7 +187,7 @@ class Cparser(object):
   #event_desc structure
   # { EV_CLICKED, EV_BUTTON_DOWN, EV_BUTTON_UP, NULL  }
   #
-    reg = "Eo_Event_Description[ *]*([a-zA-Z0-9_]*)[][ =]*{([^}]*)};"
+    reg = "Eo_Event_Description[ *]*([\w]*)[][ =]*{([^}]*)};"
     af = _in_data.replace("\n", "")
     ev_list = re.findall(reg, af)
 
@@ -130,20 +203,21 @@ class Cparser(object):
    #  fetching
    #  op description
    #
-    reg = "Eo_Op_Description[ ]*([a-zA-Z0-9_]*)\[\][ =]*{([^}]*)};"
+    reg = "Eo_Op_Description[ ]*([\w]*)\[\][ =]*{([^}]*)};"
     all_op_descs = re.findall(reg, af)
     op_desc = {"NULL" : []}
     for tup in all_op_descs:
       s_tmp = tup[1]
       # fetching op_ids and descriptions
-      reg =  "EO_OP_DESCRIPTION[^\)]*\([ ]*([A-Z_]*)[ ]*,[ ]*\"([^\"]*)\"[ ]*\),"
+      reg =  "EO_OP_DESCRIPTION[^\)]*\([ ]*([A-Z0-9_]*)[ ]*,[ ]*\"([^\"]*)\"[ ]*\),"
       ids_and_descs = re.findall(reg, s_tmp)
 
       op_list = []
       for t in ids_and_descs:
          op_id = t[0] #op_id
          func_name = re.findall("SUB_ID_(.*)", op_id)
-         op_list.append((op_id, func_name[0].lower()))
+         func_name = func_name[0].lower()
+         op_list.append((op_id, func_name))
 
       op_desc[tup[0]] = op_list
 
@@ -161,7 +235,7 @@ class Cparser(object):
     #[7]    NULL
     # }
     #
-    reg = "Eo_Class_Description[ ]*([a-zA-Z0-9_]*)[ =]*{([^}]*)};"
+    reg = "Eo_Class_Description[ ]*([\w]*)[ =]*{([^}]*)};"
     desc_list = re.findall(reg, af)
 
     for tup in desc_list:
@@ -189,7 +263,6 @@ class Cparser(object):
             name = ll[0]
 
        name = name.strip("\"")
-#       l_tmp = tup[1].split(",")
        class_desc[key] = [name, cl_type, desc_ops, ev_desc[ev_desc_var]]
 
     #mapping class_desc_var_name to content
@@ -238,12 +311,7 @@ class Cparser(object):
        for tup in class_desc_ops[1]:
           self.cl_data[cl_id][const.FUNCS][tup[1]] = {const.OP_ID : tup[0], const.C_MACRO: ""}
 
-       s = class_desc_ops[0]
-       if s == "NULL" and cl_name == "Eo Base":
-#FIXME: hardcoded EO_BASE_BASE_ID
-         print cl_name, "Warning: hardcoded EO_BASE_BASE_ID"
-         s = "EO_BASE_BASE_ID"
-       self.cl_data[cl_id][const.BASE_ID] = s
+       self.cl_data[cl_id][const.BASE_ID] = class_desc_ops[0]
 
 
   #  resolving parameters's types and names according to
@@ -256,37 +324,46 @@ class Cparser(object):
     op_desc = self.cl_data[cl_id][const.OP_DESC]
     defines = self.cl_data[cl_id][const.DEFINES]
     macros = self.cl_data[cl_id][const.OP_MACROS]
+    b_id = self.cl_data[cl_id][const.BASE_ID]
+    b_id_macro = ""
+    for d in defines:
+      o = re.match("#define ([\w]*)\(([^\)]*)\) \(%s[\W]*\\2[\W]*\)"%(b_id), d)
+      if o != None:
+         b_id_macro = o.group(1)
 
     #looking for op_id in define; if found, cutting op_macro from define
     #and checking if it is in macros list. If not - we forgot to add comment
     #if yes - cutting types from define
     for op, f in op_desc:
+       found = False
        for d in defines:
-         pos = d.find(op)
-         if pos != -1 and d[pos : d.find(")", pos)] == op:
-           s_tmp = d[d.find(' ') + 1:]
-           s_tmp = s_tmp.replace(" ", "")
-           s_tmp = s_tmp.split('(')[0]
+         # looking for #define elm_obj_flip_get ELM_OBJ_FLIP_ID(ELM_OBJ_FLIP_SUB_ID_GET)
+         o = re.match("#define ([\w]*)\([^\)]*\) %s\(%s\).*"%(b_id_macro, op), d)
+         if o != None:
+           found = True
+           s_tmp = o.group(1)
+
            if s_tmp not in macros:
               print "Warning: no comments for \"%s\"; file: \"%s\" "%(s_tmp, self.cl_data[cl_id][const.H_FILE])
            else:
 
              params = []
-             params_direction =  macros[s_tmp]
+             params_direction = macros[s_tmp]
              reg = "%s\(([^,]*),([^,]*)\)"%const.EO_TYPECHECK
              ss = re.findall(reg, d)
 
              i = 0
              for tup in ss:
                 lst = list(tup)
+                modifier = "const" if lst[0].find("const") != -1 else ""
                 lst[0] = lst[0].replace("const", "")
                 lst[0] = " ".join(lst[0].split())
                 lst[0] = lst[0].replace(" *", "*")
                 lst[1] = lst[1].replace(" ", "")
                 if len(lst) == 2:
                    try:
-                     tok =  ",".join(list(params_direction[i]))
-                     params.append((lst[1], lst[0], tok))
+                     tok = params_direction[i]
+                     params.append((lst[1], modifier, lst[0], tok))
                    except IndexError:
                      print "Warning: error in description %s in  %s"%(s_tmp,self.cl_data[cl_id][const.H_FILE])
 
@@ -294,22 +371,26 @@ class Cparser(object):
                    print "ERROR: check parameters in EO_TYPECHECK"
                    exit(1)
                 i += 1
-
              self.cl_data[cl_id][const.FUNCS][f][const.PARAMETERS] = params
              self.cl_data[cl_id][const.FUNCS][f][const.C_MACRO] = s_tmp
+         
+       if not found:
+         print "Warning: no API for %s in  %s"%(op, self.cl_data[cl_id][const.H_FILE])
+         print "Function won't be added"
+         self.cl_data[cl_id][const.FUNCS].pop(f)
+
 
 
   #generating XML
   def build_xml(self, cl_id):
-    #FIXME: because i don't parse several EO_DEFINE_CLASS in file
-    #if const.C_NAME not in self.cl_data[cl_id]:
-     # return
     self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, normalize_names([self.cl_data[cl_id][const.C_NAME]])[0] + ".xml")
 
     cl_data = self.cl_data[cl_id]
 
     module = Element(const.MODULE)
     module.set(const.NAME, cl_data[const.C_NAME])
+
+    SubElement(module, const.PARSE_VERSION, {const.NUM : const.VER_NUM} )
     SubElement(module, const.INCLUDE, {const.NAME: os.path.split(cl_data[const.H_FILE])[1]})
 
     cl_parent = ""
@@ -355,16 +436,19 @@ class Cparser(object):
     for k in cl_data[const.FUNCS]:
         SubElement(op_tag, const.XML_SUB_ID, {const.NAME:cl_data[const.FUNCS][k][const.OP_ID]})
 
+        c_macro = cl_data[const.FUNCS][k][const.C_MACRO]
+        #if generating XML not for base class, change func name to avoid name clash
+        func_name = k if cl_id == "EO_BASE_CLASS" else c_macro
 
-        m = SubElement(m_tag, const.METHOD, {const.NAME : k,
+        m = SubElement(m_tag, const.METHOD, {const.NAME : func_name,
                                       const.OP_ID:cl_data[const.FUNCS][k][const.OP_ID],
-                                      const.C_MACRO:cl_data[const.FUNCS][k][const.C_MACRO]})
+                                      const.C_MACRO:c_macro})
 
         #defining parameter type
         if const.PARAMETERS in cl_data[const.FUNCS][k]:
           params = cl_data[const.FUNCS][k][const.PARAMETERS]
-          for v, t, d in params:
-             p = SubElement(m, const.PARAMETER, {const.NAME:v, const.C_TYPENAME:t, const.PRIMARY_TYPE : self.typedef_resolve(t),const.DIRECTION:d})
+          for v_name, modifier, t, d in params:
+             p = SubElement(m, const.PARAMETER, {const.NAME:v_name, const.MODIFIER:modifier, const.C_TYPENAME:t, const.PRIMARY_TYPE : self.typedef_resolve(t),const.DIRECTION:d})
 
 
     if const.EV_DESC in cl_data:
@@ -383,6 +467,15 @@ class Cparser(object):
     f.write(res)
     f.close()
 
+  def get_param_dir_from_comment(self, com):
+     res = re.findall("@param.*", com)
+     l_tmp = []
+     for s in res:
+       s = s.replace(" ", "")
+       ret = re.match("@param\[([inout,]*)\]", s)
+       l_tmp.append(ret.group(1) if (ret != None and ret.group(1) in ["in", "out", "in,out"]) else "in,out");
+     return l_tmp
+
   #parsing header file
   def h_file_data_get(self, filename):
     f = open (filename, 'r')
@@ -391,71 +484,28 @@ class Cparser(object):
 
    #fetch all "#define" from file
     matcher = re.compile(r"^[ \t]*(#define(.*\\\n)*.*$)",re.MULTILINE)
-    ss = matcher.findall(allfile, re.MULTILINE)
-    d_list = []
+    ss = matcher.findall(allfile)
+    def_list = []
     for tup in ss:
       s_tmp = tup[0].replace("\n", "").replace("\\", "")
       s_tmp = " ".join(s_tmp.split())
-      d_list.append(s_tmp)
+      def_list.append(s_tmp)
 
-    def_list = d_list
-
-    """
     #fetch all "@def" from file
-    #matcher = re.compile(r"^/\*\*( \*.*\n)*.*\*/$",re.MULTILINE)
-    matcher = re.compile("(^/\*\*\n( \*.*\n)*.* \*/$)",re.MULTILINE)
-    ss = matcher.findall(allfile, re.MULTILINE)
-    for s in ss:
-       print "s====================", s[0]
-       """
-
-   #fetch all data from "@def" comments
+    matcher = re.compile("(^/\*\*\n(((.(?!\*/))*\n)*).*\*/$)",re.MULTILINE)
+    all_comments_list = matcher.findall(allfile)
     macro = {}
-    pos = allfile.find("@def")
-    while pos != -1:
-      pos_start = pos
-      pos_end = allfile.find("*/", pos_start)
-      if pos_end != -1:
-        tmp = allfile[pos_start : pos_end]
-        #tmp = tmp.replace("\n", "") #deleting next string
-        tmp = tmp.replace("*", "") #removing *
-        lst = tmp.split("\n")
+    for comment in all_comments_list:
+         comment_tmp = comment[1]
 
-        lst = filter(macro_filter_func, lst)
+         #looking for @def token in comment
+         res = re.search("@def[ ]+([\w]*)", comment_tmp)
+         if res == None:
+            continue
 
-        for i in range(len(lst)):
-          lst[i] = " ".join(lst[i].split()) #removing more than one spaces
-
-        macro_name = lst[0]
-        par_lst = []
-        macro_name = macro_name.split("(")[0]
-
-        macro_name = macro_name[macro_name.find(" ")+1:].strip(" ")
-        for l in lst:
-          if l.startswith("@param"):
-             s = ""
-             s1 = re.match("@param\[(in|out|in,out)\]", l)
-             if s1:
-                s = s1.group(1)
-             s = s.replace(" ", "")
-             s_tmp = []
-             if s != "":
-                s = s.split(",")
-                if "in" in s:
-                   s_tmp.append("in")
-                if "out" in s:
-                   s_tmp.append("out")
-             else:
-                s_tmp.append("in")
-                s_tmp.append("out")
-             t = tuple(s_tmp)
-             if len(t) == 0:
-                print "ERROR: check parameter's description in #define %s"%(macro_name)
-                exit(1)
-             par_lst.append(t)
-      macro[macro_name] = par_lst
-
-      pos = allfile.find("@def", pos_end)
+         macro_name = res.group(1)
+         #looking for parameters direction in comment
+         macro[macro_name] = self.get_param_dir_from_comment(comment_tmp)
 
     #looking for class_get function to get class macro
     current_class = ""
@@ -465,10 +515,10 @@ class Cparser(object):
     for k in self.cl_data:
       pos = 0
       get_func = ""
-
+      
       for d in def_list: 
         # looking for #define SOME_CLASS some_class_get()
-        reg = '#define[ ]*[a-zA-Z_]*[ ]*%s\(\)'%k
+        reg = '#define[ ]*[\w]*[ ]*%s\(\)'%k
         res = re.findall(reg, d)
         if re.match(reg, d):
           lst = d.split()

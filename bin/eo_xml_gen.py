@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from eo_parser.helper import dir_files_get, abs_path_get, isC, isH, isXML
-from eo_parser.helper import _const
-from eo_parser.XMLparser import XMLparser
-from eo_parser.Cparser import Cparser
+from eoparser.helper import dir_files_get, abs_path_get, isC, isH, isXML
+from eoparser.helper import _const
+from eoparser.xmlparser import XMLparser
+from eoparser.cparser import Cparser
 from argparse import ArgumentParser
 import sys
 
@@ -19,20 +19,20 @@ def main():
 
   parser = ArgumentParser()
   parser.add_argument("-d", "--dir", dest="directory",
-                  action="append", help="source files")
+                  action="append", help="Source C-files to introspect", required=True)
 
   parser.add_argument("-o", "--outdir", dest="outdir",
-                  action="store", help="output directory")
+                  action="store", help="Output directory", required=True)
 
   parser.add_argument("-t", "--typedefs", dest="typedefs",
                   action="store", help="Additional typedefs for parser")
 
-  parser.add_argument("-i", "--include", dest="xmldir", default = sys.path,
-                  action="append", help="Include xml directory")
+  parser.add_argument("-X", "--xmldir", dest="xmldir", default = sys.path,
+                  action="append", help="Directory to search for parent classes's XMLs")
 
   parser.add_argument("-v", "--verbose",
                   action="store_true", dest="verbose", default=False,
-                  help="print status messages to stdout")
+                  help="Verbose output")
 
   args = parser.parse_args()
   verbose_print = None
@@ -47,24 +47,14 @@ def main():
   typedefs = ""
   xmldir = []
 
-  if args.directory == None:
-    print "No source directory was provided"
-    exit(1)
-  elif args.outdir == None:
-    print "No out directory was provided"
-    exit(1)
-  else:
-    directories = abs_path_get(args.directory)
-    if args.xmldir is not None:
-      xmldir = abs_path_get(args.xmldir, False)# not abort if dir doesn't exist
+  directories = abs_path_get(args.directory)
+  outdir = abs_path_get([args.outdir])[0]
 
-    outdir = abs_path_get([args.outdir])[0]
+  if args.xmldir is not None:
+    xmldir = abs_path_get(args.xmldir, False)# not abort if dir doesn't exist
 
   if args.typedefs != None:
     typedefs = abs_path_get([args.typedefs])[0]
-
-  verbose_print("dirs %s"%directories)
-  verbose_print("outdir %s"%outdir)
 
   files = dir_files_get(directories)
   c_files = filter(isC, files)
@@ -85,7 +75,6 @@ def main():
   #fetching data from h-file
   for f in h_files:
     cp.h_file_data_get(f)
-
 
   #remove records, which are not class, t.e. they don't have GET_FUNCTION key
   cl_data_tmp = dict(cp.cl_data) #deep copy of dictionary
@@ -109,8 +98,6 @@ def main():
   cl_data_tmp2 = dict(cp.cl_data)
   parents_to_find = filter(lambda ll: True if ll not in cl_data_tmp2 else False, list_of_parents)
 
-  verbose_print("parents_to_find: %s"%parents_to_find)
-
   #if we have parents to find
   if len(parents_to_find) != 0:
     if len(xmldir) == 0:
@@ -123,7 +110,6 @@ def main():
     if len(xml_files) == 0:
       print "ERROR: no include files found for %s classes... Aborting..."% ",".join(parents_to_find)
       exit(1)
-    verbose_print("xml_files: %s\n"%xml_files)
 
     #parsing include XMLs
     xp = XMLparser()
@@ -139,7 +125,6 @@ def main():
          parents_to_find.pop(i)
     del xp
 
-
     #if there are still parents, which we need to find - exit
     if len(parents_to_find) != 0:
       print "ERROR: XML files weren't found for %s classes... Aborting"%(",".join(parents_to_find))
@@ -149,7 +134,6 @@ def main():
   for k in cp.cl_data:
     cp.build_xml(k)
 
-  #cp.print_data()
   del cp
 
 if __name__ == "__main__":
