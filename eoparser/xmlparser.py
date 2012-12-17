@@ -202,10 +202,10 @@ class JsVisitor(Visitor):
          self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_SET_CALLBACK(%s, %s);\n"%(_o.cl_obj.kl_id, prop_name))
          self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_GET_CALLBACK(%s, %s);\n"%(_o.cl_obj.kl_id, prop_name))
          self.class_info.public.append("   Handle<Value> %s%s_get() const;\n"%(self.func_name_prefix, prop_name))
-         self.class_info.public.append("   void %s%s_set(Handle<Value> val);\n"%(self.func_name_prefix, prop_name))
+         self.class_info.public.append("   void %s%s_set(Handle<Value> _val);\n"%(self.func_name_prefix, prop_name))
 
          self.h_file.prop_cb_headers.append("   Handle<Value> Callback_%s_get(Local<String>, const AccessorInfo &info);\n"%(prop_name))
-         self.h_file.prop_cb_headers.append("   void Callback_%s_set(Local<String>, Local<Value> val, const AccessorInfo &info);\n"%(prop_name))
+         self.h_file.prop_cb_headers.append("   void Callback_%s_set(Local<String>, Local<Value> _val, const AccessorInfo &info);\n"%(prop_name))
          self.c_file.tmpl.append("   PROPERTY(%s)"% prop_name)
 
 
@@ -216,11 +216,11 @@ class JsVisitor(Visitor):
        #self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_GET_EMPTY_CALLBACK(%s, %s);\n"%(_o.cl_obj.kl_id, prop_name))
 
        #self.class_info.public.append("   Handle<Value> %s%s_get() const;\n"%(self.func_name_prefix, prop_name))
-       self.class_info.public.append("   void %s%s_set(Handle<Value> val);\n"%(self.func_name_prefix, prop_name))
+       self.class_info.public.append("   void %s%s_set(Handle<Value> _val);\n"%(self.func_name_prefix, prop_name))
 
        self.c_file.tmpl.append("   PROPERTY_SO(%s)"% prop_name)
        #self.h_file.prop_cb_headers.append("   Handle<Value> Callback_%s_get(Local<String>, const AccessorInfo &info);\n"%(prop_name))
-       self.h_file.prop_cb_headers.append("   void Callback_%s_set(Local<String>, Local<Value> val, const AccessorInfo &info);\n"%(prop_name))
+       self.h_file.prop_cb_headers.append("   void Callback_%s_set(Local<String>, Local<Value> _val, const AccessorInfo &info);\n"%(prop_name))
 
      elif _o.prop_type == const.GET_ONLY:
        self.visit_prop_set_get(_o)
@@ -229,11 +229,11 @@ class JsVisitor(Visitor):
        #self.c_file.cb_generate_macros.append("EO_GENERATE_PROPERTY_SET_EMPTY_CALLBACK(%s, %s);\n"%(_o.cl_obj.kl_id, prop_name))
 
        self.class_info.public.append("   Handle<Value> %s%s_get() const;\n"%(self.func_name_prefix, prop_name))
-       #self.class_info.public.append("   void %s%s_set(Handle<Value> val);\n"%(self.func_name_prefix, prop_name))
+       #self.class_info.public.append("   void %s%s_set(Handle<Value> _val);\n"%(self.func_name_prefix, prop_name))
 
        self.c_file.tmpl.append("   PROPERTY_RO(%s)"% prop_name)
        self.h_file.prop_cb_headers.append("   Handle<Value> Callback_%s_get(Local<String>, const AccessorInfo &info);\n"%(prop_name))
-       #self.h_file.prop_cb_headers.append("   void Callback_%s_set(Local<String>, Local<Value> val, const AccessorInfo &info);\n"%(prop_name))
+       #self.h_file.prop_cb_headers.append("   void Callback_%s_set(Local<String>, Local<Value> _val, const AccessorInfo &info);\n"%(prop_name))
 
      elif _o.prop_type == const.METHOD:
        self.visit_method(_o)
@@ -253,12 +253,12 @@ class JsVisitor(Visitor):
 
     self.class_info.public.append("\n")
     self.class_info.public.append("   Handle<Value> %s%s_get() const;\n"%(self.func_name_prefix, ev))
-    self.class_info.public.append("   void %s%s_set(Handle<Value> val);\n"%(self.func_name_prefix,ev))
+    self.class_info.public.append("   void %s%s_set(Handle<Value> _val);\n"%(self.func_name_prefix,ev))
     self.class_info.public.append("   void %s%s(void *event_info);\n"%(self.func_name_prefix,ev))
     self.class_info.public.append("   static Eina_Bool %s%s_wrapper(void *data, Eo *obj, const Eo_Event_Description *desc, void *event_info);\n"%(self.func_name_prefix,ev))
 
     self.h_file.ev_cb_headers.append("   Handle<Value> Callback_%s_get(Local<String>, const AccessorInfo &info);\n"%(ev))
-    self.h_file.ev_cb_headers.append("   void Callback_%s_set(Local<String>, Local<Value> val, const AccessorInfo &info);\n"%(ev))
+    self.h_file.ev_cb_headers.append("   void Callback_%s_set(Local<String>, Local<Value> _val, const AccessorInfo &info);\n"%(ev))
 
     #event function
     self.c_file.functions.append("void %s::%s%s(void *event_info) //parse of event_info need to be added \n"%(_o.cl_obj.kl_id, self.func_name_prefix, ev))
@@ -288,9 +288,9 @@ class JsVisitor(Visitor):
     self.c_file.functions.append("\n")
 
           #event function set
-    self.c_file.functions.append("void %s::%s%s_set(Handle<Value> val)\n"%(_o.cl_obj.kl_id, self.func_name_prefix, ev))
+    self.c_file.functions.append("void %s::%s%s_set(Handle<Value> _val)\n"%(_o.cl_obj.kl_id, self.func_name_prefix, ev))
     self.c_file.functions.append("{\n")
-    self.c_file.functions.append("  if (!val->IsFunction())\n\
+    self.c_file.functions.append("  if (!_val->IsFunction())\n\
                     return;\n")
     self.c_file.functions.append("  if (!cb.%s.IsEmpty())\n\
                   {\n\
@@ -298,7 +298,7 @@ class JsVisitor(Visitor):
                      cb.%s.Clear();\n\
                      eo_do(eobj, eo_event_callback_del(%s, %s%s_wrapper, dynamic_cast<CElmObject*>(this)));\n\
                   }\n"%(ev_prefix, ev_prefix, ev_prefix, _o.ev_id, self.func_name_prefix, ev))
-    self.c_file.functions.append("  cb.%s = Persistent<Value>::New(val);\n\
+    self.c_file.functions.append("  cb.%s = Persistent<Value>::New(_val);\n\
                   eo_do(eobj, eo_event_callback_add(%s, %s%s_wrapper, dynamic_cast<CElmObject*>(this)));\n"%(ev_prefix, _o.ev_id, self.func_name_prefix, ev))
     self.c_file.functions.append("}\n")
     self.c_file.functions.append("\n")
@@ -531,13 +531,13 @@ class JsVisitor(Visitor):
   def prop_set_generate(self, _o, params_tmp):
     self.c_file.functions.append("/* generated by 'prop_set_generate() ' */\n")
 
-    self.c_file.functions.append("void %s::%s%s(Handle<Value> val)\n"%(_o.cl_obj.kl_id, self.func_name_prefix, _o.name))
+    self.c_file.functions.append("void %s::%s%s(Handle<Value> _val)\n"%(_o.cl_obj.kl_id, self.func_name_prefix, _o.name))
     self.c_file.functions.append("{\n")
 
     pass_params = []
     add_end_func = []
     if len(params_tmp) > 1:
-      self.c_file.functions.append("   Local<Object> __o = val->ToObject();\n")
+      self.c_file.functions.append("   Local<Object> __o = _val->ToObject();\n")
 
       for (modifier, c_t, n, d, c_t_internal, js_type) in params_tmp:
         casting = "(%s %s)"%(modifier, c_t)
@@ -568,17 +568,17 @@ class JsVisitor(Visitor):
          casting = "(%s %s)"%(modifier, c_t)
          if js_type == "ToString":
            self.c_file.functions.append("   %s %s;\n"%(c_t_internal, n))
-           self.c_file.functions.append("   %s = strdup(*String::Utf8Value(val->%s()));\n"%(n, js_type))
+           self.c_file.functions.append("   %s = strdup(*String::Utf8Value(_val->%s()));\n"%(n, js_type))
            self.c_file.functions.append("   if (!strcmp(%s, \"null\")) %s = NULL;\n"%(n, n))
            add_end_func.append("   free(%s);\n"%n)
            pass_params.append(casting + n)
          elif js_type == "ToEo":
            self.c_file.functions.append("  %s %s;\n"%(c_t_internal, n))
-           self.c_file.functions.append("   %s = static_cast<CElmObject*>(val->ToObject()->GetPointerFromInternalField(0))->GetEo();\n"%(n))
+           self.c_file.functions.append("   %s = static_cast<CElmObject*>(_val->ToObject()->GetPointerFromInternalField(0))->GetEo();\n"%(n))
            pass_params.append(casting + n)
          else:
            self.c_file.functions.append("  %s %s;\n"%(c_t_internal, n))
-           self.c_file.functions.append("   %s = val->%s()->Value();\n"%(n, js_type))
+           self.c_file.functions.append("   %s = _val->%s()->Value();\n"%(n, js_type))
 
            if c_t.find("*") != -1:
              pass_params.append(casting + '&' + n)
@@ -611,7 +611,7 @@ class JsVisitor(Visitor):
   # is called by prop_set_get_visit, to generate body for property setter
   def prop_set_err_generate(self, _o, params_tmp):
     self.c_file.functions.append("/* generated by 'prop_set_err_generate() ' */\n")
-    self.c_file.functions.append("void %s::%s%s(Handle<Value> val)\n"%(_o.cl_obj.kl_id, self.func_name_prefix, _o.name))
+    self.c_file.functions.append("void %s::%s%s(Handle<Value> _val)\n"%(_o.cl_obj.kl_id, self.func_name_prefix, _o.name))
     self.c_file.functions.append("{\n")
     self.c_file.functions.append("   printf(\"%s : This method wasn't implemented becase of type issue\\n\",__func__);")
     self.c_file.functions.append("}\n")

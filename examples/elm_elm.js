@@ -172,6 +172,7 @@ w.elm_obj_win_center(1, 1)
 
 w.elements.ba.evas_obj_visibility = false
 w.elements.ba.elm_wdg_text_part_set(null, "Button")
+w.elements.shalom_bt.elm_wdg_text_part_set(null, "Big Button")
 w.elements.ba.evas_obj_visibility = true
 var t = w.elements.ba.elm_wdg_text_part_get(null)
 print ("====================")
