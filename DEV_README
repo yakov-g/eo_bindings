@@ -292,4 +292,6 @@ language bindings for C libraries based on Eo (E Object) library,
     3. In repo need to save module's h files, to include into childs modules
     4. So each module must install some desc file: {class name : header}
 
+    5. Check for "visibility" prop which is hardcoded in CElmObject.
+
 
