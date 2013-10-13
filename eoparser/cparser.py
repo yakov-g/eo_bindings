@@ -9,6 +9,8 @@ from helper import _const
 
 const = _const()
 
+LOCAL_CPARSER = True
+
 #filter func to throw out from comment everything
 #but the @def, @param
 def macro_filter_func(l):

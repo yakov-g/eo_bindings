@@ -4,6 +4,7 @@ from eoparser.helper import dir_files_get, abs_path_get, isC, isH, isXML
 from eoparser.helper import _const
 from eoparser.xmlparser import XMLparser
 from eoparser.cparser import Cparser
+from eoparser.cparser import LOCAL_CPARSER
 from argparse import ArgumentParser
 import sys
 
@@ -17,6 +18,10 @@ def verbose_false(mes):
 
 def main():
 
+  print "Hello"
+  if not LOCAL_CPARSER:
+     print "Wrong cparser imported:"
+     exit()
   parser = ArgumentParser()
   parser.add_argument("-d", "--dir", dest="directory",
                   action="append", help="Source C-files to introspect", required=True)
@@ -33,6 +38,10 @@ def main():
   parser.add_argument("-v", "--verbose",
                   action="store_true", dest="verbose", default=False,
                   help="Verbose output")
+
+  parser.add_argument("-E", "--eo",
+                  action="store_true", dest="eoformat", default=False,
+                  help="Generate *.eo description files")
 
   args = parser.parse_args()
   verbose_print = None
@@ -87,6 +96,15 @@ def main():
   #mapping #defines, comments(@def) and op_ids together, to parse parameters
   for k in cp.cl_data:
     cp.parse_op_func_params(k)
+
+  #if we want to generate Eo format we don't need parents
+  # because we only generate description
+  if args.eoformat:
+     print "e!"
+     exit(0)
+
+
+  # here starts parent dependency search and XML build
 
   #creating list of all parents for classes which are in tree
   list_of_parents = []
