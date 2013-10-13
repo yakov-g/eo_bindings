@@ -18,7 +18,6 @@ def verbose_false(mes):
 
 def main():
 
-  print "Hello"
   if not LOCAL_CPARSER:
      print "Wrong cparser imported:"
      exit()
@@ -100,7 +99,9 @@ def main():
   #if we want to generate Eo format we don't need parents
   # because we only generate description
   if args.eoformat:
-     print "e!"
+     #building XMLs
+     for k in cp.cl_data:
+       cp.build_eo(k)
      exit(0)
 
 
