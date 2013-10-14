@@ -486,6 +486,16 @@ class Cparser(object):
        l_tmp.append((direct, comment))
      return l_tmp
 
+  def get_brief_desc_from_comment(self, com):
+     res = re.findall("@brief(.*)", com)
+     desc = res[0] if res else ""
+     return desc
+
+  def get_desc_from_comment(self, com):
+     m = re.sub("@.*\n", "", com)
+     m = m.replace("*", "").strip()
+     return m
+
   #parsing header file
   def h_file_data_get(self, filename):
     f = open (filename, 'r')
@@ -516,6 +526,9 @@ class Cparser(object):
          macro_name = res.group(1)
          #looking for parameters direction and desc in comment
          macro[macro_name] = self.get_param_dir_from_comment(comment_tmp)
+         #save comment for method
+         self.get_brief_desc_from_comment(comment_tmp)
+         self.get_desc_from_comment(comment_tmp)
 
     #looking for class_get function to get class macro
     current_class = ""
