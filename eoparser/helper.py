@@ -53,9 +53,9 @@ class _const:
     self.SUB_ID = "SUB_ID_"
     self.EO_TYPECHECK = "EO_TYPECHECK"
 
-    self.SET_ONLY = 0
-    self.GET_ONLY = 1
-    self.SET_GET = 2
+    self.SET_ONLY = "set_only"
+    self.GET_ONLY = "get_only"
+    self.SET_GET = "set_get"
     self.METHOD = "method" #used as type id for property; and as xml tag
 
     self.EXTENSIONS = "extensions"  #used as xml-tag

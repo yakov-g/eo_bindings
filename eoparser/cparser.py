@@ -648,9 +648,71 @@ class Cparser(object):
     res = minidom.parseString(res)
     res = res.toprettyxml(indent="  ")
 
+    #resolve funcs/set/get/properties
+    func_name_list_not_visited = []
+    for name in cl_data[const.FUNCS]:
+      func_name_list_not_visited.append(name) 
+
+    cl_data[const.METHOD] = []
+    cl_data[const.SET_GET] = []
+    cl_data[const.SET_ONLY] = []
+    cl_data[const.GET_ONLY] = []
+    for i, v in cl_data[const.FUNCS].iteritems():
+       T = ""
+       if cl_data[const.C_NAME] == "Eo Base":
+         T = const.METHOD
+         cl_data[T].append(i)
+         continue
+
+       #check if both properties are in tree; and if they are in,
+       # if their parameters are all in or out
+       prefix = i[:-4] 
+       postfix = i[-4:]
+       if postfix in ["_set", "_get"]:
+          if prefix + "_set" in func_name_list_not_visited and prefix + "_get" in func_name_list_not_visited:
+             T = const.SET_GET
+             for (n, m ,t1, d) in cl_data[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
+               if d != "in":
+                 T = const.METHOD
+
+             for (n, m ,t1, d) in cl_data[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
+               if d != "out":
+                 T = const.METHOD
+
+             if (T == const.SET_GET):
+                cl_data[T].append(prefix)
+             else:
+                cl_data[T].append(prefix + "_set")
+                cl_data[T].append(prefix + "_get")
+
+             func_name_list_not_visited.remove(prefix + "_set")
+             func_name_list_not_visited.remove(prefix + "_get")
+
+          elif prefix + "_set" in func_name_list_not_visited:
+             T = const.SET_ONLY
+             for (n, m ,t1, d) in cl_data[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
+               if d != "in":
+                 T = const.METHOD
+             cl_data[T].append(i)
+             func_name_list_not_visited.remove(i)
+
+          elif prefix + "_get" in func_name_list_not_visited:
+             T = const.GET_ONLY
+             for (n, m ,t1, d) in cl_data[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
+               if d != "out":
+                 T = const.METHOD
+             cl_data[T].append(i)
+             func_name_list_not_visited.remove(i)
+
+       else:
+         T = const.METHOD
+         cl_data[T].append(i)
+         func_name_list_not_visited.remove(i)
+
+
     lines = []
     parents = []
-    tab = "\t"
+    tab = "     "
     tab_level = 0
 
     parents.append(cl_parent)
@@ -663,6 +725,68 @@ class Cparser(object):
     tab_level -= 1
     lines.append("%s%s"%(tab_level * tab, "}"))
 
+
+    #properties
+    lines.append("properties")
+    lines.append("%s%s"%(tab_level * tab, "{"))
+    tab_level += 1
+    for name in cl_data[const.SET_GET]:
+      lines.append("%s%s("%(tab_level * tab, name))
+      f = cl_data[const.FUNCS][name + "_set"]
+      tab_level += 1
+      for (n, m ,t1, d) in f[const.PARAMETERS]:
+         lines.append("%s%s %s,"%(tab_level * tab, t1, n))
+      tab_level -= 1
+      lines.append("%s);"%(tab_level * tab))
+    tab_level -= 1
+    lines.append("%s%s"%(tab_level * tab, "}"))
+
+    #properties_set
+    lines.append("properties_set")
+    lines.append("%s%s"%(tab_level * tab, "{"))
+    tab_level += 1
+    for name in cl_data[const.SET_ONLY]:
+      lines.append("%s%s("%(tab_level * tab, name))
+      f = cl_data[const.FUNCS][name]
+      tab_level += 1
+      for (n, m ,t1, d) in f[const.PARAMETERS]:
+         lines.append("%s%s %s,"%(tab_level * tab, t1, n))
+      tab_level -= 1
+      lines.append("%s);"%(tab_level * tab))
+    tab_level -= 1
+    lines.append("%s%s"%(tab_level * tab, "}"))
+
+    #properties_get
+    lines.append("properties_get")
+    lines.append("%s%s"%(tab_level * tab, "{"))
+    tab_level += 1
+    for name in cl_data[const.GET_ONLY]:
+      lines.append("%s%s("%(tab_level * tab, name))
+      f = cl_data[const.FUNCS][name]
+      tab_level += 1
+      for (n, m ,t1, d) in f[const.PARAMETERS]:
+         lines.append("%s%s %s,"%(tab_level * tab, t1, n))
+      tab_level -= 1
+      lines.append("%s);"%(tab_level * tab))
+    tab_level -= 1
+    lines.append("%s%s"%(tab_level * tab, "}"))
+
+    #methods
+    lines.append("methods")
+    lines.append("%s%s"%(tab_level * tab, "{"))
+    tab_level += 1
+    for name in cl_data[const.METHOD]:
+      lines.append("%s%s("%(tab_level * tab, name))
+      f = cl_data[const.FUNCS][name]
+      tab_level += 1
+      for (n, m ,t1, d) in f[const.PARAMETERS]:
+         lines.append("%s%s %s %s,"%(tab_level * tab, d, t1, n))
+      tab_level -= 1
+      lines.append("%s);"%(tab_level * tab))
+    tab_level -= 1
+    lines.append("%s%s"%(tab_level * tab, "}"))
+
+    #main brackets
     tab_level = 1
     new_buf = "%s =\n{\n"%(cl_data[const.C_NAME])
     for l in lines:
