@@ -364,8 +364,9 @@ class Cparser(object):
                 lst[1] = lst[1].replace(" ", "")
                 if len(lst) == 2:
                    try:
-                     tok = params_direction[i]
-                     params.append((lst[1], modifier, lst[0], tok))
+                     tok = params_direction[i][0]
+                     comment = params_direction[i][1]
+                     params.append((lst[1], modifier, lst[0], tok, comment))
                    except IndexError:
                      print "Warning: error in description %s in  %s"%(s_tmp,self.cl_data[cl_id][const.H_FILE])
 
@@ -449,8 +450,8 @@ class Cparser(object):
         #defining parameter type
         if const.PARAMETERS in cl_data[const.FUNCS][k]:
           params = cl_data[const.FUNCS][k][const.PARAMETERS]
-          for v_name, modifier, t, d in params:
-             p = SubElement(m, const.PARAMETER, {const.NAME:v_name, const.MODIFIER:modifier, const.C_TYPENAME:t, const.PRIMARY_TYPE : self.typedef_resolve(t),const.DIRECTION:d})
+          for v_name, modifier, t, d, c in params:
+             p = SubElement(m, const.PARAMETER, {const.NAME:v_name, const.MODIFIER:modifier, const.C_TYPENAME:t, const.PRIMARY_TYPE : self.typedef_resolve(t),const.DIRECTION:d, const.COMMENT:c})
 
 
     if const.EV_DESC in cl_data:
@@ -469,13 +470,20 @@ class Cparser(object):
     f.write(res)
     f.close()
 
+  # get perams direction and description from comment
   def get_param_dir_from_comment(self, com):
      res = re.findall("@param.*", com)
      l_tmp = []
      for s in res:
-       s = s.replace(" ", "")
-       ret = re.match("@param\[([inout,]*)\]", s)
-       l_tmp.append(ret.group(1) if (ret != None and ret.group(1) in ["in", "out", "in,out"]) else "in,out");
+       ret = re.match("@param[ ]*\[([inout,]*)\][ ]+[\w]+([ ,#@\w]*)", s)
+       direct = ""
+       comment = ""
+       if ret:
+          direct = ret.group(1)
+          comment = ret.group(2)
+          comment = comment.strip()
+       direct = direct if direct in ["in", "out", "in,out"] else "in,out"
+       l_tmp.append((direct, comment))
      return l_tmp
 
   #parsing header file
@@ -506,7 +514,7 @@ class Cparser(object):
             continue
 
          macro_name = res.group(1)
-         #looking for parameters direction in comment
+         #looking for parameters direction and desc in comment
          macro[macro_name] = self.get_param_dir_from_comment(comment_tmp)
 
     #looking for class_get function to get class macro
@@ -635,8 +643,8 @@ class Cparser(object):
         #defining parameter type
         if const.PARAMETERS in cl_data[const.FUNCS][k]:
           params = cl_data[const.FUNCS][k][const.PARAMETERS]
-          for v_name, modifier, t, d in params:
-             p = SubElement(m, const.PARAMETER, {const.NAME:v_name, const.MODIFIER:modifier, const.C_TYPENAME:t, const.PRIMARY_TYPE : self.typedef_resolve(t),const.DIRECTION:d})
+          for v_name, modifier, t, d, comment in params:
+             p = SubElement(m, const.PARAMETER, {const.NAME:v_name, const.MODIFIER:modifier, const.C_TYPENAME:t, const.PRIMARY_TYPE : self.typedef_resolve(t),const.DIRECTION:d, const.COMMENT:comment})
 
 
     if const.EV_DESC in cl_data:
@@ -671,11 +679,11 @@ class Cparser(object):
        if postfix in ["_set", "_get"]:
           if prefix + "_set" in func_name_list_not_visited and prefix + "_get" in func_name_list_not_visited:
              T = const.SET_GET
-             for (n, m ,t1, d) in cl_data[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
+             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
                if d != "in":
                  T = const.METHOD
 
-             for (n, m ,t1, d) in cl_data[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
+             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
                if d != "out":
                  T = const.METHOD
 
@@ -690,7 +698,7 @@ class Cparser(object):
 
           elif prefix + "_set" in func_name_list_not_visited:
              T = const.SET_ONLY
-             for (n, m ,t1, d) in cl_data[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
+             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
                if d != "in":
                  T = const.METHOD
              cl_data[T].append(i)
@@ -698,7 +706,7 @@ class Cparser(object):
 
           elif prefix + "_get" in func_name_list_not_visited:
              T = const.GET_ONLY
-             for (n, m ,t1, d) in cl_data[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
+             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
                if d != "out":
                  T = const.METHOD
              cl_data[T].append(i)
@@ -734,7 +742,7 @@ class Cparser(object):
       lines.append("%s%s("%(tab_level * tab, name))
       f = cl_data[const.FUNCS][name + "_set"]
       tab_level += 1
-      for (n, m ,t1, d) in f[const.PARAMETERS]:
+      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
          lines.append("%s%s %s,"%(tab_level * tab, t1, n))
       tab_level -= 1
       lines.append("%s);"%(tab_level * tab))
@@ -749,7 +757,7 @@ class Cparser(object):
       lines.append("%s%s("%(tab_level * tab, name))
       f = cl_data[const.FUNCS][name]
       tab_level += 1
-      for (n, m ,t1, d) in f[const.PARAMETERS]:
+      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
          lines.append("%s%s %s,"%(tab_level * tab, t1, n))
       tab_level -= 1
       lines.append("%s);"%(tab_level * tab))
@@ -764,7 +772,7 @@ class Cparser(object):
       lines.append("%s%s("%(tab_level * tab, name))
       f = cl_data[const.FUNCS][name]
       tab_level += 1
-      for (n, m ,t1, d) in f[const.PARAMETERS]:
+      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
          lines.append("%s%s %s,"%(tab_level * tab, t1, n))
       tab_level -= 1
       lines.append("%s);"%(tab_level * tab))
@@ -779,8 +787,8 @@ class Cparser(object):
       lines.append("%s%s("%(tab_level * tab, name))
       f = cl_data[const.FUNCS][name]
       tab_level += 1
-      for (n, m ,t1, d) in f[const.PARAMETERS]:
-         lines.append("%s%s %s %s,"%(tab_level * tab, d, t1, n))
+      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+         lines.append("%s%s %s %s /* %s */,"%(tab_level * tab, d, t1, n, c))
       tab_level -= 1
       lines.append("%s);"%(tab_level * tab))
     tab_level -= 1

@@ -72,6 +72,7 @@ class _const:
     self.C_TYPENAME = "c_typename" #used as xml-tag
     self.PRIMARY_TYPE = "primary_type" #used as xml-tag
     self.DIRECTION = "direction" #used as xml-tag
+    self.COMMENT = "comment" #used as xml-tag
 
 
 def isC(_path):
@@ -155,7 +156,6 @@ def abs_path_get(_paths, _warning = True):
          else:
            print "Warning: path %s doesn't exist..."%path_tmp
      return res
-
 
 #  normalize_names(_lst)
 #
