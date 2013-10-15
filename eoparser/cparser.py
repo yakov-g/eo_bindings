@@ -751,8 +751,12 @@ class Cparser(object):
     lines.append("inherit")
     lines.append("%s%s"%(tab_level * tab, "{"))
     tab_level += 1
+    param_num = len(parents)
     for l in parents:
-      lines.append("%s%s"%(tab_level * tab, l))
+      line = "%s%s"%(tab_level * tab, l)
+      line += "," if param_num > 1 else ";"
+      lines.append(line)
+      param_num -= 1
     tab_level -= 1
     lines.append("%s%s"%(tab_level * tab, "}"))
 
@@ -766,8 +770,13 @@ class Cparser(object):
       lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
       lines.append("%s%s("%(tab_level * tab, name))
       tab_level += 1
+      param_num = len(f[const.PARAMETERS])
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         lines.append("%s%s %s /* %s */,"%(tab_level * tab, t1, n, c))
+         line = "%s%s %s /* %s */"%(tab_level * tab, t1, n, c)
+         if param_num > 1:
+            line += ","
+         lines.append(line)
+         param_num -=1
       tab_level -= 1
       lines.append("%s);"%(tab_level * tab))
     tab_level -= 1
@@ -782,8 +791,13 @@ class Cparser(object):
       lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
       lines.append("%s%s("%(tab_level * tab, name))
       tab_level += 1
+      param_num = len(f[const.PARAMETERS])
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         lines.append("%s%s %s /* %s */,"%(tab_level * tab, t1, n, c))
+         line = "%s%s %s /* %s */"%(tab_level * tab, t1, n, c)
+         if param_num > 1:
+            line += ","
+         lines.append(line)
+         param_num -=1
       tab_level -= 1
       lines.append("%s);"%(tab_level * tab))
     tab_level -= 1
@@ -798,8 +812,13 @@ class Cparser(object):
       lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
       lines.append("%s%s("%(tab_level * tab, name))
       tab_level += 1
+      param_num = len(f[const.PARAMETERS])
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         lines.append("%s%s %s /* %s */,"%(tab_level * tab, t1, n, c))
+         line = "%s%s %s /* %s */"%(tab_level * tab, t1, n, c)
+         if param_num > 1:
+            line += ","
+         lines.append(line)
+         param_num -=1
       tab_level -= 1
       lines.append("%s);"%(tab_level * tab))
     tab_level -= 1
@@ -814,8 +833,13 @@ class Cparser(object):
       lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
       lines.append("%s%s("%(tab_level * tab, name))
       tab_level += 1
+      param_num = len(f[const.PARAMETERS])
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         lines.append("%s%s %s %s /* %s */,"%(tab_level * tab, d, t1, n, c))
+         line = "%s%s %s %s /* %s */"%(tab_level * tab, d, t1, n, c)
+         if param_num > 1:
+            line += ","
+         lines.append(line)
+         param_num -=1
       tab_level -= 1
       lines.append("%s);"%(tab_level * tab))
     tab_level -= 1
