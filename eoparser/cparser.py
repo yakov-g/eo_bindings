@@ -347,6 +347,7 @@ class Cparser(object):
 
            if s_tmp not in macros:
               print "Warning: no comments for \"%s\"; file: \"%s\" "%(s_tmp, self.cl_data[cl_id][const.H_FILE])
+              found = False
            else:
 
              params = []
