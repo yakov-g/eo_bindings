@@ -763,88 +763,92 @@ class Cparser(object):
 
 
     #properties
-    lines.append("properties")
-    lines.append("%s%s"%(tab_level * tab, "{"))
-    tab_level += 1
-    for name in cl_data[const.SET_GET]:
-      f = cl_data[const.FUNCS][name + "_set"]
-      lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
-      lines.append("%s%s("%(tab_level * tab, name))
+    if len(cl_data[const.SET_GET]):
+      lines.append("properties")
+      lines.append("%s%s"%(tab_level * tab, "{"))
       tab_level += 1
-      param_num = len(f[const.PARAMETERS])
-      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         line = "%s%s %s /* %s */"%(tab_level * tab, t1, n, c)
-         if param_num > 1:
-            line += ","
-         lines.append(line)
-         param_num -=1
+      for name in cl_data[const.SET_GET]:
+        f = cl_data[const.FUNCS][name + "_set"]
+        lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
+        lines.append("%s%s("%(tab_level * tab, name))
+        tab_level += 1
+        param_num = len(f[const.PARAMETERS])
+        for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+           line = "%s%s %s /* %s */"%(tab_level * tab, t1, n, c)
+           if param_num > 1:
+              line += ","
+           lines.append(line)
+           param_num -=1
+        tab_level -= 1
+        lines.append("%s);"%(tab_level * tab))
       tab_level -= 1
-      lines.append("%s);"%(tab_level * tab))
-    tab_level -= 1
-    lines.append("%s%s"%(tab_level * tab, "}"))
+      lines.append("%s%s"%(tab_level * tab, "}"))
 
     #properties_set
-    lines.append("properties_set")
-    lines.append("%s%s"%(tab_level * tab, "{"))
-    tab_level += 1
-    for name in cl_data[const.SET_ONLY]:
-      f = cl_data[const.FUNCS][name]
-      lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
-      lines.append("%s%s("%(tab_level * tab, name))
+    if len(cl_data[const.SET_ONLY]):
+      lines.append("properties_set")
+      lines.append("%s%s"%(tab_level * tab, "{"))
       tab_level += 1
-      param_num = len(f[const.PARAMETERS])
-      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         line = "%s%s %s /* %s */"%(tab_level * tab, t1, n, c)
-         if param_num > 1:
-            line += ","
-         lines.append(line)
-         param_num -=1
+      for name in cl_data[const.SET_ONLY]:
+        f = cl_data[const.FUNCS][name]
+        lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
+        lines.append("%s%s("%(tab_level * tab, name))
+        tab_level += 1
+        param_num = len(f[const.PARAMETERS])
+        for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+           line = "%s%s %s /* %s */"%(tab_level * tab, t1, n, c)
+           if param_num > 1:
+              line += ","
+           lines.append(line)
+           param_num -=1
+        tab_level -= 1
+        lines.append("%s);"%(tab_level * tab))
       tab_level -= 1
-      lines.append("%s);"%(tab_level * tab))
-    tab_level -= 1
-    lines.append("%s%s"%(tab_level * tab, "}"))
+      lines.append("%s%s"%(tab_level * tab, "}"))
 
     #properties_get
-    lines.append("properties_get")
-    lines.append("%s%s"%(tab_level * tab, "{"))
-    tab_level += 1
-    for name in cl_data[const.GET_ONLY]:
-      f = cl_data[const.FUNCS][name]
-      lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
-      lines.append("%s%s("%(tab_level * tab, name))
+    if len(cl_data[const.GET_ONLY]):
+      lines.append("properties_get")
+      lines.append("%s%s"%(tab_level * tab, "{"))
       tab_level += 1
-      param_num = len(f[const.PARAMETERS])
-      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         line = "%s%s %s /* %s */"%(tab_level * tab, t1, n, c)
-         if param_num > 1:
-            line += ","
-         lines.append(line)
-         param_num -=1
+      for name in cl_data[const.GET_ONLY]:
+        f = cl_data[const.FUNCS][name]
+        lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
+        lines.append("%s%s("%(tab_level * tab, name))
+        tab_level += 1
+        param_num = len(f[const.PARAMETERS])
+        for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+           line = "%s%s %s /* %s */"%(tab_level * tab, t1, n, c)
+           if param_num > 1:
+              line += ","
+           lines.append(line)
+           param_num -=1
+        tab_level -= 1
+        lines.append("%s);"%(tab_level * tab))
       tab_level -= 1
-      lines.append("%s);"%(tab_level * tab))
-    tab_level -= 1
-    lines.append("%s%s"%(tab_level * tab, "}"))
+      lines.append("%s%s"%(tab_level * tab, "}"))
 
     #methods
-    lines.append("methods")
-    lines.append("%s%s"%(tab_level * tab, "{"))
-    tab_level += 1
-    for name in cl_data[const.METHOD]:
-      f = cl_data[const.FUNCS][name]
-      lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
-      lines.append("%s%s("%(tab_level * tab, name))
+    if len(cl_data[const.METHOD]):
+      lines.append("methods")
+      lines.append("%s%s"%(tab_level * tab, "{"))
       tab_level += 1
-      param_num = len(f[const.PARAMETERS])
-      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         line = "%s%s %s %s /* %s */"%(tab_level * tab, d, t1, n, c)
-         if param_num > 1:
-            line += ","
-         lines.append(line)
-         param_num -=1
+      for name in cl_data[const.METHOD]:
+        f = cl_data[const.FUNCS][name]
+        lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
+        lines.append("%s%s("%(tab_level * tab, name))
+        tab_level += 1
+        param_num = len(f[const.PARAMETERS])
+        for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+           line = "%s%s %s %s /* %s */"%(tab_level * tab, d, t1, n, c)
+           if param_num > 1:
+              line += ","
+           lines.append(line)
+           param_num -=1
+        tab_level -= 1
+        lines.append("%s);"%(tab_level * tab))
       tab_level -= 1
-      lines.append("%s);"%(tab_level * tab))
-    tab_level -= 1
-    lines.append("%s%s"%(tab_level * tab, "}"))
+      lines.append("%s%s"%(tab_level * tab, "}"))
 
     #main brackets
     tab_level = 1
