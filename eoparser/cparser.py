@@ -350,7 +350,7 @@ class Cparser(object):
            else:
 
              params = []
-             params_direction = macros[s_tmp]
+             params_direction = macros[s_tmp][const.PARAMETERS]
              reg = "%s\(([^,]*),([^,]*)\)"%const.EO_TYPECHECK
              ss = re.findall(reg, d)
 
@@ -375,6 +375,7 @@ class Cparser(object):
                    exit(1)
                 i += 1
              self.cl_data[cl_id][const.FUNCS][f][const.PARAMETERS] = params
+             self.cl_data[cl_id][const.FUNCS][f][const.COMMENT] = macros[s_tmp][const.COMMENT]
              self.cl_data[cl_id][const.FUNCS][f][const.C_MACRO] = s_tmp
          
        if not found:
@@ -443,11 +444,12 @@ class Cparser(object):
         #if generating XML not for base class, change func name to avoid name clash
         func_name = k if cl_id == "EO_BASE_CLASS" else c_macro
 
+        # add <method> tag
         m = SubElement(m_tag, const.METHOD, {const.NAME : func_name,
                                       const.OP_ID:cl_data[const.FUNCS][k][const.OP_ID],
-                                      const.C_MACRO:c_macro})
+                                      const.C_MACRO:c_macro, const.COMMENT:cl_data[const.FUNCS][k][const.COMMENT]})
 
-        #defining parameter type
+        #add <parameter> tags
         if const.PARAMETERS in cl_data[const.FUNCS][k]:
           params = cl_data[const.FUNCS][k][const.PARAMETERS]
           for v_name, modifier, t, d, c in params:
@@ -525,10 +527,18 @@ class Cparser(object):
 
          macro_name = res.group(1)
          #looking for parameters direction and desc in comment
-         macro[macro_name] = self.get_param_dir_from_comment(comment_tmp)
+         macro[macro_name] = {}
+         macro[macro_name][const.PARAMETERS] = self.get_param_dir_from_comment(comment_tmp)
          #save comment for method
-         self.get_brief_desc_from_comment(comment_tmp)
-         self.get_desc_from_comment(comment_tmp)
+         desc = self.get_brief_desc_from_comment(comment_tmp)
+         if desc == "":
+            desc = self.get_desc_from_comment(comment_tmp)
+         else:
+            desc += "\n"
+            desc += self.get_desc_from_comment(comment_tmp)
+ 
+         macro[macro_name][const.COMMENT] = desc
+
 
     #looking for class_get function to get class macro
     current_class = ""
@@ -752,11 +762,12 @@ class Cparser(object):
     lines.append("%s%s"%(tab_level * tab, "{"))
     tab_level += 1
     for name in cl_data[const.SET_GET]:
-      lines.append("%s%s("%(tab_level * tab, name))
       f = cl_data[const.FUNCS][name + "_set"]
+      lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
+      lines.append("%s%s("%(tab_level * tab, name))
       tab_level += 1
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         lines.append("%s%s %s,"%(tab_level * tab, t1, n))
+         lines.append("%s%s %s /* %s */,"%(tab_level * tab, t1, n, c))
       tab_level -= 1
       lines.append("%s);"%(tab_level * tab))
     tab_level -= 1
@@ -767,11 +778,12 @@ class Cparser(object):
     lines.append("%s%s"%(tab_level * tab, "{"))
     tab_level += 1
     for name in cl_data[const.SET_ONLY]:
-      lines.append("%s%s("%(tab_level * tab, name))
       f = cl_data[const.FUNCS][name]
+      lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
+      lines.append("%s%s("%(tab_level * tab, name))
       tab_level += 1
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         lines.append("%s%s %s,"%(tab_level * tab, t1, n))
+         lines.append("%s%s %s /* %s */,"%(tab_level * tab, t1, n, c))
       tab_level -= 1
       lines.append("%s);"%(tab_level * tab))
     tab_level -= 1
@@ -782,11 +794,12 @@ class Cparser(object):
     lines.append("%s%s"%(tab_level * tab, "{"))
     tab_level += 1
     for name in cl_data[const.GET_ONLY]:
-      lines.append("%s%s("%(tab_level * tab, name))
       f = cl_data[const.FUNCS][name]
+      lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
+      lines.append("%s%s("%(tab_level * tab, name))
       tab_level += 1
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         lines.append("%s%s %s,"%(tab_level * tab, t1, n))
+         lines.append("%s%s %s /* %s */,"%(tab_level * tab, t1, n, c))
       tab_level -= 1
       lines.append("%s);"%(tab_level * tab))
     tab_level -= 1
@@ -797,8 +810,9 @@ class Cparser(object):
     lines.append("%s%s"%(tab_level * tab, "{"))
     tab_level += 1
     for name in cl_data[const.METHOD]:
-      lines.append("%s%s("%(tab_level * tab, name))
       f = cl_data[const.FUNCS][name]
+      lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
+      lines.append("%s%s("%(tab_level * tab, name))
       tab_level += 1
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
          lines.append("%s%s %s %s /* %s */,"%(tab_level * tab, d, t1, n, c))
