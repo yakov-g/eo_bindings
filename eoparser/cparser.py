@@ -492,12 +492,14 @@ class Cparser(object):
   def get_brief_desc_from_comment(self, com):
      res = re.findall("@brief(.*)", com)
      desc = res[0] if res else ""
+     desc = " ".join(desc.split())
      return desc
 
   def get_desc_from_comment(self, com):
-     m = re.sub("@.*\n", "", com)
-     m = m.replace("*", "").strip()
-     return m
+     desc = re.sub("@.*\n", "", com)
+     desc = desc.replace("*", "").strip()
+     desc = " ".join(desc.split())
+     return desc
 
   #parsing header file
   def h_file_data_get(self, filename):
