@@ -478,7 +478,7 @@ class Cparser(object):
      res = re.findall("@param.*", com)
      l_tmp = []
      for s in res:
-       ret = re.match("@param[ ]*\[([inout,]*)\][ ]+[\w]+([ ,#@\w]*)", s)
+       ret = re.match("@param[ ]*\[([inout,]*)\][ ]+[\w]+([ \(\),#@\w]*)", s)
        direct = ""
        comment = ""
        if ret:
