@@ -764,15 +764,17 @@ class Cparser(object):
     lines.append("%s%s"%(tab_level * tab, "}"))
 
 
+    prop_dir = "rw"
     #properties
-    if len(cl_data[const.SET_GET]):
+    if len(cl_data[const.SET_GET]) or len(cl_data[const.SET_ONLY]) or len(cl_data[const.GET_ONLY]):
       lines.append("properties")
+
       lines.append("%s%s"%(tab_level * tab, "{"))
       tab_level += 1
       for name in cl_data[const.SET_GET]:
         f = cl_data[const.FUNCS][name + "_set"]
         lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
-        lines.append("%s%s("%(tab_level * tab, name))
+        lines.append("%s %s %s("%(tab_level * tab, prop_dir, name))
         tab_level += 1
         param_num = len(f[const.PARAMETERS])
         for (n, m ,t1, d, c) in f[const.PARAMETERS]:
@@ -783,18 +785,13 @@ class Cparser(object):
            param_num -=1
         tab_level -= 1
         lines.append("%s);"%(tab_level * tab))
-      tab_level -= 1
-      lines.append("%s%s"%(tab_level * tab, "}"))
 
+      prop_dir = "wo"
     #properties_set
-    if len(cl_data[const.SET_ONLY]):
-      lines.append("properties_set")
-      lines.append("%s%s"%(tab_level * tab, "{"))
-      tab_level += 1
       for name in cl_data[const.SET_ONLY]:
         f = cl_data[const.FUNCS][name]
         lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
-        lines.append("%s%s("%(tab_level * tab, name))
+        lines.append("%s %s %s("%(tab_level * tab, prop_dir, name))
         tab_level += 1
         param_num = len(f[const.PARAMETERS])
         for (n, m ,t1, d, c) in f[const.PARAMETERS]:
@@ -805,18 +802,13 @@ class Cparser(object):
            param_num -=1
         tab_level -= 1
         lines.append("%s);"%(tab_level * tab))
-      tab_level -= 1
-      lines.append("%s%s"%(tab_level * tab, "}"))
 
+      prop_dir = "ro"
     #properties_get
-    if len(cl_data[const.GET_ONLY]):
-      lines.append("properties_get")
-      lines.append("%s%s"%(tab_level * tab, "{"))
-      tab_level += 1
       for name in cl_data[const.GET_ONLY]:
         f = cl_data[const.FUNCS][name]
         lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
-        lines.append("%s%s("%(tab_level * tab, name))
+        lines.append("%s %s %s("%(tab_level * tab, prop_dir, name))
         tab_level += 1
         param_num = len(f[const.PARAMETERS])
         for (n, m ,t1, d, c) in f[const.PARAMETERS]:
