@@ -834,7 +834,7 @@ class Cparser(object):
         tab_level += 1
         param_num = len(f[const.PARAMETERS])
         for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-           line = "%s%s %s %s /* %s */"%(tab_level * tab, d, t1, n, c)
+           line = "%s%s %s %s /* %s */"%(tab_level * tab, "inout" if d == "in,out" else d, t1, n, c)
            if param_num > 1:
               line += ","
            lines.append(line)
