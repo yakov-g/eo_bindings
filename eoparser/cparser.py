@@ -1,11 +1,12 @@
 import xml.parsers.expat
-import sys, os, re
+import sys, os, re, json
 
 from xml.etree.ElementTree import Element, SubElement, Comment, tostring
 from xml.dom import minidom
 from string import capwords
 from helper import normalize_names
 from helper import _const
+from collections import OrderedDict
 
 const = _const()
 
@@ -311,7 +312,7 @@ class Cparser(object):
        self.cl_data[cl_id][const.OP_DESC] = class_desc_ops[1]
 
        for tup in class_desc_ops[1]:
-          self.cl_data[cl_id][const.FUNCS][tup[1]] = {const.OP_ID : tup[0], const.C_MACRO: ""}
+          self.cl_data[cl_id][const.FUNCS][tup[1]] = {const.OP_ID : tup[0], const.MACRO: ""}
 
        self.cl_data[cl_id][const.BASE_ID] = class_desc_ops[0]
 
@@ -377,7 +378,7 @@ class Cparser(object):
                 i += 1
              self.cl_data[cl_id][const.FUNCS][f][const.PARAMETERS] = params
              self.cl_data[cl_id][const.FUNCS][f][const.COMMENT] = macros[s_tmp][const.COMMENT]
-             self.cl_data[cl_id][const.FUNCS][f][const.C_MACRO] = s_tmp
+             self.cl_data[cl_id][const.FUNCS][f][const.MACRO] = s_tmp
          
        if not found:
          print "Warning: no API for %s in  %s"%(op, self.cl_data[cl_id][const.H_FILE])
@@ -441,14 +442,14 @@ class Cparser(object):
     for k in cl_data[const.FUNCS]:
         SubElement(op_tag, const.XML_SUB_ID, {const.NAME:cl_data[const.FUNCS][k][const.OP_ID]})
 
-        c_macro = cl_data[const.FUNCS][k][const.C_MACRO]
+        c_macro = cl_data[const.FUNCS][k][const.MACRO]
         #if generating XML not for base class, change func name to avoid name clash
         func_name = k if cl_id == "EO_BASE_CLASS" else c_macro
 
         # add <method> tag
         m = SubElement(m_tag, const.METHOD, {const.NAME : func_name,
                                       const.OP_ID:cl_data[const.FUNCS][k][const.OP_ID],
-                                      const.C_MACRO:c_macro, const.COMMENT:cl_data[const.FUNCS][k][const.COMMENT]})
+                                      const.MACRO:c_macro, const.COMMENT:cl_data[const.FUNCS][k][const.COMMENT]})
 
         #add <parameter> tags
         if const.PARAMETERS in cl_data[const.FUNCS][k]:
@@ -806,6 +807,166 @@ class Cparser(object):
 
     f = open (cl_data[const.XML_FILE], 'w')
     f.write(res)
+    f.close()
+
+  #generating Eo file in JSON
+  def build_eo2(self, cl_id):
+    ret = OrderedDict()
+    CLASS_NAME = "name"
+    MACRO = "macro"
+    INHERITS = "inherits"
+    METHODS = "methods"
+    PROPERTIES = "properties"
+    ret[CLASS_NAME] = ""
+    ret[MACRO] = ""
+    ret[INHERITS] = []
+    ret[PROPERTIES] = {}
+    ret[METHODS] = {}
+
+    self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, normalize_names([self.cl_data[cl_id][const.C_NAME]])[0] + ".eo")
+
+    new_buf = ""
+
+    cl_data = self.cl_data[cl_id]
+    ret[CLASS_NAME] = cl_data[const.C_NAME]
+    ret[MACRO] = cl_id
+
+    cl_parent = ""
+    cl_brothers = []
+    cl_brothers_str = ""
+    for i, l in enumerate(cl_data[const.PARENTS]):
+      tmp = {}
+      if l in self.cl_data:
+        tmp = self.cl_data
+      elif l in self.cl_incl:
+        tmp = self.cl_incl
+      else:
+        print "ERROR: no parent class \"%s\" was found"%l
+        exit(1)
+      if i == 0:
+        cl_parent = tmp[l][const.C_NAME]
+      else:
+        cl_brothers.append(tmp[l][const.C_NAME])
+
+    parents = []
+    parents.append(cl_parent)
+    parents += cl_brothers
+    ret[INHERITS] = parents
+
+    instantiateable = "False"
+    if cl_data[const.TYPE] == const.CLASS_TYPE_REGULAR:
+      instantiateable = "True"
+
+    #resolve funcs/set/get/properties
+    func_name_list_not_visited = []
+    for name in cl_data[const.FUNCS]:
+      func_name_list_not_visited.append(name) 
+
+    cl_data[const.METHOD] = []
+    cl_data[const.SET_GET] = []
+    cl_data[const.SET_ONLY] = []
+    cl_data[const.GET_ONLY] = []
+    for i, v in cl_data[const.FUNCS].iteritems():
+       T = ""
+       if cl_data[const.C_NAME] == "Eo Base":
+         T = const.METHOD
+         cl_data[T].append(i)
+         continue
+
+       #check if both properties are in tree; and if they are in,
+       # if their parameters are all in or out
+       prefix = i[:-4] 
+       postfix = i[-4:]
+       if postfix in ["_set", "_get"]:
+          if prefix + "_set" in func_name_list_not_visited and prefix + "_get" in func_name_list_not_visited:
+             T = const.SET_GET
+             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
+               if d != "in":
+                 T = const.METHOD
+
+             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
+               if d != "out":
+                 T = const.METHOD
+
+             if (T == const.SET_GET):
+                cl_data[T].append(prefix)
+             else:
+                cl_data[T].append(prefix + "_set")
+                cl_data[T].append(prefix + "_get")
+
+             func_name_list_not_visited.remove(prefix + "_set")
+             func_name_list_not_visited.remove(prefix + "_get")
+
+          elif prefix + "_set" in func_name_list_not_visited:
+             T = const.SET_ONLY
+             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
+               if d != "in":
+                 T = const.METHOD
+             cl_data[T].append(i)
+             func_name_list_not_visited.remove(i)
+
+          elif prefix + "_get" in func_name_list_not_visited:
+             T = const.GET_ONLY
+             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
+               if d != "out":
+                 T = const.METHOD
+             cl_data[T].append(i)
+             func_name_list_not_visited.remove(i)
+
+       else:
+         T = const.METHOD
+         cl_data[T].append(i)
+         func_name_list_not_visited.remove(i)
+
+    #properties
+    if len(cl_data[const.SET_GET]) or len(cl_data[const.SET_ONLY]) or len(cl_data[const.GET_ONLY]):
+      for name in cl_data[const.SET_GET]:
+        f_ret = ret[PROPERTIES][name] = {}
+        par_arr = f_ret["parameters"] = []
+        f = cl_data[const.FUNCS][name + "_set"]
+        f_ret["comment_set"] = f[const.COMMENT]
+        f_ret["comment_get"] = cl_data[const.FUNCS][name + '_get'][const.COMMENT]
+        f_ret["type"] = "rw"
+        for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+           par_arr.append((d, m, t1, n, c))
+
+    #properties_set
+      for name in cl_data[const.SET_ONLY]:
+        f_ret = ret[PROPERTIES][name] = {}
+        par_arr = f_ret["parameters"] = []
+        f = cl_data[const.FUNCS][name]
+        f_ret["comment"] = f[const.COMMENT]
+        f_ret["type"] = "wo"
+        for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+           par_arr.append((d, m, t1, n, c))
+
+    #properties_get
+      for name in cl_data[const.GET_ONLY]:
+        f_ret = ret[PROPERTIES][name] = {}
+        par_arr = f_ret["parameters"] = []
+        f = cl_data[const.FUNCS][name]
+        f_ret["comment"] = f[const.COMMENT]
+        f_ret["type"] = "ro"
+        for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+           par_arr.append((d, m, t1, n, c))
+
+    #methods
+    for name in cl_data[const.METHOD]:
+      ret[METHODS][name] = {}
+      par_arr = ret[METHODS][name]["parameters"] = []
+      f = cl_data[const.FUNCS][name]
+
+      ret[METHODS][name]["comment"] = f[const.COMMENT]
+      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+         par_arr.append((d, m, t1, n, c))
+
+    (h, t) = os.path.split(cl_data[const.XML_FILE])
+    if not os.path.isdir(h):
+      os.makedirs(h)
+
+    f = open(cl_data[const.XML_FILE], 'w')
+    f.write(json.dumps(ret, indent=2))
+    #f.write(json.dumps(cl_data, indent=2))
     f.close()
 
 # smart_split(tmp)

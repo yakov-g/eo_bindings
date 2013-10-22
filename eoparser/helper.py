@@ -39,8 +39,7 @@ class _const:
     self.H_FILE = "h_file"
     self.C_FILE = "c_file"
     self.XML_FILE = "xml_file"
-    self.MACRO = "macro"  #EO_CLASS  #used as xml-tag
-    self.C_MACRO = "c_macro"#used as xml-tag
+    self.MACRO = "macro"  #EO_CLASS or #define evas_obj_size_set  #used as xml-tag
     self.OP_MACROS = "op_macros" #dict of macros from @def with parameters
 
     self.CLASS_TYPE_MIXIN =  "EO_CLASS_TYPE_MIXIN"

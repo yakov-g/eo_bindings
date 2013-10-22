@@ -42,6 +42,10 @@ def main():
                   action="store_true", dest="eoformat", default=False,
                   help="Generate *.eo description files")
 
+  parser.add_argument("-E2", "--eo2",
+                  action="store_true", dest="eoformat2", default=False,
+                  help="Generate *.eo description files")
+
   args = parser.parse_args()
   verbose_print = None
 
@@ -104,6 +108,11 @@ def main():
        cp.build_eo(k)
      exit(0)
 
+  if args.eoformat2:
+     #building XMLs
+     for k in cp.cl_data:
+       cp.build_eo2(k)
+     exit(0)
 
   # here starts parent dependency search and XML build
 

@@ -1256,7 +1256,7 @@ class XMLparser(object):
 
         if name == const.METHOD:
             self.current_func = attrs[const.NAME]
-            self.functions.setdefault(self.current_func, {const.OP_ID : attrs[const.OP_ID], const.C_MACRO : attrs[const.C_MACRO], const.PARAMETERS:[]})
+            self.functions.setdefault(self.current_func, {const.OP_ID : attrs[const.OP_ID], const.MACRO : attrs[const.MACRO], const.PARAMETERS:[]})
         elif name == const.PARSE_VERSION:
            if attrs[const.NUM] == const.VER_NUM:
             self.xml_ver = True
@@ -1349,7 +1349,7 @@ class XMLparser(object):
           T = ""
           if mod_o.kl_id == "Eo Base":
             T = const.METHOD
-            mod_o.visitees[i] = Func(i, self.functions[i][const.OP_ID], self.functions[i][const.C_MACRO], self.functions[i][const.PARAMETERS], T, mod_o)
+            mod_o.visitees[i] = Func(i, self.functions[i][const.OP_ID], self.functions[i][const.MACRO], self.functions[i][const.PARAMETERS], T, mod_o)
             continue
 
           #check if both properties are in tree; and if they are in,
@@ -1368,11 +1368,11 @@ class XMLparser(object):
                     T = const.METHOD
 
                 n = prefix + "_get"
-                mod_o.visitees[n] = Func(n, self.functions[n][const.OP_ID], self.functions[n][const.C_MACRO], self.functions[n][const.PARAMETERS], T, mod_o)
+                mod_o.visitees[n] = Func(n, self.functions[n][const.OP_ID], self.functions[n][const.MACRO], self.functions[n][const.PARAMETERS], T, mod_o)
                 func_name_list_not_visited.remove(n)
 
                 n = prefix + "_set"
-                mod_o.visitees[n] = Func(n, self.functions[n][const.OP_ID], self.functions[n][const.C_MACRO], self.functions[n][const.PARAMETERS], T, mod_o)
+                mod_o.visitees[n] = Func(n, self.functions[n][const.OP_ID], self.functions[n][const.MACRO], self.functions[n][const.PARAMETERS], T, mod_o)
                 func_name_list_not_visited.remove(n)
 
              elif prefix + "_set" in func_name_list_not_visited:
@@ -1381,7 +1381,7 @@ class XMLparser(object):
                   if d != "in":
                     T = const.METHOD
                 n = prefix + "_set"
-                mod_o.visitees[n] = Func(n, self.functions[n][const.OP_ID], self.functions[n][const.C_MACRO], self.functions[n][const.PARAMETERS], T, mod_o)
+                mod_o.visitees[n] = Func(n, self.functions[n][const.OP_ID], self.functions[n][const.MACRO], self.functions[n][const.PARAMETERS], T, mod_o)
                 func_name_list_not_visited.remove(n)
 
              elif prefix + "_get" in func_name_list_not_visited:
@@ -1390,12 +1390,12 @@ class XMLparser(object):
                   if d != "out":
                     T = const.METHOD
                 n = prefix + "_get"
-                mod_o.visitees[n] = Func(n, self.functions[n][const.OP_ID], self.functions[n][const.C_MACRO], self.functions[n][const.PARAMETERS], T, mod_o)
+                mod_o.visitees[n] = Func(n, self.functions[n][const.OP_ID], self.functions[n][const.MACRO], self.functions[n][const.PARAMETERS], T, mod_o)
                 func_name_list_not_visited.remove(n)
 
           else:
             T = const.METHOD
-            mod_o.visitees[i] = Func(i, self.functions[i][const.OP_ID], self.functions[i][const.C_MACRO], self.functions[i][const.PARAMETERS], T, mod_o)
+            mod_o.visitees[i] = Func(i, self.functions[i][const.OP_ID], self.functions[i][const.MACRO], self.functions[i][const.PARAMETERS], T, mod_o)
             func_name_list_not_visited.remove(i)
 
         for i in self.ev_ids:
