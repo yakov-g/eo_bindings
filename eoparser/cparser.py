@@ -600,19 +600,13 @@ class Cparser(object):
   def outdir_set(self, _d):
     self.outdir = _d
 
-  #generating XML
+  #generating Eo file in C-style
   def build_eo(self, cl_id):
     self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, normalize_names([self.cl_data[cl_id][const.C_NAME]])[0] + ".eo")
 
     new_buf = ""
 
     cl_data = self.cl_data[cl_id]
-
-    module = Element(const.MODULE)
-    module.set(const.NAME, cl_data[const.C_NAME])
-
-    SubElement(module, const.PARSE_VERSION, {const.NUM : const.VER_NUM} )
-    SubElement(module, const.INCLUDE, {const.NAME: os.path.split(cl_data[const.H_FILE])[1]})
 
     cl_parent = ""
     cl_brothers = []
@@ -631,56 +625,11 @@ class Cparser(object):
       else:
         cl_brothers.append(tmp[l][const.C_NAME])
 
-    SubElement(module, const.EXTERN_FUNCTION, {const.NAME:cl_data[const.GET_FUNCTION]+"()",
-                                           const.TYPENAME:"Eo_Class*"})
-
     cl_brothers_str = ",".join(cl_brothers)
 
     instantiateable = "False"
     if cl_data[const.TYPE] == const.CLASS_TYPE_REGULAR:
       instantiateable = "True"
-    cl = SubElement(module, const.CLASS, {
-                                      const.C_NAME : cl_data[const.C_NAME],
-                                      const.PARENT:cl_parent,
-                                      const.EXTENSIONS:cl_brothers_str,
-                                      const.MACRO:cl_id,
-                                      const.GET_FUNCTION: cl_data[const.GET_FUNCTION],
-                                      const.TYPE : cl_data[const.TYPE],
-                                      const.INSTANTIATEABLE : instantiateable})
-
-    op_tag = SubElement(cl, const.OP_ID)
-    ev_tag = SubElement(cl, const.EVENTS)
-    m_tag = SubElement(cl, const.METHODS)
-
-    if cl_data[const.BASE_ID] != "NULL":
-      SubElement(op_tag, const.BASE_ID, {const.NAME:cl_data[const.BASE_ID]})
-
-    for k in cl_data[const.FUNCS]:
-        SubElement(op_tag, const.XML_SUB_ID, {const.NAME:cl_data[const.FUNCS][k][const.OP_ID]})
-
-        c_macro = cl_data[const.FUNCS][k][const.C_MACRO]
-        #if generating XML not for base class, change func name to avoid name clash
-        func_name = k if cl_id == "EO_BASE_CLASS" else c_macro
-
-        m = SubElement(m_tag, const.METHOD, {const.NAME : func_name,
-                                      const.OP_ID:cl_data[const.FUNCS][k][const.OP_ID],
-                                      const.C_MACRO:c_macro})
-
-        #defining parameter type
-        if const.PARAMETERS in cl_data[const.FUNCS][k]:
-          params = cl_data[const.FUNCS][k][const.PARAMETERS]
-          for v_name, modifier, t, d, comment in params:
-             p = SubElement(m, const.PARAMETER, {const.NAME:v_name, const.MODIFIER:modifier, const.C_TYPENAME:t, const.PRIMARY_TYPE : self.typedef_resolve(t),const.DIRECTION:d, const.COMMENT:comment})
-
-
-    if const.EV_DESC in cl_data:
-      lst = cl_data[const.EV_DESC]
-      for l in lst:
-         SubElement(ev_tag, const.EVENT,{const.NAME:l})
-
-    res = tostring(module, "utf-8")
-    res = minidom.parseString(res)
-    res = res.toprettyxml(indent="  ")
 
     #resolve funcs/set/get/properties
     func_name_list_not_visited = []
@@ -743,7 +692,6 @@ class Cparser(object):
          cl_data[T].append(i)
          func_name_list_not_visited.remove(i)
 
-
     lines = []
     parents = []
     tab = "     "
@@ -762,7 +710,6 @@ class Cparser(object):
       param_num -= 1
     tab_level -= 1
     lines.append("%s%s"%(tab_level * tab, "}"))
-
 
     prop_dir = "rw"
     #properties
@@ -853,11 +800,11 @@ class Cparser(object):
     new_buf += "\n}"
     res = new_buf
 
-    (h, t) = os.path.split(self.cl_data[cl_id][const.XML_FILE])
+    (h, t) = os.path.split(cl_data[const.XML_FILE])
     if not os.path.isdir(h):
       os.makedirs(h)
 
-    f = open (self.cl_data[cl_id][const.XML_FILE], 'w')
+    f = open (cl_data[const.XML_FILE], 'w')
     f.write(res)
     f.close()
 

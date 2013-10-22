@@ -99,7 +99,7 @@ def main():
   #if we want to generate Eo format we don't need parents
   # because we only generate description
   if args.eoformat:
-     #building XMLs
+     #generatinf .eo file in C-style
      for k in cp.cl_data:
        cp.build_eo(k)
      exit(0)
