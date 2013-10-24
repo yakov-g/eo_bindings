@@ -817,9 +817,11 @@ class Cparser(object):
     INHERITS = "inherits"
     METHODS = "methods"
     PROPERTIES = "properties"
+    CONSTRUCTORS = "constructors"
     ret[CLASS_NAME] = ""
     ret[MACRO] = ""
     ret[INHERITS] = []
+    ret[CONSTRUCTORS] = {}
     ret[PROPERTIES] = {}
     ret[METHODS] = {}
 
@@ -860,23 +862,30 @@ class Cparser(object):
     #resolve funcs/set/get/properties
     func_name_list_not_visited = []
     for name in cl_data[const.FUNCS]:
-      func_name_list_not_visited.append(name) 
+      func_name_list_not_visited.append(name)
 
     cl_data[const.METHOD] = []
+    cl_data[CONSTRUCTORS] = []
     cl_data[const.SET_GET] = []
     cl_data[const.SET_ONLY] = []
     cl_data[const.GET_ONLY] = []
-    for i, v in cl_data[const.FUNCS].iteritems():
+
+    for itr_name, v in cl_data[const.FUNCS].iteritems():
        T = ""
        if cl_data[const.C_NAME] == "Eo Base":
          T = const.METHOD
-         cl_data[T].append(i)
+         cl_data[T].append(itr_name)
          continue
+
+       if "constructor" in itr_name:
+          cl_data[CONSTRUCTORS].append(itr_name)
+          func_name_list_not_visited.remove(itr_name)
+          continue
 
        #check if both properties are in tree; and if they are in,
        # if their parameters are all in or out
-       prefix = i[:-4] 
-       postfix = i[-4:]
+       prefix = itr_name[:-4]
+       postfix = itr_name[-4:]
        if postfix in ["_set", "_get"]:
           if prefix + "_set" in func_name_list_not_visited and prefix + "_get" in func_name_list_not_visited:
              T = const.SET_GET
@@ -902,53 +911,61 @@ class Cparser(object):
              for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
                if d != "in":
                  T = const.METHOD
-             cl_data[T].append(i)
-             func_name_list_not_visited.remove(i)
+             cl_data[T].append(itr_name)
+             func_name_list_not_visited.remove(itr_name)
 
           elif prefix + "_get" in func_name_list_not_visited:
              T = const.GET_ONLY
              for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
                if d != "out":
                  T = const.METHOD
-             cl_data[T].append(i)
-             func_name_list_not_visited.remove(i)
+             cl_data[T].append(itr_name)
+             func_name_list_not_visited.remove(itr_name)
 
        else:
          T = const.METHOD
-         cl_data[T].append(i)
-         func_name_list_not_visited.remove(i)
+         cl_data[T].append(itr_name)
+         func_name_list_not_visited.remove(itr_name)
+
+    #constructors
+    for name in cl_data[CONSTRUCTORS]:
+      f_ret = ret[CONSTRUCTORS][name] = {}
+      par_arr = f_ret["parameters"] = []
+      f = cl_data[const.FUNCS][name ]
+      f_ret["comment"] = f[const.COMMENT]
+      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+         par_arr.append((d, m, t1, n, c))
 
     #properties
-    if len(cl_data[const.SET_GET]) or len(cl_data[const.SET_ONLY]) or len(cl_data[const.GET_ONLY]):
-      for name in cl_data[const.SET_GET]:
-        f_ret = ret[PROPERTIES][name] = {}
-        par_arr = f_ret["parameters"] = []
-        f = cl_data[const.FUNCS][name + "_set"]
-        f_ret["comment_set"] = f[const.COMMENT]
-        f_ret["comment_get"] = cl_data[const.FUNCS][name + '_get'][const.COMMENT]
-        f_ret["type"] = "rw"
-        for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-           par_arr.append((d, m, t1, n, c))
+    for name in cl_data[const.SET_GET]:
+      f_ret = ret[PROPERTIES][name] = {}
+      par_arr = f_ret["parameters"] = []
+      f = cl_data[const.FUNCS][name + "_set"]
+      f_ret["comment_set"] = f[const.COMMENT]
+      f_ret["comment_get"] = cl_data[const.FUNCS][name + '_get'][const.COMMENT]
+      f_ret["type"] = "rw"
+      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+         par_arr.append((d, m, t1, n, c))
 
-    #properties_set
-      for name in cl_data[const.SET_ONLY]:
-        f_ret = ret[PROPERTIES][name] = {}
-        par_arr = f_ret["parameters"] = []
-        f = cl_data[const.FUNCS][name]
-        f_ret["comment"] = f[const.COMMENT]
-        f_ret["type"] = "wo"
-        for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-           par_arr.append((d, m, t1, n, c))
+  #properties_set
+    for name in cl_data[const.SET_ONLY]:
+      f_ret = ret[PROPERTIES][name] = {}
+      par_arr = f_ret["parameters"] = []
+      f = cl_data[const.FUNCS][name]
+      f_ret["comment"] = f[const.COMMENT]
+      f_ret["type"] = "wo"
+      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+         par_arr.append((d, m, t1, n, c))
 
-    #properties_get
-      for name in cl_data[const.GET_ONLY]:
-        f_ret = ret[PROPERTIES][name] = {}
-        par_arr = f_ret["parameters"] = []
-        f = cl_data[const.FUNCS][name]
-        f_ret["comment"] = f[const.COMMENT]
-        f_ret["type"] = "ro"
-        for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-           par_arr.append((d, m, t1, n, c))
+  #properties_get
+    for name in cl_data[const.GET_ONLY]:
+      f_ret = ret[PROPERTIES][name] = {}
+      par_arr = f_ret["parameters"] = []
+      f = cl_data[const.FUNCS][name]
+      f_ret["comment"] = f[const.COMMENT]
+      f_ret["type"] = "ro"
+      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+         par_arr.append((d, m, t1, n, c))
 
     #methods
     for name in cl_data[const.METHOD]:
