@@ -942,7 +942,6 @@ class Cparser(object):
       f = cl_data[const.FUNCS][name + "_set"]
       f_ret["comment_set"] = f[const.COMMENT]
       f_ret["comment_get"] = cl_data[const.FUNCS][name + '_get'][const.COMMENT]
-      f_ret["type"] = "rw"
       par_arr = f_ret["parameters"] = []
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
          par_arr.append((m, t1, n, c))
