@@ -821,9 +821,9 @@ class Cparser(object):
     ret[CLASS_NAME] = ""
     ret[MACRO] = ""
     ret[INHERITS] = []
-    ret[CONSTRUCTORS] = {}
-    ret[PROPERTIES] = {}
-    ret[METHODS] = {}
+    ret[CONSTRUCTORS] = OrderedDict()
+    ret[PROPERTIES] = OrderedDict()
+    ret[METHODS] = OrderedDict()
 
     self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, normalize_names([self.cl_data[cl_id][const.C_NAME]])[0] + ".eo")
 
@@ -938,42 +938,42 @@ class Cparser(object):
 
     #properties
     for name in cl_data[const.SET_GET]:
-      f_ret = ret[PROPERTIES][name] = {}
-      par_arr = f_ret["parameters"] = []
+      f_ret = ret[PROPERTIES][name] = OrderedDict()
       f = cl_data[const.FUNCS][name + "_set"]
       f_ret["comment_set"] = f[const.COMMENT]
       f_ret["comment_get"] = cl_data[const.FUNCS][name + '_get'][const.COMMENT]
       f_ret["type"] = "rw"
+      par_arr = f_ret["parameters"] = []
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         par_arr.append((d, m, t1, n, c))
+         par_arr.append((m, t1, n, c))
 
   #properties_set
     for name in cl_data[const.SET_ONLY]:
-      f_ret = ret[PROPERTIES][name] = {}
-      par_arr = f_ret["parameters"] = []
+      f_ret = ret[PROPERTIES][name] = OrderedDict()
       f = cl_data[const.FUNCS][name]
       f_ret["comment"] = f[const.COMMENT]
       f_ret["type"] = "wo"
+      par_arr = f_ret["parameters"] = []
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         par_arr.append((d, m, t1, n, c))
+         par_arr.append((m, t1, n, c))
 
   #properties_get
     for name in cl_data[const.GET_ONLY]:
-      f_ret = ret[PROPERTIES][name] = {}
-      par_arr = f_ret["parameters"] = []
+      f_ret = ret[PROPERTIES][name] = OrderedDict()
       f = cl_data[const.FUNCS][name]
       f_ret["comment"] = f[const.COMMENT]
       f_ret["type"] = "ro"
+      par_arr = f_ret["parameters"] = []
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         par_arr.append((d, m, t1, n, c))
+         par_arr.append((m, t1, n, c))
 
     #methods
     for name in cl_data[const.METHOD]:
-      ret[METHODS][name] = {}
-      par_arr = ret[METHODS][name]["parameters"] = []
+      ret[METHODS][name] = OrderedDict()
       f = cl_data[const.FUNCS][name]
 
       ret[METHODS][name]["comment"] = f[const.COMMENT]
+      par_arr = ret[METHODS][name]["parameters"] = []
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
          par_arr.append((d, m, t1, n, c))
 
