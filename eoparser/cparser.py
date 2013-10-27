@@ -964,6 +964,9 @@ class Cparser(object):
       f_ret["type"] = "ro"
       par_arr = f_ret["parameters"] = []
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+         #remove * from out parameter
+         p = t1.find("*")
+         t1 = t1[:p] + t1[p + 1:]
          par_arr.append((m, t1, n, c))
 
     #methods
