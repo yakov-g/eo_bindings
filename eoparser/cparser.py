@@ -911,7 +911,12 @@ class Cparser(object):
              for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
                if d != "in":
                  T = const.METHOD
-             cl_data[T].append(itr_name)
+
+             if (T == const.SET_ONLY):
+                cl_data[T].append(prefix)
+             else:
+                cl_data[T].append(prefix + "_set")
+             
              func_name_list_not_visited.remove(itr_name)
 
           elif prefix + "_get" in func_name_list_not_visited:
@@ -919,7 +924,12 @@ class Cparser(object):
              for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
                if d != "out":
                  T = const.METHOD
-             cl_data[T].append(itr_name)
+
+             if (T == const.GET_ONLY):
+                cl_data[T].append(prefix)
+             else:
+                cl_data[T].append(prefix + "_get")
+             
              func_name_list_not_visited.remove(itr_name)
 
        else:
@@ -949,7 +959,7 @@ class Cparser(object):
   #properties_set
     for name in cl_data[const.SET_ONLY]:
       f_ret = ret[PROPERTIES][name] = OrderedDict()
-      f = cl_data[const.FUNCS][name]
+      f = cl_data[const.FUNCS][name + "_set"]
       f_ret["comment"] = f[const.COMMENT]
       f_ret["type"] = "wo"
       par_arr = f_ret["parameters"] = []
@@ -959,7 +969,7 @@ class Cparser(object):
   #properties_get
     for name in cl_data[const.GET_ONLY]:
       f_ret = ret[PROPERTIES][name] = OrderedDict()
-      f = cl_data[const.FUNCS][name]
+      f = cl_data[const.FUNCS][name + "_get"]
       f_ret["comment"] = f[const.COMMENT]
       f_ret["type"] = "ro"
       par_arr = f_ret["parameters"] = []
@@ -977,6 +987,9 @@ class Cparser(object):
       ret[METHODS][name]["comment"] = f[const.COMMENT]
       par_arr = ret[METHODS][name]["parameters"] = []
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+         if d == "out":
+           p = t1.find("*")
+           t1 = t1[:p] + t1[p + 1:]
          par_arr.append((d, m, t1, n, c))
 
     (h, t) = os.path.split(cl_data[const.XML_FILE])
