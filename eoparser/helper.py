@@ -25,12 +25,14 @@ class _const:
     self.TYPE = "type" #used as xml-tag
     self.CLASS_CONSTRUCTOR = "class_constructor"
     self.BASE_ID = "base_id"
+    self.BASE_ID_MACRO = "base_id_macro"
     self.FUNCS = "funcs"
     self.PARAMETERS = "parameters"
     self.OP_ID = "op_id"
 
     self.OP_DESC = "op_desccc"
     self.EV_DESC = "ev_desccc"
+    self.IMPL_DESC = "implements_desc"
 
     self.GET_FUNCTION = "get_function"#used as xml-tag
     self.DEFINES = "defines"

@@ -224,6 +224,84 @@ class Cparser(object):
 
       op_desc[tup[0]] = op_list
 
+###################################################3
+    reg = "Eo_Op_Func_Description"
+    #reg = "Eo_Op_Func_Description[ ]*([\w]*)\[\][ =]*{([^}]*)};"
+    #all_func_descs = re.findall(reg, af)
+    #if len(all_func_descs) > 1:
+    #   print all_func_descs
+    
+    buf = _in_data
+    func_desc_block = buf.find(reg);
+
+    func_descs = {"NULL" : {}}
+
+    while func_desc_block > 0:
+       count = 0
+       p = func_desc_block
+
+       desc = ""
+       desc_start = desc_end = 0
+       desc_start = buf.find("{", func_desc_block)
+       desc_end = buf.find("};", desc_start)
+       desc = buf[desc_start + 1: desc_end]
+
+       #this is already flag for next iteration
+       func_desc_block = buf.find(reg, desc_end)
+ 
+      #ugly but simple way to fetch constructor name
+       while p > 0:
+          if buf[p] == '}':
+            count += 1
+          if buf[p] == '{':
+            count -= 1
+          if count == -1:
+             break
+          p -= 1
+
+       count = 0
+       stop = False
+       while p > 0:
+          if buf[p] == ')':
+            count += 1
+          if buf[p] == '(':
+            count -= 1
+            stop = True
+          if ((count == 0) and stop):
+             break   
+          p -= 1
+     
+       end_of_constructor_name = p
+     
+       stop = False
+       begin_of_constructor_name = -1
+       while p > 0:
+          c = buf[p]
+          if ((c >= '0' and c <= '9') or (c >= 'A' and c <= 'Z') or (c >= 'a' and c <= 'z') or (c == '_')):
+             stop = True
+          else:
+             if stop:
+                begin_of_constructor_name = p
+                break;
+          p -= 1
+
+       if begin_of_constructor_name != -1:     
+         res = buf[begin_of_constructor_name : end_of_constructor_name]
+         res = res.strip()
+
+         desc = " ".join(desc.split())
+         desc = desc.replace("\n", "").strip()
+         desc = smart_split(desc)
+         desc2 = {}
+         for d in desc:
+            d = d.replace('(', " ").replace(")", " ").replace(",", " ")
+            d = " ".join(d.split())
+            d = d.split()
+            if (len(d) == 4):
+              desc2[d[2]] = d[1]
+
+         func_descs[res] = desc2
+
 
     ###
     # Class desc structure:
@@ -247,6 +325,7 @@ class Cparser(object):
        ver = l_tmp[0].strip(" ")
        name = l_tmp[1].strip(" ")
        cl_type = l_tmp[2].strip(" ")
+       constr_name = l_tmp[6].strip(" ")
        
        #splitting string into list
        desc_ops = l_tmp[3].replace(" ", "").replace("&", "")
@@ -266,7 +345,17 @@ class Cparser(object):
             name = ll[0]
 
        name = name.strip("\"")
-       class_desc[key] = [name, cl_type, desc_ops, ev_desc[ev_desc_var]]
+
+       desc_ops_arr = desc_ops[1]
+
+       #check which of OP_IDs present in FUNC_IDs and remove them
+       # t.e. only IMPLEMENTED functions will remain
+       for a, b in desc_ops_arr:
+          if a in func_descs[constr_name]:
+             del func_descs[constr_name][a]
+       impl_funcs = func_descs[constr_name]
+
+       class_desc[key] = [name, cl_type, desc_ops, ev_desc[ev_desc_var], impl_funcs]
 
     #mapping class_desc_var_name to content
     for key, data in class_def.iteritems():
@@ -306,6 +395,8 @@ class Cparser(object):
        self.cl_data[cl_id][const.MODULE] = normalize_names([cl_name])[0].lower()
        self.cl_data[cl_id][const.TYPE] = data[3]
        self.cl_data[cl_id][const.EV_DESC] = data[5]
+       #saving func desc in class desc
+       self.cl_data[cl_id][const.IMPL_DESC] = data[6]
    #   self.cl_data[cl_id][const.CLASS_CONSTRUCTOR] = lst[5]
 
        class_desc_ops = data[4]
@@ -314,11 +405,32 @@ class Cparser(object):
        for tup in class_desc_ops[1]:
           self.cl_data[cl_id][const.FUNCS][tup[1]] = {const.OP_ID : tup[0], const.MACRO: ""}
 
-       self.cl_data[cl_id][const.BASE_ID] = class_desc_ops[0]
+       self.cl_data[cl_id][const.BASE_ID] = class_desc_ops[0].strip()
+
+  def parse_implement_funcs(self, cl_id):
+    kl = self.cl_data[cl_id]
+    impl_funcs = kl[const.IMPL_DESC]
+    defines = kl[const.DEFINES]
+    base_id = kl[const.BASE_ID]
+
+    #print impl_funcs
+    # for each inherited function from list
+    # look for a class this function overloads, iterate over each operation of this class an get needed op with name
+    for impl_op_id, impl_class_base_id_macro in impl_funcs.iteritems():
+       for class_id, class_data in self.cl_data.iteritems():
+          #looking for needed class
+          if (const.BASE_ID_MACRO in class_data) and (class_data[const.BASE_ID_MACRO] == impl_class_base_id_macro):
+             #looking for needed func
+             for op, func_name in class_data[const.OP_DESC]:
+                if op == impl_op_id:
+                   impl_funcs[impl_op_id] = (class_data[const.C_NAME], func_name)
+                   break;
+             break;
 
 
   #  resolving parameters's types and names according to
   #  #define, @def and op_ids
+
   def parse_op_func_params(self, cl_id):
     if const.OP_DESC not in self.cl_data[cl_id]:
        print "Not found: %s"%const.OP_DESC
@@ -333,6 +445,9 @@ class Cparser(object):
       o = re.match("#define ([\w]*)\(([^\)]*)\) \(%s[\W]*\\2[\W]*\)"%(b_id), d)
       if o != None:
          b_id_macro = o.group(1)
+
+    #save macro which is used to calculate BASE_ID + OP_ID
+    self.cl_data[cl_id][const.BASE_ID_MACRO] = b_id_macro
 
     #looking for op_id in define; if found, cutting op_macro from define
     #and checking if it is in macros list. If not - we forgot to add comment
@@ -818,12 +933,14 @@ class Cparser(object):
     METHODS = "methods"
     PROPERTIES = "properties"
     CONSTRUCTORS = "constructors"
+    IMPLEMENTS = "implements"
     ret[CLASS_NAME] = ""
     ret[MACRO] = ""
     ret[INHERITS] = []
     ret[CONSTRUCTORS] = OrderedDict()
     ret[PROPERTIES] = OrderedDict()
     ret[METHODS] = OrderedDict()
+    ret[IMPLEMENTS] = []
 
     self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, normalize_names([self.cl_data[cl_id][const.C_NAME]])[0] + ".eo")
 
@@ -991,6 +1108,12 @@ class Cparser(object):
            p = t1.find("*")
            t1 = t1[:p] + t1[p + 1:]
          par_arr.append((d, m, t1, n, c))
+
+    # add pairs Class name - func which is overriden
+
+    for op_id, data in cl_data[const.IMPL_DESC].iteritems():
+       ret[IMPLEMENTS].append(data)
+
 
     (h, t) = os.path.split(cl_data[const.XML_FILE])
     if not os.path.isdir(h):

@@ -97,8 +97,12 @@ def main():
   del cl_data_tmp
 
   #mapping #defines, comments(@def) and op_ids together, to parse parameters
+  #after this loop class is fully filled
   for k in cp.cl_data:
     cp.parse_op_func_params(k)
+
+  for k in cp.cl_data:
+    cp.parse_implement_funcs(k)
 
   #if we want to generate Eo format we don't need parents
   # because we only generate description
