@@ -212,7 +212,12 @@ class Cparser(object):
     for tup in all_op_descs:
       s_tmp = tup[1]
       # fetching op_ids and descriptions
-      reg =  "EO_OP_DESCRIPTION[^\)]*\([ ]*([A-Z0-9_]*)[ ]*,[ ]*\"([^\"]*)\"[ ]*\),"
+      # this awful RegEx is for catching comment like this:
+      #  "This is comment \" with escaped quotes \" in the middle "
+      #  " and next line which should be combined with C preprocessor "
+      reg =  "EO_OP_DESCRIPTION[^\)]*\([ ]*([A-Z0-9_]*)[ ]*,([ ]*\"([^\"]*((?<=\\\)\")*)*\"[ ]*[\n]*)+\),"
+      # reg =  "EO_OP_DESCRIPTION[^\)]*\([ ]*([A-Z0-9_]*)[ ]*,([ ]*\"([^\"]*)\"[ ]*[\n]*)+\),"
+      # reg =  "EO_OP_DESCRIPTION[^\)]*\([ ]*([A-Z0-9_]*)[ ]*,[ ]*\"([^\"]*)\"[ ]*\),"
       ids_and_descs = re.findall(reg, s_tmp)
 
       op_list = []
@@ -426,7 +431,6 @@ class Cparser(object):
                    impl_funcs[impl_op_id] = (class_data[const.C_NAME], func_name)
                    break;
              break;
-
 
   #  resolving parameters's types and names according to
   #  #define, @def and op_ids
