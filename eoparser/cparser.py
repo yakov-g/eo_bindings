@@ -1035,6 +1035,8 @@ class Cparser(object):
     cl_data[const.GET_ONLY] = []
 
     for itr_name, v in cl_data[const.FUNCS].iteritems():
+       if itr_name not in func_name_list_not_visited:
+          continue
        T = ""
        if cl_data[const.C_NAME] == "Eo Base":
          T = const.METHOD
@@ -1048,58 +1050,32 @@ class Cparser(object):
 
        #check if both properties are in tree; and if they are in,
        # if their parameters are all in or out
-       prefix = itr_name[:-4]
-       postfix = itr_name[-4:]
-       if postfix in ["_set", "_get"]:
-          if prefix + "_set" in func_name_list_not_visited and prefix + "_get" in func_name_list_not_visited:
-             T = const.SET_GET
-             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
-               if d != "in":
-                 T = const.METHOD
 
-             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
-               if d != "out":
-                 T = const.METHOD
-
-             if (T == const.SET_GET):
-                cl_data[T].append(prefix)
-             else:
+       T = self.func_type(cl_data[const.C_NAME], itr_name)
+       if (T == const.SET_GET):
+          prefix = itr_name[:-4]
+          cl_data[T].append(prefix)
+          func_name_list_not_visited.remove(prefix + "_set")
+          func_name_list_not_visited.remove(prefix + "_get")
+       elif (T == const.SET_ONLY or T == const.GET_ONLY):
+          prefix = itr_name[:-4]
+          cl_data[T].append(prefix)
+          func_name_list_not_visited.remove(itr_name)
+       elif (T == const.METHOD):
+          prefix = itr_name[:-4]
+          suffix = itr_name[-4:]
+          if suffix in ["_set", "_get"]:
+             if prefix + "_set" in func_name_list_not_visited and prefix + "_get" in func_name_list_not_visited:
                 cl_data[T].append(prefix + "_set")
                 cl_data[T].append(prefix + "_get")
-
-             func_name_list_not_visited.remove(prefix + "_set")
-             func_name_list_not_visited.remove(prefix + "_get")
-
-          elif prefix + "_set" in func_name_list_not_visited:
-             T = const.SET_ONLY
-             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
-               if d != "in":
-                 T = const.METHOD
-
-             if (T == const.SET_ONLY):
-                cl_data[T].append(prefix)
+                func_name_list_not_visited.remove(prefix + "_set")
+                func_name_list_not_visited.remove(prefix + "_get")
              else:
-                cl_data[T].append(prefix + "_set")
-             
+                cl_data[T].append(itr_name)
+                func_name_list_not_visited.remove(itr_name)
+          else:
+             cl_data[T].append(itr_name)
              func_name_list_not_visited.remove(itr_name)
-
-          elif prefix + "_get" in func_name_list_not_visited:
-             T = const.GET_ONLY
-             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
-               if d != "out":
-                 T = const.METHOD
-
-             if (T == const.GET_ONLY):
-                cl_data[T].append(prefix)
-             else:
-                cl_data[T].append(prefix + "_get")
-             
-             func_name_list_not_visited.remove(itr_name)
-
-       else:
-         T = const.METHOD
-         cl_data[T].append(itr_name)
-         func_name_list_not_visited.remove(itr_name)
 
     #constructors
     for name in cl_data[CONSTRUCTORS]:
