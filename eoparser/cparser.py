@@ -428,7 +428,10 @@ class Cparser(object):
              #looking for needed func
              for op, func_name in class_data[const.OP_DESC]:
                 if op == impl_op_id:
-                   impl_funcs[impl_op_id] = (class_data[const.C_NAME], func_name)
+                   tt = self.func_type(class_data[const.C_NAME], func_name)
+                   if tt != const.METHOD:
+                      func_name = func_name[:-4]
+                   impl_funcs[impl_op_id] = (class_data[const.C_NAME], func_name, tt)
                    break;
              break;
 
@@ -927,6 +930,46 @@ class Cparser(object):
     f = open (cl_data[const.XML_FILE], 'w')
     f.write(res)
     f.close()
+
+
+  def func_type(self, cl_name, func_name):
+    kl = None
+    for cl_id, data in self.cl_data.iteritems():
+       if data[const.C_NAME] == cl_name:
+          kl = data
+          break;
+
+    prefix = func_name[:-4]
+    postfix = func_name[-4:]
+
+    T = None
+    if postfix in ["_set", "_get"]:
+      if prefix + "_set" in kl[const.FUNCS] and prefix + "_get" in kl[const.FUNCS]:
+         T = const.SET_GET
+         for (n, m ,t1, d, c) in kl[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
+           if d != "in":
+             T = const.METHOD
+
+         for (n, m ,t1, d, c) in kl[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
+           if d != "out":
+             T = const.METHOD
+      elif prefix + "_set" in kl[const.FUNCS]:
+         T = const.SET_ONLY
+         for (n, m ,t1, d, c) in kl[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
+           if d != "in":
+             T = const.METHOD
+
+      elif prefix + "_get" in kl[const.FUNCS]:
+         T = const.GET_ONLY
+         for (n, m ,t1, d, c) in kl[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
+           if d != "out":
+             T = const.METHOD
+
+    elif func_name in kl[const.FUNCS]:
+       T = const.METHOD
+    
+    return T
+
 
   #generating Eo file in JSON
   def build_eo2(self, cl_id):
