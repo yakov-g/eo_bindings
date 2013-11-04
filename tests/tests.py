@@ -2,6 +2,7 @@ import unittest
 import os
 from eoparser.xmlparser import XMLparser
 from eoparser.cparser import Cparser
+from eoparser.cparser import smart_split2
 from eoparser.helper import dir_files_get, abs_path_get, isC, isH, isXML, normalize_names
 
 class testP(unittest.TestCase):
@@ -84,6 +85,17 @@ class testP(unittest.TestCase):
            """
        _out = ["in,out", "in", "out", "in", "out", "in,out", "in,out", "in", "in,out", "in,out"]
        ret = self.c_parser.get_param_dir_from_comment(s)
+       self.assertEqual(ret, _out)
+
+    def test_smart_split2(self):
+       #s = "token1,token2"
+       #_out = ("token1","token2")
+       #ret = smart_split2(s, "\"", "\"")
+       #self.assertEqual(ret, _out)
+
+       s = "\"token\", token2"
+       _out = ("\"token\"", " token2")
+       ret = smart_split2(s, "\"", "\"")
        self.assertEqual(ret, _out)
 
 

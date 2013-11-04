@@ -158,6 +158,56 @@ class Cparser(object):
 
     return t_tmp + stars
 
+  def _old_signals_get(self, _in_data):
+    sig_desc = {}
+    sig_names_map = {}
+
+    # looking for constructions like
+    # static const char SIG_CLICKED[] = "clicked";
+    # and put it into map
+    af = _in_data.replace("\n", "")
+    reg = "(SIG[\w]*)\[ *\][ ]*= *\"([,\w]*)\";"
+    sig_names_list = re.findall(reg, af)
+    for k, n in sig_names_list:
+       sig_names_map[k] = n
+
+    # looking for constructions like
+    # #define SIG_CLICKED "clicked"
+    # and put it into map
+    reg = "#define *(SIG[\w]*) *\"([^\"]*)\""
+    sig_names_list = re.findall(reg, af)
+    for k, n in sig_names_list:
+       sig_names_map[k] = n
+
+    #looking for Cb_Descriptions array, parse it
+    # and change SIG_ variables with it's defines...
+    reg = "Evas_Smart_Cb_Description *([\w]*)[][ =]*{([^;]*);"
+    sig_desc_list = re.findall(reg, af)
+    #if len(sig_list) > 1:
+    sig_desc = {}
+    for it in sig_desc_list:
+       key = it[0]
+       data = it[1]
+       #print data
+       reg = "{([^}]*)}"
+       sigs = re.findall(reg, data)
+       #print "---------------------"
+       arr = []
+       for i in sigs:
+          (v, c) = smart_split2(i, "\"", "\"")
+          v = v.strip();
+          c = c.strip();
+
+          if v.find("\"") == -1 and v != "NULL":
+             v = sig_names_map[v]
+          v = v.strip("\"")
+          c = c.strip("\"")
+          if v != "NULL":
+             arr.append((v, c))
+       sig_desc[key] = arr
+
+    return sig_desc
+
   def fetch_data(self, _in_data):
     def_list = []
 
@@ -186,6 +236,9 @@ class Cparser(object):
 
        class_def[key] = [desc_var, parent, l_tmp]
     
+  #looking for old styled signals, which begin with
+  # SIG_
+    sig_list = self._old_signals_get(_in_data)
 
   #event_desc structure
   # { EV_CLICKED, EV_BUTTON_DOWN, EV_BUTTON_UP, NULL  }
@@ -360,7 +413,7 @@ class Cparser(object):
              del func_descs[constr_name][a]
        impl_funcs = func_descs[constr_name]
 
-       class_desc[key] = [name, cl_type, desc_ops, ev_desc[ev_desc_var], impl_funcs]
+       class_desc[key] = [name, cl_type, desc_ops, ev_desc[ev_desc_var], impl_funcs, sig_list]
 
     #mapping class_desc_var_name to content
     for key, data in class_def.iteritems():
@@ -374,6 +427,7 @@ class Cparser(object):
     f = open(filename, 'r')
     allfile = f.read()
     f.close()
+    print filename
     ttt = self.fetch_data(allfile)
 
     #for each class which was found it c-file
@@ -402,6 +456,13 @@ class Cparser(object):
        self.cl_data[cl_id][const.EV_DESC] = data[5]
        #saving func desc in class desc
        self.cl_data[cl_id][const.IMPL_DESC] = data[6]
+       tmp = data[7]
+       self.cl_data[cl_id][const.SIG_DESC] = []
+       if len (tmp) == 2:
+         print "There is hack here in parsing of SIG_"
+       if len(tmp) == 1:
+          for k, d in tmp.items():
+            self.cl_data[cl_id][const.SIG_DESC] = d
    #   self.cl_data[cl_id][const.CLASS_CONSTRUCTOR] = lst[5]
 
        class_desc_ops = data[4]
@@ -981,6 +1042,7 @@ class Cparser(object):
     PROPERTIES = "properties"
     CONSTRUCTORS = "constructors"
     IMPLEMENTS = "implements"
+    SIGNALS = "old_styled_signals"
     ret[CLASS_NAME] = ""
     ret[MACRO] = ""
     ret[INHERITS] = []
@@ -988,6 +1050,7 @@ class Cparser(object):
     ret[PROPERTIES] = OrderedDict()
     ret[METHODS] = OrderedDict()
     ret[IMPLEMENTS] = []
+    ret[SIGNALS] = []
 
     self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, normalize_names([self.cl_data[cl_id][const.C_NAME]])[0] + ".eo")
 
@@ -1133,10 +1196,11 @@ class Cparser(object):
          par_arr.append((d, m, t1, n, c))
 
     # add pairs Class name - func which is overriden
-
     for op_id, data in cl_data[const.IMPL_DESC].iteritems():
        ret[IMPLEMENTS].append(data)
 
+    # add old styled signals
+    ret[SIGNALS] = cl_data[const.SIG_DESC]
 
     (h, t) = os.path.split(cl_data[const.XML_FILE])
     if not os.path.isdir(h):
@@ -1172,3 +1236,21 @@ def smart_split(tmp):
 
   return l
 
+def smart_split2(tmp, open_delimeter, close_delimeter):
+  bracket = 0
+  pos_start = 0
+  l = []
+  for i in range(len(tmp)):
+    if tmp[i] == ',' and bracket == 0:
+      l.append(tmp[pos_start:i])
+      pos_start = i + 1
+    elif tmp[i] == open_delimeter:
+      if open_delimeter == close_delimeter and bracket == 1:
+         bracket -=1
+      else:
+         bracket += 1
+    elif tmp[i] == close_delimeter:
+      bracket -= 1
+  l.append(tmp[pos_start : ])
+
+  return tuple(l)

@@ -33,6 +33,7 @@ class _const:
     self.OP_DESC = "op_desccc"
     self.EV_DESC = "ev_desccc"
     self.IMPL_DESC = "implements_desc"
+    self.SIG_DESC = "signal_desc"
 
     self.GET_FUNCTION = "get_function"#used as xml-tag
     self.DEFINES = "defines"
