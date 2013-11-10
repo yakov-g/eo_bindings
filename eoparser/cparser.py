@@ -427,7 +427,6 @@ class Cparser(object):
     f = open(filename, 'r')
     allfile = f.read()
     f.close()
-    print filename
     ttt = self.fetch_data(allfile)
 
     #for each class which was found it c-file

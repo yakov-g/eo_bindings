@@ -6,7 +6,7 @@ from eoparser.xmlparser import XMLparser
 from eoparser.cparser import Cparser
 from eoparser.cparser import LOCAL_CPARSER
 from argparse import ArgumentParser
-import sys
+import sys, json
 
 #creating instance to handle constants
 const = _const()
@@ -114,8 +114,11 @@ def main():
 
   if args.eoformat2:
      #building XMLs
+     #class_names_array = []
      for k in cp.cl_data:
        cp.build_eo2(k)
+       #class_names_array.append(cp.cl_data[k][const.C_NAME])
+     #print json.dumps(class_names_array)
      exit(0)
 
   # here starts parent dependency search and XML build
