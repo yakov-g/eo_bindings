@@ -104,6 +104,9 @@ def main():
   for k in cp.cl_data:
     cp.parse_implement_funcs(k)
 
+  for k in cp.cl_data:
+    cp.parse_events(k)
+
   #if we want to generate Eo format we don't need parents
   # because we only generate description
   if args.eoformat:

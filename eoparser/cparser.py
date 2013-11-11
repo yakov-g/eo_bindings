@@ -218,7 +218,6 @@ class Cparser(object):
   #
   #  EO_DEFINE_CLASS(elm_scrollable_interface_get, &_elm_scrollable_interface_desc, NULL, EVAS_SMART_SCROLLABLE_INTERFACE, NULL);
   #
-
     class_def = {}
     class_desc = {}
     ev_desc = {"NULL" : []}
@@ -239,6 +238,18 @@ class Cparser(object):
   #looking for old styled signals, which begin with
   # SIG_
     sig_list = self._old_signals_get(_in_data)
+
+  #FIXME: this regex must hande case when \" in inside quotes
+  #looking for declarations of all events, This can fail, if bracket is used inside
+    event_descriptions = {}
+    reg = "Eo_Event_Description[ ]*([\w]*)[ =]*EO_(HOT_)*EVENT_DESCRIPTION\(([^\)]*)\);"
+    af = _in_data.replace("\n", "")
+    ev_list = re.findall(reg, af)
+    for key, hot, desc in ev_list:
+       event, comment = smart_split2(desc, "\"", "\"")
+       event = event.strip().strip("\"")
+       comment = comment.strip().strip("\"")
+       event_descriptions[key] = (event, comment)
 
   #event_desc structure
   # { EV_CLICKED, EV_BUTTON_DOWN, EV_BUTTON_UP, NULL  }
@@ -413,7 +424,7 @@ class Cparser(object):
              del func_descs[constr_name][a]
        impl_funcs = func_descs[constr_name]
 
-       class_desc[key] = [name, cl_type, desc_ops, ev_desc[ev_desc_var], impl_funcs, sig_list]
+       class_desc[key] = [name, cl_type, desc_ops, ev_desc[ev_desc_var], impl_funcs, sig_list, event_descriptions]
 
     #mapping class_desc_var_name to content
     for key, data in class_def.iteritems():
@@ -463,6 +474,7 @@ class Cparser(object):
           for k, d in tmp.items():
             self.cl_data[cl_id][const.SIG_DESC] = d
    #   self.cl_data[cl_id][const.CLASS_CONSTRUCTOR] = lst[5]
+       self.cl_data[cl_id][const.EVENT_DICT] = data[8]
 
        class_desc_ops = data[4]
        self.cl_data[cl_id][const.OP_DESC] = class_desc_ops[1]
@@ -471,6 +483,36 @@ class Cparser(object):
           self.cl_data[cl_id][const.FUNCS][tup[1]] = {const.OP_ID : tup[0], const.MACRO: ""}
 
        self.cl_data[cl_id][const.BASE_ID] = class_desc_ops[0].strip()
+
+  # at this point we have following:
+  # list of events for each class, like:
+  # [EVAS_OBJECT_CLICKED_EVENT, EVAS_OBJECT_MOVED_EVENT]
+  #
+  # Eo_Event_Descriptions, like:
+  # _CLICKED_EVENT = {"clicked", "Clicked event"}
+  # _MOVED_EVENT = {"moved", "Moved event"}
+  #
+  # List of defines, like
+  # #define EVAS_OBJECT_CLICKED_EVENT (&(_CLICKED_EVENT))
+  # #define EVAS_OBJECT_MOVED_EVENT (&(_MOVED_EVENT))
+  #
+  # We want to have list like this:
+  # (_CLICKED_EVENT, EVAS_OBJECT_CLICKED_EVENT, "clicked", "Clicked event")
+  # (_MOVED_EVENT, EVAS_OBJECT_MOVED_EVENT, "moved", "Moved Event")
+  #
+  def parse_events(self, cl_id):
+    kl = self.cl_data[cl_id]
+    defines = kl[const.DEFINES]
+    event_descriptions = kl[const.EVENT_DICT]
+    kl_events_list = kl[const.EV_DESC]
+    for idx, ev in enumerate(kl_events_list):
+       printed = False
+       for d in defines:
+          s = "#define %s"%ev
+          if d.find(s) != -1:
+             token = d[len(s):]
+             token = token.replace(" ", "").replace("(", "").replace(")", "").replace("&", "")
+             kl_events_list[idx] = ((token, ev, event_descriptions[token][0], event_descriptions[token][1]))
 
   def parse_implement_funcs(self, cl_id):
     kl = self.cl_data[cl_id]
@@ -642,8 +684,9 @@ class Cparser(object):
 
     if const.EV_DESC in cl_data:
       lst = cl_data[const.EV_DESC]
-      for l in lst:
-         SubElement(ev_tag, const.EVENT,{const.NAME:l})
+      for api_id, event_id, event_name, comment in lst:
+         SubElement(ev_tag, const.EVENT,{const.NAME:api_id, const.EVENT_ID:event_id,
+                                         const.EVENT_NAME:event_name, const.COMMENT:comment})
 
     res = tostring(module, "utf-8")
     res = minidom.parseString(res)
@@ -1200,6 +1243,10 @@ class Cparser(object):
 
     # add old styled signals
     ret[SIGNALS] = cl_data[const.SIG_DESC]
+    # add eo events
+    eo_events = cl_data[const.EV_DESC]
+    for l in eo_events:
+       ret[SIGNALS].append((l[2], l[3]))
 
     (h, t) = os.path.split(cl_data[const.XML_FILE])
     if not os.path.isdir(h):

@@ -29,9 +29,12 @@ class _const:
     self.FUNCS = "funcs"
     self.PARAMETERS = "parameters"
     self.OP_ID = "op_id"
+    self.EVENT_ID = "event_id"
+    self.EVENT_NAME = "event_name"
 
     self.OP_DESC = "op_desccc"
     self.EV_DESC = "ev_desccc"
+    self.EVENT_DICT = "event_dict"
     self.IMPL_DESC = "implements_desc"
     self.SIG_DESC = "signal_desc"
 
