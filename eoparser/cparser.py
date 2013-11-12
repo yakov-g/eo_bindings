@@ -208,18 +208,20 @@ class Cparser(object):
 
     return sig_desc
 
-  def fetch_data(self, _in_data):
-    def_list = []
+  def c_file_data_get2(self, filename):
 
+    f = open(filename, 'r')
+    _in_data = f.read()
+    f.close()
+
+    def_list = []
     reg = "EO_DEFINE_CLASS\((.*)\).*"
     def_list += re.findall(reg, _in_data)
 
   #event_desc structure
-  #
   #  EO_DEFINE_CLASS(elm_scrollable_interface_get, &_elm_scrollable_interface_desc, NULL, EVAS_SMART_SCROLLABLE_INTERFACE, NULL);
   #
-    class_def = {}
-    class_desc = {}
+    cl_name_to_desc_var_name_map = {}
     ev_desc = {"NULL" : []}
     #print "def list: ", def_list
     for s in def_list:
@@ -233,7 +235,16 @@ class Cparser(object):
        l_tmp = l_tmp[3:-1]
        l_tmp = filter(lambda l: False if l == "NULL" else True, l_tmp)
 
-       class_def[key] = [desc_var, parent, l_tmp]
+       # map class get func to description variable
+       cl_name_to_desc_var_name_map[key] = desc_var
+
+       lst = []
+       lst.append(parent) 
+       lst += l_tmp
+       lst = filter(lambda l: False if l == "NULL" else True, lst)
+
+       self.cl_data[key] = {const.PARENTS:lst,
+                            const.FUNCS:{}}
     
   #looking for old styled signals, which begin with
   # SIG_
@@ -371,7 +382,6 @@ class Cparser(object):
 
          func_descs[res] = desc2
 
-
     ###
     # Class desc structure:
     # {
@@ -387,6 +397,7 @@ class Cparser(object):
     #
     reg = "Eo_Class_Description[ ]*([\w]*)[ =]*{([^}]*)};"
     desc_list = re.findall(reg, af)
+    class_desc = {}
 
     for tup in desc_list:
        key = tup[0]
@@ -415,74 +426,54 @@ class Cparser(object):
 
        name = name.strip("\"")
 
-       desc_ops_arr = desc_ops[1]
-
        #check which of OP_IDs present in FUNC_IDs and remove them
        # t.e. only IMPLEMENTED functions will remain
+       desc_ops_arr = desc_ops[1]
        for a, b in desc_ops_arr:
           if a in func_descs[constr_name]:
              del func_descs[constr_name][a]
        impl_funcs = func_descs[constr_name]
+       del desc_ops_arr
 
-       class_desc[key] = [name, cl_type, desc_ops, ev_desc[ev_desc_var], impl_funcs, sig_list, event_descriptions]
+       # here key is name of class_desc variable
+       class_desc[key] = {}
+       class_desc[key]["name"] = name
+       class_desc[key]["cl_type"] = cl_type
+       class_desc[key]["op_desc"] = desc_ops
+       class_desc[key]["implements"] = impl_funcs
+       class_desc[key]["ev_desc"] = ev_desc[ev_desc_var]
+    del desc_list, reg
 
-    #mapping class_desc_var_name to content
-    for key, data in class_def.iteritems():
-       class_def[key] += class_desc[data[0]]
-       class_def[key].pop(0)
+    # matching data form class_desc to class defined with its get_func
+    # here key is name of class_get func
+    for key, var_name in cl_name_to_desc_var_name_map.iteritems():
+       cl_desc = class_desc[var_name]
 
-    return class_def
+       #assigning the same sig list to all classes in current file
+       self.cl_data[key][const.SIG_DESC] = []
+       if len (sig_list) == 2:
+         print "There is hack here in parsing of SIG_, if we are here, there are two classes with different descriptiptions in this file."
+       if len(sig_list) == 1:
+          for k, d in sig_list.items():
+            self.cl_data[key][const.SIG_DESC] = d
 
-  def c_file_data_get2(self, filename):
+       #assigning all event's descriptions to class
+       # descriptions are: _CLICKED_EVENT = {"clicked", "Clicked comment"}
+       self.cl_data[key][const.EVENT_DICT] = event_descriptions
 
-    f = open(filename, 'r')
-    allfile = f.read()
-    f.close()
-    ttt = self.fetch_data(allfile)
+       self.cl_data[key][const.TYPE] = cl_desc["cl_type"]
+       self.cl_data[key][const.IMPL_DESC] = cl_desc["implements"]
+       self.cl_data[key][const.EV_DESC] = cl_desc["ev_desc"]
+       self.cl_data[key][const.BASE_ID] = cl_desc["op_desc"][0].strip()
+       self.cl_data[key][const.OP_DESC] = cl_desc["op_desc"][1]
 
-    #for each class which was found it c-file
-    for key, data in ttt.iteritems():
+       for tup in cl_desc["op_desc"][1]:
+          self.cl_data[key][const.FUNCS][tup[1]] = {const.OP_ID : tup[0], const.MACRO: ""}
 
-       cl_id = key
-       lst = []
-       lst.append(data[0]) 
-       lst += data[1]
-       lst = filter(lambda l: False if l == "NULL" else True, lst)
-
-       if cl_id in self.cl_data:
-         verbose_print("Class %s from file %s won't be added in the tree"%(cl_id, filename))
-         verbose_print("Class %s from file %s will be used as parent in inheritance"%(cl_id, self.cl_data[cl_id][const.C_FILE]))
-         return
-
-       self.cl_data[cl_id] = {const.PARENTS:lst,
-                                      const.C_FILE:filename,
-                                      const.FUNCS:{}}
-
-       cl_name = data[2]
-       self.cl_data[cl_id][const.C_NAME] = cl_name
-
-       self.cl_data[cl_id][const.MODULE] = normalize_names([cl_name])[0].lower()
-       self.cl_data[cl_id][const.TYPE] = data[3]
-       self.cl_data[cl_id][const.EV_DESC] = data[5]
-       #saving func desc in class desc
-       self.cl_data[cl_id][const.IMPL_DESC] = data[6]
-       tmp = data[7]
-       self.cl_data[cl_id][const.SIG_DESC] = []
-       if len (tmp) == 2:
-         print "There is hack here in parsing of SIG_"
-       if len(tmp) == 1:
-          for k, d in tmp.items():
-            self.cl_data[cl_id][const.SIG_DESC] = d
-   #   self.cl_data[cl_id][const.CLASS_CONSTRUCTOR] = lst[5]
-       self.cl_data[cl_id][const.EVENT_DICT] = data[8]
-
-       class_desc_ops = data[4]
-       self.cl_data[cl_id][const.OP_DESC] = class_desc_ops[1]
-
-       for tup in class_desc_ops[1]:
-          self.cl_data[cl_id][const.FUNCS][tup[1]] = {const.OP_ID : tup[0], const.MACRO: ""}
-
-       self.cl_data[cl_id][const.BASE_ID] = class_desc_ops[0].strip()
+       name = cl_desc["name"]
+       self.cl_data[key][const.C_NAME] = name
+       self.cl_data[key][const.MODULE] = normalize_names([name])[0].lower()
+       self.cl_data[key][const.C_FILE] = filename;
 
   # at this point we have following:
   # list of events for each class, like:
