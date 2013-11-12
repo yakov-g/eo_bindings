@@ -571,6 +571,8 @@ class Cparser(object):
              reg = "%s\(([^,]*),([^,]*)\)"%const.EO_TYPECHECK
              ss = re.findall(reg, d)
 
+             if len(ss) != len(params_direction):
+                print "Warning: for function: %s, there are %d params in comment and %d in define"%(s_tmp, len(params_direction), len(ss))
              i = 0
              for tup in ss:
                 lst = list(tup)
