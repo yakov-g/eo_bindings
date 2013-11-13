@@ -32,6 +32,8 @@ class Cparser(object):
     print_flag = _print_flag
     self.cl_data = {}
     self.cl_incl = {}
+    self.eapi_func_ret_type_hash = {}
+    self.all_eo_funcs_hash = {}
 
     self.outdir = ""
     self.typedefs = {"Evas_Coord" : "int",
@@ -528,9 +530,82 @@ class Cparser(object):
                    break;
              break;
 
+  # As OP_IDs were generated from EAPI,
+  # we try to find new func in hash of legacy.
+  # But sometimes we need to do tricks because
+  # prefix(class name) is a little bit different
+
+  def find_func_in_hash(self,funcs_list):
+     for func in funcs_list:
+      # try to find right by the key
+       if func in self.eapi_func_ret_type_hash:
+         self.all_eo_funcs_hash[func] = ((self.eapi_func_ret_type_hash[func], func))
+         del(self.eapi_func_ret_type_hash[func])
+         continue
+      #second try to find for "evas", as in some cases
+      # "object" was deleted from class name, so func prefux was changed in eo op
+       tokens = func.split("_")
+       if ((tokens[0] == "evas") and (tokens[1] != "object")):
+         tokens.insert(1, "object")
+         new_func = "_".join(tokens)
+         if new_func in self.eapi_func_ret_type_hash:
+           #here func and new_func are not mistake
+           self.all_eo_funcs_hash[func] = ((self.eapi_func_ret_type_hash[new_func], new_func))
+           del(self.eapi_func_ret_type_hash[new_func])
+           continue
+
+       i = 0
+       ll = []
+       tokens = func.split("_")
+       for key in self.eapi_func_ret_type_hash:
+          ret = True
+          key_tokens = key.split("_")
+          for t in tokens:
+             if t not in key_tokens:
+                ret = False
+          if ret:
+             i += 1
+             ll.append(key)
+       if i > 1:
+          print "SUCKS: find %d for %s"%(i, tokens)
+          print ll
+          # we found several functions which match pattern,
+          # there are only 4 cases now, and they are not needed to be fixed
+          # (or can be easily fixed manually)
+          self.all_eo_funcs_hash[func] = (("void", None))
+       elif i == 1:
+          self.all_eo_funcs_hash[func] = ((self.eapi_func_ret_type_hash[ll[0]], ll[0]))
+          del(self.eapi_func_ret_type_hash[ll[0]])
+       elif i == 0:
+          print "NOT FOUND: for %s"%(tokens)
+          #legacy for func was not found, so return type is "void"
+          self.all_eo_funcs_hash[func] = (("void", None))
+
+
+  def parse_all_return_types(self):
+    #iterate over all classes.
+    # concatinate class name with func name,
+    # save it all in one list and sort by desc length
+
+    all_new_funcs = []
+    for cl_id in self.cl_data:
+      if const.OP_DESC not in self.cl_data[cl_id]:
+         print "Not found: %s"%const.OP_DESC
+         exit()
+      op_desc = self.cl_data[cl_id][const.OP_DESC]
+      func_prefix = self.cl_data[cl_id][const.C_NAME].lower()
+      for op, f in op_desc:
+         all_new_funcs.append(func_prefix +"_" + f)
+
+    all_new_funcs.sort(key = len)
+    all_new_funcs.reverse()
+    self.find_func_in_hash(all_new_funcs)
+
+
+#######################
+
   #  resolving parameters's types and names according to
   #  #define, @def and op_ids
-
   def parse_op_func_params(self, cl_id):
     if const.OP_DESC not in self.cl_data[cl_id]:
        print "Not found: %s"%const.OP_DESC
@@ -552,6 +627,7 @@ class Cparser(object):
     #looking for op_id in define; if found, cutting op_macro from define
     #and checking if it is in macros list. If not - we forgot to add comment
     #if yes - cutting types from define
+    func_prefix = self.cl_data[cl_id][const.C_NAME].lower()
     for op, f in op_desc:
        found = False
        for d in defines:
@@ -596,6 +672,9 @@ class Cparser(object):
              self.cl_data[cl_id][const.FUNCS][f][const.PARAMETERS] = params
              self.cl_data[cl_id][const.FUNCS][f][const.COMMENT] = macros[s_tmp][const.COMMENT]
              self.cl_data[cl_id][const.FUNCS][f][const.MACRO] = s_tmp
+             ret_t, legacy_name = self.all_eo_funcs_hash[func_prefix + "_" + f]
+             self.cl_data[cl_id][const.FUNCS][f][const.RETURN_TYPE] = ret_t
+             self.cl_data[cl_id][const.FUNCS][f][const.LEGACY_NAME] = legacy_name
          
        if not found:
          print "Warning: no API for %s in  %s"%(op, self.cl_data[cl_id][const.H_FILE])
@@ -725,6 +804,36 @@ class Cparser(object):
     f = open (filename, 'r')
     allfile = f.read()
     f.close()
+
+    # fetch all EAPI functions to match with funcs from classes
+    reg = "EAPI[^;]*;"
+    af = allfile.replace("\n", "");
+    eapi_list = re.findall(reg, allfile)
+    for l in eapi_list:
+      tmp = " ".join(l.split())
+      # suppose this is usual func, so we can look for (
+      # and cut everything off
+      pos = tmp.find("(")
+      if pos == -1:
+         continue
+      tmp = tmp[ : pos].strip()
+
+      #look for EAPI and cut it off
+      pos = tmp.find("EAPI")
+      tmp = tmp[pos + 4 :].strip()
+
+      # look for * from right, if not found look for space
+      pos = tmp.rfind("*")
+      if pos == -1:
+         pos = tmp.rfind(" ")
+      type_name = tmp[ : pos + 1].replace(" *", "*").strip()
+      func_name = tmp[pos + 1 : ].replace(" ", "")
+      # if func starts with "_" dont add it. This is internal API
+      if func_name[0] == "_":
+         continue
+      if ((type_name.find("void") != -1) and (type_name.find("*") == -1)):
+        type_name = "void"
+      self.eapi_func_ret_type_hash[func_name] = type_name
 
    #fetch all "#define" from file
     matcher = re.compile(r"^[ \t]*(#define(.*\\\n)*.*$)",re.MULTILINE)
@@ -1190,6 +1299,14 @@ class Cparser(object):
       f = cl_data[const.FUNCS][name + "_set"]
       f_ret["comment_set"] = f[const.COMMENT]
       f_ret["comment_get"] = cl_data[const.FUNCS][name + '_get'][const.COMMENT]
+
+      if f[const.LEGACY_NAME]:
+        f_ret["legacy_override_set"] = f[const.LEGACY_NAME]
+
+      legacy_name = cl_data[const.FUNCS][name + '_get'][const.LEGACY_NAME]
+      if legacy_name:
+        f_ret["legacy_override_get"] = legacy_name
+
       par_arr = f_ret["parameters"] = []
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
          par_arr.append((m, t1, n, c))
@@ -1200,6 +1317,8 @@ class Cparser(object):
       f = cl_data[const.FUNCS][name + "_set"]
       f_ret["comment"] = f[const.COMMENT]
       f_ret["type"] = "wo"
+      if f[const.LEGACY_NAME]:
+        ret[PROPERTIES][name]["legacy_override"] = f[const.LEGACY_NAME]
       par_arr = f_ret["parameters"] = []
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
          par_arr.append((m, t1, n, c))
@@ -1210,6 +1329,8 @@ class Cparser(object):
       f = cl_data[const.FUNCS][name + "_get"]
       f_ret["comment"] = f[const.COMMENT]
       f_ret["type"] = "ro"
+      if f[const.LEGACY_NAME]:
+        ret[PROPERTIES][name]["legacy_override"] = f[const.LEGACY_NAME]
       par_arr = f_ret["parameters"] = []
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
          #remove * from out parameter
@@ -1223,8 +1344,16 @@ class Cparser(object):
       f = cl_data[const.FUNCS][name]
 
       ret[METHODS][name]["comment"] = f[const.COMMENT]
+      ret_type = ret[METHODS][name][const.RETURN_TYPE] = f[const.RETURN_TYPE]
+      if f[const.LEGACY_NAME]:
+        ret[METHODS][name]["legacy_override"] = f[const.LEGACY_NAME]
       par_arr = ret[METHODS][name]["parameters"] = []
-      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+
+      for idx, (n, m ,t1, d, c) in enumerate(f[const.PARAMETERS]):
+         # if return type is not "void", dont add last parameter - generator will add it by himself
+         if ((ret_type != "void") and (idx == len(f[const.PARAMETERS]) - 1)):
+           break
+         # if parameter is out cut off * in type
          if d == "out":
            p = t1.find("*")
            t1 = t1[:p] + t1[p + 1:]

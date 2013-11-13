@@ -37,6 +37,8 @@ class _const:
     self.EVENT_DICT = "event_dict"
     self.IMPL_DESC = "implements_desc"
     self.SIG_DESC = "signal_desc"
+    self.RETURN_TYPE = "return_type"
+    self.LEGACY_NAME = "legacy"
 
     self.GET_FUNCTION = "get_function"#used as xml-tag
     self.DEFINES = "defines"

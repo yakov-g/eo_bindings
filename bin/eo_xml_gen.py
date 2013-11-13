@@ -96,6 +96,7 @@ def main():
       cp.cl_data.pop(k)
   del cl_data_tmp
 
+  cp.parse_all_return_types()
   #mapping #defines, comments(@def) and op_ids together, to parse parameters
   #after this loop class is fully filled
   for k in cp.cl_data:
