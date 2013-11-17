@@ -771,6 +771,25 @@ class Cparser(object):
     f.write(res)
     f.close()
 
+  # helper function
+  # takes doxygen comment, removes * in the beginning of comment
+  # concatenates @param lines
+  def _comment_preparse(self, _com):
+     com_lines =  _com.split("\n")
+     com_lines2 = []
+     for idx, l in enumerate(com_lines):
+        s = l.lstrip(" ").lstrip("\"").lstrip("*").lstrip(" ")
+        if s[ : 6] == "@param":
+           ss = com_lines[idx + 1].lstrip(" ").lstrip("\"").lstrip("*").lstrip(" ")
+           if ((len(ss) != 0) and (ss[0] != "@")):
+             s = s + " " + ss
+             com_lines.pop(idx + 1)
+
+        com_lines2.append(s)
+
+     com = "\n".join(com_lines2)
+     return com
+
   # get perams direction and description from comment
   def get_param_dir_from_comment(self, com):
      res = re.findall("@param.*", com)
@@ -859,6 +878,7 @@ class Cparser(object):
          macro_name = res.group(1)
          #looking for parameters direction and desc in comment
          macro[macro_name] = {}
+         comment_tmp = self._comment_preparse(comment_tmp)
          macro[macro_name][const.PARAMETERS] = self.get_param_dir_from_comment(comment_tmp)
          #save comment for method
          desc = self.get_brief_desc_from_comment(comment_tmp)
