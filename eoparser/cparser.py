@@ -1200,7 +1200,7 @@ class Cparser(object):
   def build_eo2(self, cl_id):
     ret = OrderedDict()
     CLASS_NAME = "name"
-    MACRO = "macro"
+    #MACRO = "macro"
     INHERITS = "inherits"
     METHODS = "methods"
     PROPERTIES = "properties"
@@ -1208,7 +1208,7 @@ class Cparser(object):
     IMPLEMENTS = "implements"
     SIGNALS = "old_styled_signals"
     ret[CLASS_NAME] = ""
-    ret[MACRO] = ""
+    #ret[MACRO] = ""
     ret[INHERITS] = []
     ret[CONSTRUCTORS] = OrderedDict()
     ret[PROPERTIES] = OrderedDict()
@@ -1222,7 +1222,7 @@ class Cparser(object):
 
     cl_data = self.cl_data[cl_id]
     ret[CLASS_NAME] = cl_data[const.C_NAME]
-    ret[MACRO] = cl_id
+    #ret[MACRO] = cl_id
 
     cl_parent = ""
     cl_brothers = []
@@ -1311,7 +1311,7 @@ class Cparser(object):
       f = cl_data[const.FUNCS][name ]
       f_ret["comment"] = f[const.COMMENT]
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         par_arr.append((d, m, t1, n, c))
+         par_arr.append((d, "%s %s"%(m, t1), n, c))
 
     #properties
     for name in cl_data[const.SET_GET]:
@@ -1329,7 +1329,10 @@ class Cparser(object):
 
       par_arr = f_ret["parameters"] = []
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         par_arr.append((m, t1, n, c))
+         t1 = ("%s %s"%(m, t1)).strip()
+         p = {}
+         p[n] = (t1, c)
+         par_arr.append(p)
 
   #properties_set
     for name in cl_data[const.SET_ONLY]:
@@ -1341,7 +1344,10 @@ class Cparser(object):
         ret[PROPERTIES][name]["legacy_override"] = f[const.LEGACY_NAME]
       par_arr = f_ret["parameters"] = []
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         par_arr.append((m, t1, n, c))
+         t1 = ("%s %s"%(m, t1)).strip()
+         p = {}
+         p[n] = (t1, c)
+         par_arr.append(p)
 
   #properties_get
     for name in cl_data[const.GET_ONLY]:
@@ -1356,7 +1362,10 @@ class Cparser(object):
          #remove * from out parameter
          p = t1.find("*")
          t1 = t1[:p] + t1[p + 1:]
-         par_arr.append((m, t1, n, c))
+         t1 = ("%s %s"%(m, t1)).strip()
+         p = {}
+         p[n] = (t1, c)
+         par_arr.append(p)
 
     #methods
     for name in cl_data[const.METHOD]:
@@ -1367,17 +1376,43 @@ class Cparser(object):
       ret_type = ret[METHODS][name][const.RETURN_TYPE] = f[const.RETURN_TYPE]
       if f[const.LEGACY_NAME]:
         ret[METHODS][name]["legacy_override"] = f[const.LEGACY_NAME]
-      par_arr = ret[METHODS][name]["parameters"] = []
+      par_map = ret[METHODS][name]["parameters"] = OrderedDict()
+      #par_map["in"] = []
+      #par_map["in,out"] = []
+      #par_map["out"] = []
 
+      in_params_array = []
+      out_params_array = []
+      PAR_IN = 1
+      PAR_IN_OUT = 2
+      PAR_OUT = 3
+      par_dir_state = PAR_IN
       for idx, (n, m ,t1, d, c) in enumerate(f[const.PARAMETERS]):
          # if return type is not "void", dont add last parameter - generator will add it by himself
          if ((ret_type != "void") and (idx == len(f[const.PARAMETERS]) - 1)):
            break
+         if d == "in" and (par_dir_state > PAR_IN):
+            print "IN parameter after OUT parameter detected in %s %s"%(ret[CLASS_NAME], name)
+            #exit()
          # if parameter is out cut off * in type
+         if d == "in,out":
+            if par_dir_state == PAR_OUT:
+              print "IN,OUT parameter after OUT parameter detected in %s %s"%(ret[CLASS_NAME], name)
+            else:
+              par_dir_state = PAR_IN_OUT
          if d == "out":
            p = t1.find("*")
            t1 = t1[:p] + t1[p + 1:]
-         par_arr.append((d, m, t1, n, c))
+           in_after_out = True
+           par_dir_state = PAR_OUT
+
+
+         t1 = ("%s %s"%(m, t1)).strip()
+         p = {}
+         p[n] = (t1, c)
+         if d not in par_map:
+            par_map[d] = []
+         par_map[d].append(p)
 
     # add pairs Class name - func which is overriden
     for op_id, data in cl_data[const.IMPL_DESC].iteritems():
