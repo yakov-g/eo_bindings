@@ -539,7 +539,8 @@ class Cparser(object):
      for func in funcs_list:
       # try to find right by the key
        if func in self.eapi_func_ret_type_hash:
-         self.all_eo_funcs_hash[func] = ((self.eapi_func_ret_type_hash[func], func))
+         # if func totally maches put None
+         self.all_eo_funcs_hash[func] = ((self.eapi_func_ret_type_hash[func], None))
          del(self.eapi_func_ret_type_hash[func])
          continue
       #second try to find for "evas", as in some cases
@@ -1280,8 +1281,11 @@ class Cparser(object):
 
        T = self.func_type(cl_data[const.C_NAME], itr_name)
        prefix = itr_name[:-4]
+       """
        if (prefix in cl_data[const.FUNCS]):
+          print "Clash"
           print ("%s :: %s :: %s :: %s")%(ret[CLASS_NAME], itr_name, prefix, T)
+       """
        if (T == const.SET_GET):
           cl_data[T].append(prefix)
           func_name_list_not_visited.remove(prefix + "_set")
@@ -1379,7 +1383,7 @@ class Cparser(object):
       ret[METHODS][name]["comment"] = f[const.COMMENT]
       ret_type = ret[METHODS][name][const.RETURN_TYPE] = f[const.RETURN_TYPE]
       if f[const.LEGACY_NAME]:
-        ret[METHODS][name]["legacy_override"] = f[const.LEGACY_NAME]
+        ret[METHODS][name][const.LEGACY_NAME] = f[const.LEGACY_NAME]
       par_map = ret[METHODS][name]["parameters"] = OrderedDict()
       #par_map["in"] = []
       #par_map["in,out"] = []
