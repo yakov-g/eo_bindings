@@ -1200,15 +1200,14 @@ class Cparser(object):
   def build_eo2(self, cl_id):
     ret = OrderedDict()
     CLASS_NAME = "name"
-    #MACRO = "macro"
     INHERITS = "inherits"
     METHODS = "methods"
     PROPERTIES = "properties"
     CONSTRUCTORS = "constructors"
     IMPLEMENTS = "implements"
-    SIGNALS = "old_styled_signals"
+    SIGNALS = "signals"
     ret[CLASS_NAME] = ""
-    #ret[MACRO] = ""
+    ret[const.LEGACY_NAME] = ""
     ret[INHERITS] = []
     ret[CONSTRUCTORS] = OrderedDict()
     ret[PROPERTIES] = OrderedDict()
@@ -1222,6 +1221,7 @@ class Cparser(object):
 
     cl_data = self.cl_data[cl_id]
     ret[CLASS_NAME] = cl_data[const.C_NAME]
+    ret[const.LEGACY_NAME] = ret[CLASS_NAME].lower()
     #ret[MACRO] = cl_id
 
     cl_parent = ""
@@ -1279,17 +1279,17 @@ class Cparser(object):
        # if their parameters are all in or out
 
        T = self.func_type(cl_data[const.C_NAME], itr_name)
+       prefix = itr_name[:-4]
+       if (prefix in cl_data[const.FUNCS]):
+          print ("%s :: %s :: %s :: %s")%(ret[CLASS_NAME], itr_name, prefix, T)
        if (T == const.SET_GET):
-          prefix = itr_name[:-4]
           cl_data[T].append(prefix)
           func_name_list_not_visited.remove(prefix + "_set")
           func_name_list_not_visited.remove(prefix + "_get")
        elif (T == const.SET_ONLY or T == const.GET_ONLY):
-          prefix = itr_name[:-4]
           cl_data[T].append(prefix)
           func_name_list_not_visited.remove(itr_name)
        elif (T == const.METHOD):
-          prefix = itr_name[:-4]
           suffix = itr_name[-4:]
           if suffix in ["_set", "_get"]:
              if prefix + "_set" in func_name_list_not_visited and prefix + "_get" in func_name_list_not_visited:
@@ -1306,7 +1306,7 @@ class Cparser(object):
 
     #constructors
     for name in cl_data[CONSTRUCTORS]:
-      f_ret = ret[CONSTRUCTORS][name] = {}
+      f_ret = ret[CONSTRUCTORS][name] = OrderedDict()
       par_arr = f_ret["parameters"] = []
       f = cl_data[const.FUNCS][name ]
       f_ret["comment"] = f[const.COMMENT]
@@ -1317,15 +1317,19 @@ class Cparser(object):
     for name in cl_data[const.SET_GET]:
       f_ret = ret[PROPERTIES][name] = OrderedDict()
       f = cl_data[const.FUNCS][name + "_set"]
-      f_ret["comment_set"] = f[const.COMMENT]
-      f_ret["comment_get"] = cl_data[const.FUNCS][name + '_get'][const.COMMENT]
+     
+      f_ret["set"] = OrderedDict()
+      f_ret["get"] = OrderedDict()
+
+      f_ret["set"]["comment"] = f[const.COMMENT]
+      f_ret["get"]["comment"] = cl_data[const.FUNCS][name + '_get'][const.COMMENT]
 
       if f[const.LEGACY_NAME]:
-        f_ret["legacy_override_set"] = f[const.LEGACY_NAME]
+        f_ret["set"][const.LEGACY_NAME] = f[const.LEGACY_NAME]
 
       legacy_name = cl_data[const.FUNCS][name + '_get'][const.LEGACY_NAME]
       if legacy_name:
-        f_ret["legacy_override_get"] = legacy_name
+        f_ret["get"][const.LEGACY_NAME] = legacy_name
 
       par_arr = f_ret["parameters"] = []
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
@@ -1338,10 +1342,10 @@ class Cparser(object):
     for name in cl_data[const.SET_ONLY]:
       f_ret = ret[PROPERTIES][name] = OrderedDict()
       f = cl_data[const.FUNCS][name + "_set"]
-      f_ret["comment"] = f[const.COMMENT]
-      f_ret["type"] = "wo"
+      f_ret["set"] = OrderedDict()
+      f_ret["set"]["comment"] = f[const.COMMENT]
       if f[const.LEGACY_NAME]:
-        ret[PROPERTIES][name]["legacy_override"] = f[const.LEGACY_NAME]
+        ret[PROPERTIES][name]["set"][const.LEGACY_NAME] = f[const.LEGACY_NAME]
       par_arr = f_ret["parameters"] = []
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
          t1 = ("%s %s"%(m, t1)).strip()
@@ -1353,10 +1357,10 @@ class Cparser(object):
     for name in cl_data[const.GET_ONLY]:
       f_ret = ret[PROPERTIES][name] = OrderedDict()
       f = cl_data[const.FUNCS][name + "_get"]
-      f_ret["comment"] = f[const.COMMENT]
-      f_ret["type"] = "ro"
+      f_ret["get"] = OrderedDict()
+      f_ret["get"]["comment"] = f[const.COMMENT]
       if f[const.LEGACY_NAME]:
-        ret[PROPERTIES][name]["legacy_override"] = f[const.LEGACY_NAME]
+        ret[PROPERTIES][name]["get"][const.LEGACY_NAME] = f[const.LEGACY_NAME]
       par_arr = f_ret["parameters"] = []
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
          #remove * from out parameter
