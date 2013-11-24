@@ -1381,7 +1381,11 @@ class Cparser(object):
       f = cl_data[const.FUNCS][name]
 
       ret[METHODS][name]["comment"] = f[const.COMMENT]
-      ret_type = ret[METHODS][name][const.RETURN_TYPE] = f[const.RETURN_TYPE]
+
+      #add "return_type" field only if type is no void
+      ret_type = f[const.RETURN_TYPE]
+      if ret_type != "void":
+        ret[METHODS][name][const.RETURN_TYPE] = ret_type
       if f[const.LEGACY_NAME]:
         ret[METHODS][name][const.LEGACY_NAME] = f[const.LEGACY_NAME]
       par_map = ret[METHODS][name]["parameters"] = OrderedDict()
@@ -1396,7 +1400,7 @@ class Cparser(object):
       PAR_OUT = 3
       par_dir_state = PAR_IN
       for idx, (n, m ,t1, d, c) in enumerate(f[const.PARAMETERS]):
-         # if return type is not "void", dont add last parameter - generator will add it by himself
+         # if return type is not "void", don't add last parameter - generator will add it by himself
          if ((ret_type != "void") and (idx == len(f[const.PARAMETERS]) - 1)):
            break
          if d == "in" and (par_dir_state > PAR_IN):
