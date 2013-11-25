@@ -1205,6 +1205,9 @@ class Cparser(object):
           kl = data
           break;
 
+    if "constructor" in func_name:
+       return const.METHOD
+
     prefix = func_name[:-4]
     postfix = func_name[-4:]
 
@@ -1311,11 +1314,6 @@ class Cparser(object):
          cl_data[T].append(itr_name)
          continue
 
-       if "constructor" in itr_name:
-          cl_data[CONSTRUCTORS].append(itr_name)
-          func_name_list_not_visited.remove(itr_name)
-          continue
-
        #check if both properties are in tree; and if they are in,
        # if their parameters are all in or out
 
@@ -1347,15 +1345,6 @@ class Cparser(object):
           else:
              cl_data[T].append(itr_name)
              func_name_list_not_visited.remove(itr_name)
-
-    #constructors
-    for name in cl_data[CONSTRUCTORS]:
-      f_ret = ret[CONSTRUCTORS][name] = OrderedDict()
-      par_arr = f_ret["parameters"] = []
-      f = cl_data[const.FUNCS][name ]
-      f_ret["comment"] = f[const.COMMENT]
-      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-         par_arr.append((d, "%s %s"%(m, t1), n, c))
 
     #properties
     for name in cl_data[const.SET_GET]:
@@ -1415,20 +1404,32 @@ class Cparser(object):
          p[n] = (t1, c)
          par_arr.append(p)
 
+    #constructors
+    for name in cl_data[CONSTRUCTORS]:
+      f_ret = ret[CONSTRUCTORS][name] = OrderedDict()
+      par_arr = f_ret["parameters"] = []
+      f = cl_data[const.FUNCS][name ]
+      f_ret["comment"] = f[const.COMMENT]
+      for (n, m ,t1, d, c) in f[const.PARAMETERS]:
+         par_arr.append((d, "%s %s"%(m, t1), n, c))
+
     #methods
     for name in cl_data[const.METHOD]:
-      ret[METHODS][name] = OrderedDict()
+      ret_tmp = ret[METHODS]
+      if "constructor" in name:
+         ret_tmp = ret[CONSTRUCTORS]
+      ret_tmp[name] = OrderedDict()
       f = cl_data[const.FUNCS][name]
 
-      ret[METHODS][name]["comment"] = f[const.COMMENT]
+      ret_tmp[name]["comment"] = f[const.COMMENT]
 
       #add "return_type" field only if type is no void
       ret_type = f[const.RETURN_TYPE]
       if ret_type != "void":
-        ret[METHODS][name][const.RETURN_TYPE] = ret_type
+        ret_tmp[name][const.RETURN_TYPE] = ret_type
       if f[const.LEGACY_NAME]:
-        ret[METHODS][name][const.LEGACY_NAME] = f[const.LEGACY_NAME]
-      par_map = ret[METHODS][name]["parameters"] = OrderedDict()
+        ret_tmp[name][const.LEGACY_NAME] = f[const.LEGACY_NAME]
+      par_map = ret_tmp[name]["parameters"] = OrderedDict()
       #par_map["in"] = []
       #par_map["in,out"] = []
       #par_map["out"] = []
