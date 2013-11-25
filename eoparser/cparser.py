@@ -507,9 +507,36 @@ class Cparser(object):
              token = token.replace(" ", "").replace("(", "").replace(")", "").replace("&", "")
              kl_events_list[idx] = ((token, ev, event_descriptions[token][0], event_descriptions[token][1]))
 
+  #understand which property is going to be implemented
+  # set, get, or both
+  def implemented_type_get(self, key, lst):
+     s = key[:-4]
+     suffix = key[-4:]
+     SET = GET = ""
+     if suffix == "_set" or suffix == "_get":
+        SET = "_set"
+        GET = "_get"
+     elif suffix == "_SET" or suffix == "_GET":
+        SET = "_SET"
+        GET = "_GET"
+     else:
+        return const.METHOD
+
+     ret = ""
+     if (s + SET) in lst:
+        ret = const.SET_ONLY
+     if (s + GET in lst):
+        if ret == const.SET_ONLY:
+          ret = const.SET_GET
+        else:
+          ret = const.GET_ONLY
+     return ret
+
+
   def parse_implement_funcs(self, cl_id):
     kl = self.cl_data[cl_id]
     impl_funcs = kl[const.IMPL_DESC]
+    kl[const.IMPL_FINAL] = {}
     defines = kl[const.DEFINES]
     base_id = kl[const.BASE_ID]
 
@@ -523,10 +550,23 @@ class Cparser(object):
              #looking for needed func
              for op, func_name in class_data[const.OP_DESC]:
                 if op == impl_op_id:
-                   tt = self.func_type(class_data[const.C_NAME], func_name)
-                   if tt != const.METHOD:
+                   orig_func_type = self.func_type(class_data[const.C_NAME], func_name)
+                   if orig_func_type != const.METHOD:
                       func_name = func_name[:-4]
-                   impl_funcs[impl_op_id] = (class_data[const.C_NAME], func_name, tt)
+
+                   impl_func_type = ""
+                   # if func which going to be implemented is method, everything is ok
+                   # if it is property, we need to understand which property is going to be implemented,
+                   # set/get or boty
+                   if orig_func_type != const.METHOD:
+                     impl_func_type = self.implemented_type_get(impl_op_id, impl_funcs)
+
+                   # if it is set or get, add it to parameters
+                   if (impl_func_type == const.SET_ONLY) or (impl_func_type == const.GET_ONLY):
+                      kl[const.IMPL_FINAL][func_name] = (class_data[const.C_NAME], func_name, impl_func_type)
+                   # if both - keep blank
+                   else:
+                      kl[const.IMPL_FINAL][func_name] = (class_data[const.C_NAME], func_name)
                    break;
              break;
 
@@ -1427,7 +1467,7 @@ class Cparser(object):
          par_map[d].append(p)
 
     # add pairs Class name - func which is overriden
-    for op_id, data in cl_data[const.IMPL_DESC].iteritems():
+    for op_id, data in cl_data[const.IMPL_FINAL].iteritems():
        ret[IMPLEMENTS].append(data)
 
     # add old styled signals

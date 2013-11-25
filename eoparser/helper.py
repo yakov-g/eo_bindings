@@ -36,6 +36,7 @@ class _const:
     self.EV_DESC = "ev_desccc"
     self.EVENT_DICT = "event_dict"
     self.IMPL_DESC = "implements_desc"
+    self.IMPL_FINAL = "implements_desc"
     self.SIG_DESC = "signal_desc"
     self.RETURN_TYPE = "return_type"
     self.LEGACY_NAME = "legacy"
