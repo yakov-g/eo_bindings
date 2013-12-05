@@ -17,6 +17,7 @@ class _const:
 
     self.NAME = "name" #used as xml-tag
     self.C_NAME = "c_name" #used as xml-tag
+    self.C_LEGACY_NAME = "c_legacy_name" #used as xml-tag
     self.MODIFIER = "modifier" #used as xml-tag
     self.MODULE = "module" #used as xml-tag
     self.PARSE_VERSION = "parse_version" #used as xml-tag

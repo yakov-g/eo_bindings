@@ -428,6 +428,12 @@ class Cparser(object):
 
        name = name.strip("\"")
 
+       reg = "#define *MY_CLASS_NAME_LEGACY *\"([^\"]*)\""
+       ll = re.findall(reg, af)
+       legacy_name = ""
+       if len(ll):
+          legacy_name = ll[0]
+
        #check which of OP_IDs present in FUNC_IDs and remove them
        # t.e. only IMPLEMENTED functions will remain
        desc_ops_arr = desc_ops[1]
@@ -440,6 +446,7 @@ class Cparser(object):
        # here key is name of class_desc variable
        class_desc[key] = {}
        class_desc[key]["name"] = name
+       class_desc[key]["legacy_name"] = legacy_name
        class_desc[key]["cl_type"] = cl_type
        class_desc[key]["op_desc"] = desc_ops
        class_desc[key]["implements"] = impl_funcs
@@ -474,6 +481,7 @@ class Cparser(object):
 
        name = cl_desc["name"]
        self.cl_data[key][const.C_NAME] = name
+       self.cl_data[key][const.C_LEGACY_NAME] = cl_desc["legacy_name"]
        self.cl_data[key][const.MODULE] = normalize_names([name])[0].lower()
        self.cl_data[key][const.C_FILE] = filename;
 
@@ -1217,21 +1225,29 @@ class Cparser(object):
          T = const.SET_GET
          for (n, m ,t1, d, c) in kl[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
            if d != "in":
+             if len(kl[const.FUNCS][prefix+"_set"][const.PARAMETERS]) == 2:
+               print "1Warning: check comments: %s %s"%(cl_name, prefix)
              T = const.METHOD
 
          for (n, m ,t1, d, c) in kl[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
            if d != "out":
+             if len(kl[const.FUNCS][prefix+"_get"][const.PARAMETERS]) == 2:
+               print "2Warning: check comments: %s %s"%(cl_name, prefix)
              T = const.METHOD
       elif prefix + "_set" in kl[const.FUNCS]:
          T = const.SET_ONLY
          for (n, m ,t1, d, c) in kl[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
            if d != "in":
+             if len(kl[const.FUNCS][prefix+"_set"][const.PARAMETERS]) == 2:
+               print "3Warning: check comments: %s %s"%(cl_name, prefix)
              T = const.METHOD
 
       elif prefix + "_get" in kl[const.FUNCS]:
          T = const.GET_ONLY
          for (n, m ,t1, d, c) in kl[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
            if d != "out":
+             if len(kl[const.FUNCS][prefix+"_get"][const.PARAMETERS]) == 2:
+               print "4Warning: check comments: %s %s"%(cl_name, prefix)
              T = const.METHOD
 
     elif func_name in kl[const.FUNCS]:
@@ -1265,7 +1281,9 @@ class Cparser(object):
 
     cl_data = self.cl_data[cl_id]
     ret[CLASS_NAME] = cl_data[const.C_NAME]
-    ret[const.LEGACY_NAME] = ret[CLASS_NAME].lower()
+
+    legacy_name = cl_data[const.C_LEGACY_NAME].lower()
+    ret[const.LEGACY_NAME] = legacy_name if len(legacy_name) else ret[CLASS_NAME]
     #ret[MACRO] = cl_id
 
     cl_parent = ""
@@ -1485,6 +1503,111 @@ class Cparser(object):
     f = open(cl_data[const.XML_FILE], 'w')
     f.write(json.dumps(ret, indent=2))
     #f.write(json.dumps(cl_data, indent=2))
+    f.close()
+
+
+    #main brackets
+    tab_level = 1
+    tab = "   "
+    new_buf = "%s {\n{\n"%(ret[CLASS_NAME])
+    lines = []
+
+    lines.append("legacy %s;\n"%(ret[const.LEGACY_NAME]))
+    lines.append("inherits {%s};\n"%(", ".join(ret[INHERITS])))
+
+    lines.append("constructors {\n")
+    for k, prop in ret[CONSTRUCTORS].iteritems():
+      lines.append("%s%s {\n"%(tab * tab_level, k))
+      tab_level += 1
+      if "comment" in prop:
+         lines.append("%s/*@ %s */\n"%(tab * tab_level, prop["comment"]))
+      if const.RETURN_TYPE in prop:
+         lines.append("%sreturn %s;\n"%(tab * tab_level, prop[const.RETURN_TYPE]))
+      if const.LEGACY_NAME in prop:
+         lines.append("%slegacy %s;\n"%(tab * tab_level, prop[const.LEGACY_NAME]))
+
+      lines.append("%s%s {\n"%(tab * tab_level, "params"))
+      tab_level += 1
+      for d, par_lst in prop[const.PARAMETERS].iteritems():
+         for par in par_lst:
+           #this par is a dictionary par[name] - > (type, comment)
+           for name, tup in par.iteritems():
+              lines.append("%s%s %s %s; /*@ %s */\n"%(tab * tab_level, d, tup[0], name, tup[1]))
+
+      tab_level -= 1
+      lines.append("%s};\n"%(tab * tab_level)) #close for parameters
+      tab_level -= 1 #dec for all parameters
+      lines.append("%s};\n"%(tab * tab_level)) #close for property name
+    lines.append("};\n") #close for methods section
+
+    lines.append("properties {\n")
+    for k, prop in ret[PROPERTIES].iteritems():
+      lines.append("%s%s {\n"%(tab * tab_level, k))
+      for sg in ["set", "get"]:
+        if sg in prop:
+           prop_tmp = prop[sg]
+           tab_level += 1
+           lines.append("%s%s {\n"%(tab * tab_level, sg))
+           tab_level += 1
+           lines.append("%s/*@ %s */\n"%(tab * tab_level, prop_tmp["comment"]))
+           if const.LEGACY_NAME in prop_tmp:
+             lines.append("%slegacy %s;\n"%(tab * tab_level, prop_tmp[const.LEGACY_NAME]))
+           tab_level -= 1
+           lines.append("%s};\n"%(tab * tab_level)) #close set-get
+           tab_level -= 1
+
+      tab_level += 1
+      lines.append("%s%s {\n"%(tab * tab_level, "params"))
+      tab_level += 1
+      for par in prop[const.PARAMETERS]:
+         #this par is a dictionary par[name] - > (type, comment)
+         for name, tup in par.iteritems():
+             lines.append("%s%s %s; /*@ %s */\n"%(tab * tab_level, tup[0], name, tup[1]))
+
+      tab_level -= 1
+      lines.append("%s};\n"%(tab * tab_level)) #close for parameters
+      tab_level -= 1 #dec for all parameters
+      lines.append("%s};\n"%(tab * tab_level)) #close for property name
+    lines.append("};\n") #close for property section
+
+    lines.append("methods {\n")
+    for k, prop in ret[METHODS].iteritems():
+      lines.append("%s%s {\n"%(tab * tab_level, k))
+      tab_level += 1
+      if "comment" in prop:
+         lines.append("%s/*@ %s */\n"%(tab * tab_level, prop["comment"]))
+      if const.RETURN_TYPE in prop:
+         lines.append("%sreturn %s;\n"%(tab * tab_level, prop[const.RETURN_TYPE]))
+      if const.LEGACY_NAME in prop:
+         lines.append("%slegacy %s;\n"%(tab * tab_level, prop[const.LEGACY_NAME]))
+
+      lines.append("%s%s {\n"%(tab * tab_level, "params"))
+      tab_level += 1
+      for d, par_lst in prop[const.PARAMETERS].iteritems():
+         for par in par_lst:
+           #this par is a dictionary par[name] - > (type, comment)
+           for name, tup in par.iteritems():
+              lines.append("%s%s %s %s; /*@ %s */\n"%(tab * tab_level, d, tup[0], name, tup[1]))
+
+      tab_level -= 1
+      lines.append("%s};\n"%(tab * tab_level)) #close for parameters
+      tab_level -= 1 #dec for all parameters
+      lines.append("%s};\n"%(tab * tab_level)) #close for property name
+    lines.append("};\n") #close for methods section
+
+
+    for l in lines:
+       new_buf += "%s%s"%(tab_level * tab, l)
+
+    new_buf += "\n};"
+    res = new_buf
+
+    (h, t) = os.path.split(cl_data[const.XML_FILE])
+    if not os.path.isdir(h):
+      os.makedirs(h)
+
+    f = open (cl_data[const.XML_FILE], 'w')
+    f.write(res)
     f.close()
 
 # smart_split(tmp)
