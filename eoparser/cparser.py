@@ -1595,6 +1595,18 @@ class Cparser(object):
       lines.append("%s};\n"%(tab * tab_level)) #close for property name
     lines.append("};\n") #close for methods section
 
+    lines.append("implements {\n")
+    for tup in ret[IMPLEMENTS]:
+       if len(tup) == 2:
+         lines.append("%s%s :: %s;\n"%(tab * tab_level, tup[0], tup[1]))
+       elif len(tup) == 3:
+         lines.append("%s%s :: %s %s;\n"%(tab * tab_level, tup[0], tup[1], tup[2]))
+    lines.append("};\n") #close implements section
+
+    lines.append("signals {\n")
+    for tup in ret[SIGNALS]:
+       lines.append("%s%s; /*@ %s */\n"%(tab * tab_level, tup[0], tup[1]))
+    lines.append("};\n") #close signals section
 
     for l in lines:
        new_buf += "%s%s"%(tab_level * tab, l)
