@@ -433,6 +433,15 @@ class Cparser(object):
        legacy_name = ""
        if len(ll):
           legacy_name = ll[0]
+       else:
+         cl_name_arr = ["Evas_Box", "Evas_Grid", "Evas_Image", "Evas_Line", "Evas_Polygon", "Evas_Rectangle",
+                      "Evas_Smart", "Evas_Smart_Clipped", "Evas_Table", "Evas_Textblock", "Evas_Text", "Evas_Textgrid"]
+         if name in cl_name_arr:
+            tokens = name.lower().split("_")
+            tokens.insert(1, "Object")
+            legacy_name = "_".join(tokens)
+         else:
+            legacy_name = name
 
        #check which of OP_IDs present in FUNC_IDs and remove them
        # t.e. only IMPLEMENTED functions will remain
@@ -1281,9 +1290,8 @@ class Cparser(object):
 
     cl_data = self.cl_data[cl_id]
     ret[CLASS_NAME] = cl_data[const.C_NAME]
+    ret[const.LEGACY_NAME] = cl_data[const.C_LEGACY_NAME].lower()
 
-    legacy_name = cl_data[const.C_LEGACY_NAME].lower()
-    ret[const.LEGACY_NAME] = legacy_name if len(legacy_name) else ret[CLASS_NAME]
     #ret[MACRO] = cl_id
 
     cl_parent = ""
@@ -1376,6 +1384,9 @@ class Cparser(object):
       f_ret["get"]["comment"] = cl_data[const.FUNCS][name + '_get'][const.COMMENT]
 
       if f[const.LEGACY_NAME]:
+        # as now class legacy name was added
+        #legacy_name_tmp = "%s_%s_set"%(ret[const.LEGACY_NAME], name)
+        #if legacy_name_tmp != f_ret["set"][const.LEGACY_NAME]:
         f_ret["set"][const.LEGACY_NAME] = f[const.LEGACY_NAME]
 
       legacy_name = cl_data[const.FUNCS][name + '_get'][const.LEGACY_NAME]
