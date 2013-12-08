@@ -600,18 +600,11 @@ class Cparser(object):
          self.all_eo_funcs_hash[func] = ((self.eapi_func_ret_type_hash[func], None))
          del(self.eapi_func_ret_type_hash[func])
          continue
-      #second try to find for "evas", as in some cases
-      # "object" was deleted from class name, so func prefux was changed in eo op
-       tokens = func.split("_")
-       if ((tokens[0] == "evas") and (tokens[1] != "object")):
-         tokens.insert(1, "object")
-         new_func = "_".join(tokens)
-         if new_func in self.eapi_func_ret_type_hash:
-           #here func and new_func are not mistake
-           self.all_eo_funcs_hash[func] = ((self.eapi_func_ret_type_hash[new_func], new_func))
-           del(self.eapi_func_ret_type_hash[new_func])
-           continue
 
+      # Probaly need to remove this check by tokens
+      #
+      # try to find legacy func by tokens
+      # if only one will be found - we succed
        i = 0
        ll = []
        tokens = func.split("_")
@@ -632,6 +625,7 @@ class Cparser(object):
           # (or can be easily fixed manually)
           self.all_eo_funcs_hash[func] = (("void", None))
        elif i == 1:
+          print "FOUND : find %d for %s"%(i, tokens)
           self.all_eo_funcs_hash[func] = ((self.eapi_func_ret_type_hash[ll[0]], ll[0]))
           del(self.eapi_func_ret_type_hash[ll[0]])
        elif i == 0:
@@ -651,7 +645,7 @@ class Cparser(object):
          print "Not found: %s"%const.OP_DESC
          exit()
       op_desc = self.cl_data[cl_id][const.OP_DESC]
-      func_prefix = self.cl_data[cl_id][const.C_NAME].lower()
+      func_prefix = self.cl_data[cl_id][const.C_LEGACY_NAME].lower()
       for op, f in op_desc:
          all_new_funcs.append(func_prefix +"_" + f)
 
@@ -685,7 +679,7 @@ class Cparser(object):
     #looking for op_id in define; if found, cutting op_macro from define
     #and checking if it is in macros list. If not - we forgot to add comment
     #if yes - cutting types from define
-    func_prefix = self.cl_data[cl_id][const.C_NAME].lower()
+    func_prefix = self.cl_data[cl_id][const.C_LEGACY_NAME].lower()
     for op, f in op_desc:
        found = False
        for d in defines:
@@ -1234,29 +1228,29 @@ class Cparser(object):
          T = const.SET_GET
          for (n, m ,t1, d, c) in kl[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
            if d != "in":
-             if len(kl[const.FUNCS][prefix+"_set"][const.PARAMETERS]) == 2:
-               print "1Warning: check comments: %s %s"%(cl_name, prefix)
+             #if len(kl[const.FUNCS][prefix+"_set"][const.PARAMETERS]) == 2:
+             #  print "1Warning: check comments: %s %s"%(cl_name, prefix)
              T = const.METHOD
 
          for (n, m ,t1, d, c) in kl[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
            if d != "out":
-             if len(kl[const.FUNCS][prefix+"_get"][const.PARAMETERS]) == 2:
-               print "2Warning: check comments: %s %s"%(cl_name, prefix)
+             #if len(kl[const.FUNCS][prefix+"_get"][const.PARAMETERS]) == 2:
+             #  print "2Warning: check comments: %s %s"%(cl_name, prefix)
              T = const.METHOD
       elif prefix + "_set" in kl[const.FUNCS]:
          T = const.SET_ONLY
          for (n, m ,t1, d, c) in kl[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
            if d != "in":
-             if len(kl[const.FUNCS][prefix+"_set"][const.PARAMETERS]) == 2:
-               print "3Warning: check comments: %s %s"%(cl_name, prefix)
+             #if len(kl[const.FUNCS][prefix+"_set"][const.PARAMETERS]) == 2:
+             #  print "3Warning: check comments: %s %s"%(cl_name, prefix)
              T = const.METHOD
 
       elif prefix + "_get" in kl[const.FUNCS]:
          T = const.GET_ONLY
          for (n, m ,t1, d, c) in kl[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
            if d != "out":
-             if len(kl[const.FUNCS][prefix+"_get"][const.PARAMETERS]) == 2:
-               print "4Warning: check comments: %s %s"%(cl_name, prefix)
+             #if len(kl[const.FUNCS][prefix+"_get"][const.PARAMETERS]) == 2:
+             #  print "4Warning: check comments: %s %s"%(cl_name, prefix)
              T = const.METHOD
 
     elif func_name in kl[const.FUNCS]:
