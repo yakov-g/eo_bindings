@@ -940,7 +940,7 @@ class Cparser(object):
             desc += "\n"
             desc += self.get_desc_from_comment(comment_tmp)
  
-         macro[macro_name][const.COMMENT] = desc
+         macro[macro_name][const.COMMENT] = desc.strip("\n").strip("").strip("\n")
 
 
     #looking for class_get function to get class macro
@@ -1284,7 +1284,8 @@ class Cparser(object):
 
     cl_data = self.cl_data[cl_id]
     ret[CLASS_NAME] = cl_data[const.C_NAME]
-    ret[const.LEGACY_NAME] = cl_data[const.C_LEGACY_NAME].lower()
+    if (cl_data[const.C_LEGACY_NAME].lower() != cl_data[const.C_NAME].lower()):
+      ret[const.LEGACY_NAME] = cl_data[const.C_LEGACY_NAME].lower()
 
     #ret[MACRO] = cl_id
 
@@ -1514,104 +1515,144 @@ class Cparser(object):
     #main brackets
     tab_level = 1
     tab = "   "
-    new_buf = "%s {\n{\n"%(ret[CLASS_NAME])
+    new_buf = "%s {\n"%(ret[CLASS_NAME])
     lines = []
 
-    lines.append("legacy %s;\n"%(ret[const.LEGACY_NAME]))
+    if (len(ret[const.LEGACY_NAME])):
+      lines.append("legacy_prefix: %s;\n"%(ret[const.LEGACY_NAME]))
     lines.append("inherits {%s};\n"%(", ".join(ret[INHERITS])))
 
-    lines.append("constructors {\n")
-    for k, prop in ret[CONSTRUCTORS].iteritems():
-      lines.append("%s%s {\n"%(tab * tab_level, k))
-      tab_level += 1
-      if "comment" in prop:
-         lines.append("%s/*@ %s */\n"%(tab * tab_level, prop["comment"]))
-      if const.RETURN_TYPE in prop:
-         lines.append("%sreturn %s;\n"%(tab * tab_level, prop[const.RETURN_TYPE]))
-      if const.LEGACY_NAME in prop:
-         lines.append("%slegacy %s;\n"%(tab * tab_level, prop[const.LEGACY_NAME]))
+    if (len(ret[IMPLEMENTS]) != 0):
+      for tup in ret[IMPLEMENTS]:
+         if ("constructor" in tup[1]):
+           lines.append("constructor; /*@ Default constructor */\n")
+           continue
+         if ("destructor" in tup[1]):
+           lines.append("destructor; /*@ Default destructor */\n")
+           continue
 
-      lines.append("%s%s {\n"%(tab * tab_level, "params"))
-      tab_level += 1
-      for d, par_lst in prop[const.PARAMETERS].iteritems():
-         for par in par_lst:
-           #this par is a dictionary par[name] - > (type, comment)
-           for name, tup in par.iteritems():
-              lines.append("%s%s %s %s; /*@ %s */\n"%(tab * tab_level, d, tup[0], name, tup[1]))
+    if (len(ret[CONSTRUCTORS]) != 0):
+      lines.append("constructors {\n")
+      for k, prop in ret[CONSTRUCTORS].iteritems():
+        lines.append("%s%s {\n"%(tab * tab_level, k))
+        tab_level += 1
+        if "comment" in prop:
+           if not is_empty(prop["comment"]):
+             lines.append("%s/*@ %s */\n"%(tab * tab_level, prop["comment"]))
+        if const.RETURN_TYPE in prop:
+           lines.append("%sreturn %s;\n"%(tab * tab_level, prop[const.RETURN_TYPE]))
+        if const.LEGACY_NAME in prop:
+           lines.append("%slegacy %s;\n"%(tab * tab_level, prop[const.LEGACY_NAME]))
 
-      tab_level -= 1
-      lines.append("%s};\n"%(tab * tab_level)) #close for parameters
-      tab_level -= 1 #dec for all parameters
-      lines.append("%s};\n"%(tab * tab_level)) #close for property name
-    lines.append("};\n") #close for methods section
+        if (len(prop[const.PARAMETERS]) != 0):
+          lines.append("%s%s {\n"%(tab * tab_level, "params"))
+          tab_level += 1
+          for d, par_lst in prop[const.PARAMETERS].iteritems():
+             for par in par_lst:
+               #this par is a dictionary par[name] - > (type, comment)
+               for name, tup in par.iteritems():
+                  s = "%s%s %s %s;"%(tab * tab_level, d, tup[0], name)
+                  comment = "\n"
+                  if not is_empty(tup[1]):
+                    comment = " /*@ %s */\n"%(tup[1])
+                  lines.append(s + comment)
+ 
+          tab_level -= 1
+          lines.append("%s};\n"%(tab * tab_level)) #close for parameters
+        tab_level -= 1 #dec for all parameters
+        lines.append("%s};\n"%(tab * tab_level)) #close for property name
+        lines.append("};\n") #close for constructors section
 
-    lines.append("properties {\n")
-    for k, prop in ret[PROPERTIES].iteritems():
-      lines.append("%s%s {\n"%(tab * tab_level, k))
-      for sg in ["set", "get"]:
-        if sg in prop:
-           prop_tmp = prop[sg]
+    if (len(ret[PROPERTIES]) != 0):
+       lines.append("properties {\n")
+       for k, prop in ret[PROPERTIES].iteritems():
+         lines.append("%s%s {\n"%(tab * tab_level, k))
+         for sg in ["set", "get"]:
+           if sg in prop:
+              prop_tmp = prop[sg]
+              tab_level += 1
+              lines.append("%s%s {\n"%(tab * tab_level, sg))
+              tab_level += 1
+              if not is_empty(prop_tmp["comment"]):
+                 lines.append("%s/*@ %s */\n"%(tab * tab_level, prop_tmp["comment"]))
+              if const.LEGACY_NAME in prop_tmp:
+                lines.append("%slegacy %s;\n"%(tab * tab_level, prop_tmp[const.LEGACY_NAME]))
+              tab_level -= 1
+              lines.append("%s};\n"%(tab * tab_level)) #close set-get
+              tab_level -= 1
+
+         tab_level += 1
+         lines.append("%s%s {\n"%(tab * tab_level, "params"))
+         tab_level += 1
+         for par in prop[const.PARAMETERS]:
+            #this par is a dictionary par[name] - > (type, comment)
+            for name, tup in par.iteritems():
+                s = "%s%s %s;"%(tab * tab_level, tup[0], name)
+                comment = "\n"
+                if not is_empty(tup[1]):
+                   comment = " /*@ %s */\n"%(tup[1])
+                lines.append(s + comment)
+
+         tab_level -= 1
+         lines.append("%s};\n"%(tab * tab_level)) #close for parameters
+         tab_level -= 1 #dec for all parameters
+         lines.append("%s};\n"%(tab * tab_level)) #close for property name
+       lines.append("};\n") #close for property section
+
+    if (len(ret[METHODS]) != 0):
+       lines.append("methods {\n")
+       for k, prop in ret[METHODS].iteritems():
+         lines.append("%s%s {\n"%(tab * tab_level, k))
+         tab_level += 1
+         if "comment" in prop:
+           if not is_empty(prop["comment"]):
+             lines.append("%s/*@ %s */\n"%(tab * tab_level, prop["comment"]))
+         if const.RETURN_TYPE in prop:
+            lines.append("%sreturn %s;\n"%(tab * tab_level, prop[const.RETURN_TYPE]))
+         if const.LEGACY_NAME in prop:
+            lines.append("%slegacy %s;\n"%(tab * tab_level, prop[const.LEGACY_NAME]))
+
+         if (len(prop[const.PARAMETERS]) != 0):
+           lines.append("%s%s {\n"%(tab * tab_level, "params"))
            tab_level += 1
-           lines.append("%s%s {\n"%(tab * tab_level, sg))
-           tab_level += 1
-           lines.append("%s/*@ %s */\n"%(tab * tab_level, prop_tmp["comment"]))
-           if const.LEGACY_NAME in prop_tmp:
-             lines.append("%slegacy %s;\n"%(tab * tab_level, prop_tmp[const.LEGACY_NAME]))
+           for d, par_lst in prop[const.PARAMETERS].iteritems():
+              for par in par_lst:
+                #this par is a dictionary par[name] - > (type, comment)
+                for name, tup in par.iteritems():
+                   s = "%s%s %s %s;"%(tab * tab_level, d, tup[0], name)
+                   comment = "\n"
+                   if not is_empty(tup[1]):
+                      comment = " /*@ %s */\n"%(tup[1])
+                   lines.append(s + comment)
+
            tab_level -= 1
-           lines.append("%s};\n"%(tab * tab_level)) #close set-get
-           tab_level -= 1
+           lines.append("%s};\n"%(tab * tab_level)) #close for parameters
+         tab_level -= 1 #dec for all parameters
+         lines.append("%s};\n"%(tab * tab_level)) #close for property name
+       lines.append("};\n") #close for methods section
 
-      tab_level += 1
-      lines.append("%s%s {\n"%(tab * tab_level, "params"))
-      tab_level += 1
-      for par in prop[const.PARAMETERS]:
-         #this par is a dictionary par[name] - > (type, comment)
-         for name, tup in par.iteritems():
-             lines.append("%s%s %s; /*@ %s */\n"%(tab * tab_level, tup[0], name, tup[1]))
+    if (len(ret[IMPLEMENTS]) != 0):
+      lines.append("implements {\n")
+      for tup in ret[IMPLEMENTS]:
+         if (("constructor" in tup[1]) or ("destructor" in tup[1])):
+            continue;
+         if len(tup) == 2:
+           lines.append("%s%s::%s;\n"%(tab * tab_level, tup[0], tup[1]))
+         elif len(tup) == 3:
+           lines.append("%s%s::%s::%s;\n"%(tab * tab_level, tup[0], tup[1], tup[2]))
+      lines.append("};\n") #close implements section
 
-      tab_level -= 1
-      lines.append("%s};\n"%(tab * tab_level)) #close for parameters
-      tab_level -= 1 #dec for all parameters
-      lines.append("%s};\n"%(tab * tab_level)) #close for property name
-    lines.append("};\n") #close for property section
+    if (len(ret[SIGNALS]) != 0):
+      lines.append("signals {\n")
+      for tup in ret[SIGNALS]:
+         s = "%s%s;"%(tab * tab_level, tup[0])
+         comment = "\n"
+         if not is_empty(tup[1]):
+           comment = " /*@ %s */\n"%(tup[1])
+         lines.append(s + comment)
 
-    lines.append("methods {\n")
-    for k, prop in ret[METHODS].iteritems():
-      lines.append("%s%s {\n"%(tab * tab_level, k))
-      tab_level += 1
-      if "comment" in prop:
-         lines.append("%s/*@ %s */\n"%(tab * tab_level, prop["comment"]))
-      if const.RETURN_TYPE in prop:
-         lines.append("%sreturn %s;\n"%(tab * tab_level, prop[const.RETURN_TYPE]))
-      if const.LEGACY_NAME in prop:
-         lines.append("%slegacy %s;\n"%(tab * tab_level, prop[const.LEGACY_NAME]))
 
-      lines.append("%s%s {\n"%(tab * tab_level, "params"))
-      tab_level += 1
-      for d, par_lst in prop[const.PARAMETERS].iteritems():
-         for par in par_lst:
-           #this par is a dictionary par[name] - > (type, comment)
-           for name, tup in par.iteritems():
-              lines.append("%s%s %s %s; /*@ %s */\n"%(tab * tab_level, d, tup[0], name, tup[1]))
-
-      tab_level -= 1
-      lines.append("%s};\n"%(tab * tab_level)) #close for parameters
-      tab_level -= 1 #dec for all parameters
-      lines.append("%s};\n"%(tab * tab_level)) #close for property name
-    lines.append("};\n") #close for methods section
-
-    lines.append("implements {\n")
-    for tup in ret[IMPLEMENTS]:
-       if len(tup) == 2:
-         lines.append("%s%s :: %s;\n"%(tab * tab_level, tup[0], tup[1]))
-       elif len(tup) == 3:
-         lines.append("%s%s :: %s %s;\n"%(tab * tab_level, tup[0], tup[1], tup[2]))
-    lines.append("};\n") #close implements section
-
-    lines.append("signals {\n")
-    for tup in ret[SIGNALS]:
-       lines.append("%s%s; /*@ %s */\n"%(tab * tab_level, tup[0], tup[1]))
-    lines.append("};\n") #close signals section
+      lines.append("};\n") #close signals section
 
     for l in lines:
        new_buf += "%s%s"%(tab_level * tab, l)
@@ -1670,3 +1711,11 @@ def smart_split2(tmp, open_delimeter, close_delimeter):
   l.append(tmp[pos_start : ])
 
   return tuple(l)
+
+def is_empty(_s):
+   s = _s.strip();
+   if len(s) == 0:
+      return True
+   else:
+      return False
+
