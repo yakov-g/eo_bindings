@@ -41,6 +41,7 @@ class _const:
     self.SIG_DESC = "signal_desc"
     self.RETURN_TYPE = "return_type"
     self.LEGACY_NAME = "legacy"
+    self.LEGACY_PAR_ARR = "legacy_par_arr"
 
     self.GET_FUNCTION = "get_function"#used as xml-tag
     self.DEFINES = "defines"

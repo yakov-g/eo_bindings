@@ -623,7 +623,7 @@ class Cparser(object):
           # we found several functions which match pattern,
           # there are only 4 cases now, and they are not needed to be fixed
           # (or can be easily fixed manually)
-          self.all_eo_funcs_hash[func] = (("void", 0), None)
+          self.all_eo_funcs_hash[func] = (("void", []), None)
        elif i == 1:
           print "FOUND : find %d for %s"%(i, tokens)
           self.all_eo_funcs_hash[func] = ((self.eapi_func_ret_type_hash[ll[0]], ll[0]))
@@ -631,7 +631,7 @@ class Cparser(object):
        elif i == 0:
           #print "NOT FOUND: for %s"%(tokens)
           #legacy for func was not found, so return type is "void"
-          self.all_eo_funcs_hash[func] = (("void" , 0), None)
+          self.all_eo_funcs_hash[func] = (("void" , []), None)
 
 
   def parse_all_return_types(self):
@@ -724,9 +724,9 @@ class Cparser(object):
              self.cl_data[cl_id][const.FUNCS][f][const.PARAMETERS] = params
              self.cl_data[cl_id][const.FUNCS][f][const.COMMENT] = macros[s_tmp][const.COMMENT]
              self.cl_data[cl_id][const.FUNCS][f][const.MACRO] = s_tmp
-             (ret_t, par_num), legacy_name = self.all_eo_funcs_hash[func_prefix + "_" + f]
+             (ret_t, par_arr), legacy_name = self.all_eo_funcs_hash[func_prefix + "_" + f]
              self.cl_data[cl_id][const.FUNCS][f][const.RETURN_TYPE] = ret_t
-             self.cl_data[cl_id][const.FUNCS][f]["par_num"] = par_num
+             self.cl_data[cl_id][const.FUNCS][f][const.LEGACY_PAR_ARR] = par_arr
              self.cl_data[cl_id][const.FUNCS][f][const.LEGACY_NAME] = legacy_name
          
        if not found:
@@ -890,7 +890,7 @@ class Cparser(object):
          continue
       pos2 = tmp.find(")")
       par_str = tmp[pos + 1 : pos2]
-      par_str_num = len(par_str.split(","))
+      par_str_arr = par_str.split(",")
       tmp = tmp[ : pos].strip()
 
       #look for EAPI and cut it off
@@ -908,7 +908,7 @@ class Cparser(object):
          continue
       if ((type_name.find("void") != -1) and (type_name.find("*") == -1)):
         type_name = "void"
-      self.eapi_func_ret_type_hash[func_name] = type_name, par_str_num
+      self.eapi_func_ret_type_hash[func_name] = type_name, par_str_arr
 
    #fetch all "#define" from file
     matcher = re.compile(r"^[ \t]*(#define(.*\\\n)*.*$)",re.MULTILINE)
@@ -1483,14 +1483,14 @@ class Cparser(object):
 
       #if in API only one parameter - this parameter is Eo*
       # so only add return
-      if ((ret_type != "void") and (f["par_num"] == 1)):
+      if ((ret_type != "void") and (len(f[const.LEGACY_PAR_ARR]) == 1)):
         f_ret["get"][const.RETURN_TYPE] = ret_type
         continue
 
       exclude_last_param = False
       #if API return type is not void, and API has more than 1 parameter (which is Eo*)
       #don't add last parameter into params, because it will be added automatically as return
-      if ((ret_type != "void") and (f["par_num"] != 1)):
+      if ((ret_type != "void") and (len(f[const.LEGACY_PAR_ARR]) != 1)):
          print "TA-DA-DA-DA: " + name + " : " +ret[CLASS_NAME]
          exclude_last_param = True
 
@@ -1531,6 +1531,13 @@ class Cparser(object):
         ret_tmp[name][const.RETURN_TYPE] = ret_type
       if f[const.LEGACY_NAME]:
         ret_tmp[name][const.LEGACY_NAME] = f[const.LEGACY_NAME]
+
+      if (len(f[const.LEGACY_PAR_ARR]) > 0):
+         par = f[const.LEGACY_PAR_ARR][0]
+         if ("const" in par):
+           ret_tmp[name]["first_is_const"] = "object: const;"
+
+
       par_map = ret_tmp[name]["parameters"] = OrderedDict()
       #par_map["in"] = []
       #par_map["in,out"] = []
@@ -1691,6 +1698,8 @@ class Cparser(object):
          if "comment" in prop:
            if not is_empty(prop["comment"]):
              lines.append("%s/*@ %s */\n"%(tab * tab_level, prop["comment"]))
+         if "first_is_const" in prop:
+            lines.append("%s%s\n"%(tab * tab_level, prop["first_is_const"]))
          if const.RETURN_TYPE in prop:
             lines.append("%sreturn %s;\n"%(tab * tab_level, prop[const.RETURN_TYPE]))
          if const.LEGACY_NAME in prop:
