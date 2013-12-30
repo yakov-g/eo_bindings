@@ -1405,6 +1405,9 @@ class Cparser(object):
       f_ret["set"]["comment"] = f_set[const.COMMENT]
       f_ret["get"]["comment"] = f_get[const.COMMENT]
 
+      f_ret["set"]["consts"] = []
+      f_ret["get"]["consts"] = []
+
       if f_set[const.LEGACY_NAME]:
         # as now class legacy name was added
         #legacy_name_tmp = "%s_%s_set"%(ret[const.LEGACY_NAME], name)
@@ -1427,13 +1430,19 @@ class Cparser(object):
             ret_in_set = True
             break
          #print "set: %d; get: %d; %s %s"%(params_num_set, params_num_get, ret[CLASS_NAME], name)
-         t_ret = f_get[const.PARAMETERS][i][2]
-         p = t_ret.find("*")
-         t_ret = t_ret[:p] + t_ret[p + 1:]
-         if (t1 != t_ret):
-            print "%s - %s"%(t1, t_ret)
-            print "set: %d; get: %d; %s %s"%(params_num_set, params_num_get, ret[CLASS_NAME], name)
-         t1 = ("%s %s"%(m, t1)).strip()
+         #check if there is any modifier for get param
+         m_ret = f_get[const.PARAMETERS][i][1]
+         if (("const" in m_ret) and ("const" in m)):
+           t1 = ("%s %s"%(m, t1)).strip()
+         elif (("const" not in m_ret) and ("const" not in m)):
+           t1 = ("%s"%(t1)).strip()
+         else:
+           t1 = ("%s"%(t1)).strip()
+           if (("const" in m_ret)):
+              f_ret["get"]["consts"].append("%s: const;"%n);
+           else:
+              f_ret["set"]["consts"].append("%s: const;"%n);
+
          p = {}
          p[n] = (t1, c)
          par_arr.append(p)
@@ -1665,6 +1674,11 @@ class Cparser(object):
               if const.RETURN_TYPE in prop_tmp:
                 #print "RETURN IN PROPERTY"
                 lines.append("%sreturn %s;\n"%(tab * tab_level, prop_tmp[const.RETURN_TYPE]));
+
+              if (("consts" in prop_tmp) and len(prop_tmp["consts"]) != 0):
+                for l in prop_tmp["consts"]:
+                  lines.append("%s%s\n"%(tab * tab_level, l))
+
               tab_level -= 1
               lines.append("%s};\n"%(tab * tab_level)) #close set-get
               tab_level -= 1
