@@ -1223,26 +1223,34 @@ class Cparser(object):
     if "constructor" in func_name:
        return const.METHOD
 
+
     prefix = func_name[:-4]
     postfix = func_name[-4:]
+
+    if ( (cl_name == "Elm_Entry" and prefix == "input_panel_imdata") or
+         (cl_name == "Elm_Dayselector" and prefix == "weekdays_names") or
+         (cl_name == "Elm_App_Server" and prefix == "title") or
+         (cl_name == "Elm_Widget" and prefix == "focus")):
+       return const.METHOD
 
     T = None
     if postfix in ["_set", "_get"]:
       if prefix + "_set" in kl[const.FUNCS] and prefix + "_get" in kl[const.FUNCS]:
          T = const.SET_GET
-         params_num = len(kl[const.FUNCS][prefix+"_set"][const.PARAMETERS])
+         params_real = params_num_set = len(kl[const.FUNCS][prefix+"_set"][const.PARAMETERS])
+         params_num_get = len(kl[const.FUNCS][prefix+"_get"][const.PARAMETERS])
          for i, (n, m ,t1, d, c) in enumerate(kl[const.FUNCS][prefix+"_set"][const.PARAMETERS]):
            #check, if last parameter in SET property is out, it still can be a property
-           if ((d == "out") and (i == params_num - 1)):
-              params_real = params_num - 1
+           if ((d == "out") and (i == params_num_set - 1)):
+              params_real = params_num_set - 1
               break
            if d != "in":
              #if len(kl[const.FUNCS][prefix+"_set"][const.PARAMETERS]) == 2:
              #  print "1Warning: check comments: %s %s"%(cl_name, prefix)
              T = const.METHOD
 
-         get_params_num = len(kl[const.FUNCS][prefix+"_get"][const.PARAMETERS])
-         if (get_params_num > params_num):
+         #if get has less real params than set - this cant be a property
+         if ((params_num_get < params_real) or (params_num_get > (params_real + 1))):
             T = const.METHOD
          for i, (n, m ,t1, d, c) in enumerate(kl[const.FUNCS][prefix+"_get"][const.PARAMETERS]):
            if d != "out":
@@ -1407,7 +1415,7 @@ class Cparser(object):
         f_ret["get"][const.LEGACY_NAME] = f_get[const.LEGACY_NAME]
 
       par_arr = f_ret["parameters"] = []
-      params_num_set = len(f_set[const.PARAMETERS])
+      params_set_real = params_num_set = len(f_set[const.PARAMETERS])
       params_num_get = len(f_get[const.PARAMETERS])
       ret_in_set = False
       for i, (n, m ,t1, d, c) in enumerate(f_set[const.PARAMETERS]):
@@ -1418,6 +1426,13 @@ class Cparser(object):
             f_ret["set"][const.RETURN_TYPE] = t1
             ret_in_set = True
             break
+         #print "set: %d; get: %d; %s %s"%(params_num_set, params_num_get, ret[CLASS_NAME], name)
+         t_ret = f_get[const.PARAMETERS][i][2]
+         p = t_ret.find("*")
+         t_ret = t_ret[:p] + t_ret[p + 1:]
+         if (t1 != t_ret):
+            print "%s - %s"%(t1, t_ret)
+            print "set: %d; get: %d; %s %s"%(params_num_set, params_num_get, ret[CLASS_NAME], name)
          t1 = ("%s %s"%(m, t1)).strip()
          p = {}
          p[n] = (t1, c)
@@ -1473,6 +1488,8 @@ class Cparser(object):
         continue
 
       exclude_last_param = False
+      #if API return type is not void, and API has more than 1 parameter (which is Eo*)
+      #don't add last parameter into params, because it will be added automatically as return
       if ((ret_type != "void") and (f["par_num"] != 1)):
          print "TA-DA-DA-DA: " + name + " : " +ret[CLASS_NAME]
          exclude_last_param = True
@@ -1686,7 +1703,8 @@ class Cparser(object):
               for par in par_lst:
                 #this par is a dictionary par[name] - > (type, comment)
                 for name, tup in par.iteritems():
-                   s = "%s%s %s %s;"%(tab * tab_level, d, tup[0], name)
+                   dd = "inout" if d == "in,out" else d
+                   s = "%s%s %s %s;"%(tab * tab_level, dd, tup[0], name)
                    comment = "\n"
                    if not is_empty(tup[1]):
                       comment = " /*@ %s */\n"%(tup[1])
