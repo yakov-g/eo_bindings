@@ -38,10 +38,6 @@ def main():
                   action="store_true", dest="verbose", default=False,
                   help="Verbose output")
 
-  parser.add_argument("-E", "--eo",
-                  action="store_true", dest="eoformat", default=False,
-                  help="Generate *.eo description files")
-
   parser.add_argument("-E2", "--eo2",
                   action="store_true", dest="eoformat2", default=False,
                   help="Generate *.eo description files")
@@ -110,12 +106,6 @@ def main():
 
   #if we want to generate Eo format we don't need parents
   # because we only generate description
-  if args.eoformat:
-     #generatinf .eo file in C-style
-     for k in cp.cl_data:
-       cp.build_eo(k)
-     exit(0)
-
   if args.eoformat2:
      #building XMLs
      #class_names_array = []

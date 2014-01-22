@@ -597,7 +597,7 @@ class Cparser(object):
       # try to find right by the key
        if func in self.eapi_func_ret_type_hash:
          # if func totally maches put None
-         self.all_eo_funcs_hash[func] = ((self.eapi_func_ret_type_hash[func], None))
+         self.all_eo_funcs_hash[func] = (self.eapi_func_ret_type_hash[func], None)
          del(self.eapi_func_ret_type_hash[func])
          continue
 
@@ -623,7 +623,7 @@ class Cparser(object):
           # we found several functions which match pattern,
           # there are only 4 cases now, and they are not needed to be fixed
           # (or can be easily fixed manually)
-          self.all_eo_funcs_hash[func] = (("void", []), None)
+          self.all_eo_funcs_hash[func] = (("void", [], None), None)
        elif i == 1:
           print "FOUND : find %d for %s"%(i, tokens)
           self.all_eo_funcs_hash[func] = ((self.eapi_func_ret_type_hash[ll[0]], ll[0]))
@@ -631,7 +631,7 @@ class Cparser(object):
        elif i == 0:
           #print "NOT FOUND: for %s"%(tokens)
           #legacy for func was not found, so return type is "void"
-          self.all_eo_funcs_hash[func] = (("void" , []), None)
+          self.all_eo_funcs_hash[func] = (("void" , [], None), None)
 
 
   def parse_all_return_types(self):
@@ -724,10 +724,11 @@ class Cparser(object):
              self.cl_data[cl_id][const.FUNCS][f][const.PARAMETERS] = params
              self.cl_data[cl_id][const.FUNCS][f][const.COMMENT] = macros[s_tmp][const.COMMENT]
              self.cl_data[cl_id][const.FUNCS][f][const.MACRO] = s_tmp
-             (ret_t, par_arr), legacy_name = self.all_eo_funcs_hash[func_prefix + "_" + f]
+             ((ret_t, par_arr, comment), legacy_name) = self.all_eo_funcs_hash[func_prefix + "_" + f]
              self.cl_data[cl_id][const.FUNCS][f][const.RETURN_TYPE] = ret_t
              self.cl_data[cl_id][const.FUNCS][f][const.LEGACY_PAR_ARR] = par_arr
              self.cl_data[cl_id][const.FUNCS][f][const.LEGACY_NAME] = legacy_name
+             self.cl_data[cl_id][const.FUNCS][f][const.LEGACY_COMMENT] = comment
          
        if not found:
          print "Warning: no API for %s in  %s"%(op, self.cl_data[cl_id][const.H_FILE])
@@ -882,6 +883,74 @@ class Cparser(object):
     af = allfile.replace("\n", "");
     eapi_list = re.findall(reg, allfile)
     for l in eapi_list:
+
+      # look for a comment which is before API
+      pp = allfile.find(l) 
+      legacy_comment = {}
+      comment = None
+      pos_cmnt2 = allfile.rfind("*/", 0, pp)
+      if (pp - pos_cmnt2 == 3):
+        pos_cmnt1 = allfile.rfind("/*", 0, pos_cmnt2)
+        comment = allfile[pos_cmnt1 + 2 : pos_cmnt2]
+        comment_lines = comment.split("\n")
+        for i, line in enumerate(comment_lines):
+          comment_lines[i] = line.strip().strip("*").strip()
+        comment = "\n".join(comment_lines)
+        
+        #parse params description out
+        res = comment[comment.find("@param") : ] if comment.find("@param") != -1 else None
+        param_lpos = comment.find("@param")
+        param_end = -1
+        if param_lpos != -1:
+          param_rpos = comment.rfind("@param")
+
+          suffix = ""
+          ret_pos = comment.find("@return", param_rpos)
+          nl_pos  = comment.find("\n\n", param_rpos)
+
+          if (((nl_pos != -1) and (ret_pos == -1)) or \
+              ((nl_pos != -1) and (ret_pos != -1) and (nl_pos < ret_pos))):
+             param_end = nl_pos
+             suffix = "\n\n"
+
+          elif ((nl_pos != -1) and (ret_pos != -1) and (nl_pos > ret_pos)):
+             param_end = ret_pos
+             suffix = ""
+
+          elif ((nl_pos != -1) and (ret_pos != -1) and (nl_pos < ret_pos)):
+             param_end = ret_pos
+             suffix = ""
+
+          if param_end == -1:
+            suffix = "\n\n"
+            param_end = comment.find(suffix, param_rpos)
+            if param_end == -1:
+               suffix = "\n"
+               param_end = comment.find(suffix, param_rpos)
+
+          res = comment[param_lpos : param_end]
+          comment = comment.replace(res + suffix, "")
+          #remove zero length lines
+          res = res.split("\n")
+          res = filter(len, res)
+          res = "\n".join(res)
+
+        if res:
+          res = res.split("@param")
+          res = filter(len, res)
+
+          params = {}
+          params_lst = []
+          for ll in res:
+             ll1 = ll.replace("@param", "")
+             ll1 = ll1.strip().rstrip().split(None, 1)
+             params[ll1[0]] = ll1[1] if len(ll1) == 2 else ""
+             params_lst.append((ll1[0], ll1[1] if len(ll1) == 2 else ""))
+        
+          legacy_comment["text"] = comment
+          legacy_comment["params"] = params
+          legacy_comment["params_lst"] = params_lst
+
       tmp = " ".join(l.split())
       # suppose this is usual func, so we can look for (
       # and cut everything off
@@ -908,7 +977,7 @@ class Cparser(object):
          continue
       if ((type_name.find("void") != -1) and (type_name.find("*") == -1)):
         type_name = "void"
-      self.eapi_func_ret_type_hash[func_name] = type_name, par_str_arr
+      self.eapi_func_ret_type_hash[func_name] = (type_name, par_str_arr, legacy_comment)
 
    #fetch all "#define" from file
     matcher = re.compile(r"^[ \t]*(#define(.*\\\n)*.*$)",re.MULTILINE)
@@ -1004,215 +1073,6 @@ class Cparser(object):
   def outdir_set(self, _d):
     self.outdir = _d
 
-  #generating Eo file in C-style
-  def build_eo(self, cl_id):
-    self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, normalize_names([self.cl_data[cl_id][const.C_NAME]])[0] + ".eo")
-
-    new_buf = ""
-
-    cl_data = self.cl_data[cl_id]
-
-    cl_parent = ""
-    cl_brothers = []
-    cl_brothers_str = ""
-    for i, l in enumerate(cl_data[const.PARENTS]):
-      tmp = {}
-      if l in self.cl_data:
-        tmp = self.cl_data
-      elif l in self.cl_incl:
-        tmp = self.cl_incl
-      else:
-        print "ERROR: no parent class \"%s\" was found"%l
-        exit(1)
-      if i == 0:
-        cl_parent = tmp[l][const.C_NAME]
-      else:
-        cl_brothers.append(tmp[l][const.C_NAME])
-
-    cl_brothers_str = ",".join(cl_brothers)
-
-    instantiateable = "False"
-    if cl_data[const.TYPE] == const.CLASS_TYPE_REGULAR:
-      instantiateable = "True"
-
-    #resolve funcs/set/get/properties
-    func_name_list_not_visited = []
-    for name in cl_data[const.FUNCS]:
-      func_name_list_not_visited.append(name) 
-
-    cl_data[const.METHOD] = []
-    cl_data[const.SET_GET] = []
-    cl_data[const.SET_ONLY] = []
-    cl_data[const.GET_ONLY] = []
-    for i, v in cl_data[const.FUNCS].iteritems():
-       T = ""
-       if cl_data[const.C_NAME] == "Eo Base":
-         T = const.METHOD
-         cl_data[T].append(i)
-         continue
-
-       #check if both properties are in tree; and if they are in,
-       # if their parameters are all in or out
-       prefix = i[:-4] 
-       postfix = i[-4:]
-       if postfix in ["_set", "_get"]:
-          if prefix + "_set" in func_name_list_not_visited and prefix + "_get" in func_name_list_not_visited:
-             T = const.SET_GET
-             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
-               if d != "in":
-                 T = const.METHOD
-
-             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
-               if d != "out":
-                 T = const.METHOD
-
-             if (T == const.SET_GET):
-                cl_data[T].append(prefix)
-             else:
-                cl_data[T].append(prefix + "_set")
-                cl_data[T].append(prefix + "_get")
-
-             func_name_list_not_visited.remove(prefix + "_set")
-             func_name_list_not_visited.remove(prefix + "_get")
-
-          elif prefix + "_set" in func_name_list_not_visited:
-             T = const.SET_ONLY
-             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_set"][const.PARAMETERS]:
-               if d != "in":
-                 T = const.METHOD
-             cl_data[T].append(i)
-             func_name_list_not_visited.remove(i)
-
-          elif prefix + "_get" in func_name_list_not_visited:
-             T = const.GET_ONLY
-             for (n, m ,t1, d, c) in cl_data[const.FUNCS][prefix+"_get"][const.PARAMETERS]:
-               if d != "out":
-                 T = const.METHOD
-             cl_data[T].append(i)
-             func_name_list_not_visited.remove(i)
-
-       else:
-         T = const.METHOD
-         cl_data[T].append(i)
-         func_name_list_not_visited.remove(i)
-
-    lines = []
-    parents = []
-    tab = "     "
-    tab_level = 0
-
-    parents.append(cl_parent)
-    parents += cl_brothers
-    lines.append("inherit")
-    lines.append("%s%s"%(tab_level * tab, "{"))
-    tab_level += 1
-    param_num = len(parents)
-    for l in parents:
-      line = "%s%s"%(tab_level * tab, l)
-      line += "," if param_num > 1 else ";"
-      lines.append(line)
-      param_num -= 1
-    tab_level -= 1
-    lines.append("%s%s"%(tab_level * tab, "}"))
-
-    prop_dir = "rw"
-    #properties
-    if len(cl_data[const.SET_GET]) or len(cl_data[const.SET_ONLY]) or len(cl_data[const.GET_ONLY]):
-      lines.append("properties")
-
-      lines.append("%s%s"%(tab_level * tab, "{"))
-      tab_level += 1
-      for name in cl_data[const.SET_GET]:
-        f = cl_data[const.FUNCS][name + "_set"]
-        lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
-        lines.append("%s %s %s("%(tab_level * tab, prop_dir, name))
-        tab_level += 1
-        param_num = len(f[const.PARAMETERS])
-        for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-           line = "%s%s %s /* %s */"%(tab_level * tab, t1, n, c)
-           if param_num > 1:
-              line += ","
-           lines.append(line)
-           param_num -=1
-        tab_level -= 1
-        lines.append("%s);"%(tab_level * tab))
-
-      prop_dir = "wo"
-    #properties_set
-      for name in cl_data[const.SET_ONLY]:
-        f = cl_data[const.FUNCS][name]
-        lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
-        lines.append("%s %s %s("%(tab_level * tab, prop_dir, name))
-        tab_level += 1
-        param_num = len(f[const.PARAMETERS])
-        for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-           line = "%s%s %s /* %s */"%(tab_level * tab, t1, n, c)
-           if param_num > 1:
-              line += ","
-           lines.append(line)
-           param_num -=1
-        tab_level -= 1
-        lines.append("%s);"%(tab_level * tab))
-
-      prop_dir = "ro"
-    #properties_get
-      for name in cl_data[const.GET_ONLY]:
-        f = cl_data[const.FUNCS][name]
-        lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
-        lines.append("%s %s %s("%(tab_level * tab, prop_dir, name))
-        tab_level += 1
-        param_num = len(f[const.PARAMETERS])
-        for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-           line = "%s%s %s /* %s */"%(tab_level * tab, t1, n, c)
-           if param_num > 1:
-              line += ","
-           lines.append(line)
-           param_num -=1
-        tab_level -= 1
-        lines.append("%s);"%(tab_level * tab))
-      tab_level -= 1
-      lines.append("%s%s"%(tab_level * tab, "}"))
-
-    #methods
-    if len(cl_data[const.METHOD]):
-      lines.append("methods")
-      lines.append("%s%s"%(tab_level * tab, "{"))
-      tab_level += 1
-      for name in cl_data[const.METHOD]:
-        f = cl_data[const.FUNCS][name]
-        lines.append("%s /* %s */"%(tab_level * tab, f[const.COMMENT]))
-        lines.append("%s%s("%(tab_level * tab, name))
-        tab_level += 1
-        param_num = len(f[const.PARAMETERS])
-        for (n, m ,t1, d, c) in f[const.PARAMETERS]:
-           line = "%s%s %s %s /* %s */"%(tab_level * tab, "inout" if d == "in,out" else d, t1, n, c)
-           if param_num > 1:
-              line += ","
-           lines.append(line)
-           param_num -=1
-        tab_level -= 1
-        lines.append("%s);"%(tab_level * tab))
-      tab_level -= 1
-      lines.append("%s%s"%(tab_level * tab, "}"))
-
-    #main brackets
-    tab_level = 1
-    new_buf = "%s =\n{\n"%(cl_data[const.C_NAME])
-    for l in lines:
-       new_buf += "%s%s\n"%(tab_level * tab, l)
-
-    new_buf += "\n}"
-    res = new_buf
-
-    (h, t) = os.path.split(cl_data[const.XML_FILE])
-    if not os.path.isdir(h):
-      os.makedirs(h)
-
-    f = open (cl_data[const.XML_FILE], 'w')
-    f.write(res)
-    f.close()
-
-
   def func_type(self, cl_name, func_name):
     kl = None
     for cl_id, data in self.cl_data.iteritems():
@@ -1229,8 +1089,7 @@ class Cparser(object):
 
     if ( (cl_name == "Elm_Entry" and prefix == "input_panel_imdata") or
          (cl_name == "Elm_Dayselector" and prefix == "weekdays_names") or
-         (cl_name == "Elm_App_Server" and prefix == "title") or
-         (cl_name == "Elm_Widget" and prefix == "focus")):
+         (cl_name == "Elm_App_Server" and prefix == "title")):
        return const.METHOD
 
     T = None
@@ -1402,8 +1261,10 @@ class Cparser(object):
       f_ret["set"] = OrderedDict()
       f_ret["get"] = OrderedDict()
 
-      f_ret["set"]["comment"] = f_set[const.COMMENT]
-      f_ret["get"]["comment"] = f_get[const.COMMENT]
+      f_ret["set"][const.COMMENT] = f_set[const.COMMENT]
+      f_ret["get"][const.COMMENT] = f_get[const.COMMENT]
+      f_ret["set"][const.LEGACY_COMMENT] = f_set[const.LEGACY_COMMENT]
+      f_ret["get"][const.LEGACY_COMMENT] = f_get[const.LEGACY_COMMENT]
 
       f_ret["set"]["consts"] = []
       f_ret["get"]["consts"] = []
@@ -1459,7 +1320,8 @@ class Cparser(object):
       f_ret = ret[PROPERTIES][name] = OrderedDict()
       f = cl_data[const.FUNCS][name + "_set"]
       f_ret["set"] = OrderedDict()
-      f_ret["set"]["comment"] = f[const.COMMENT]
+      f_ret["set"][const.COMMENT] = f[const.COMMENT]
+      f_ret["set"][const.LEGACY_COMMENT] = f[const.LEGACY_COMMENT]
       if f[const.LEGACY_NAME]:
         ret[PROPERTIES][name]["set"][const.LEGACY_NAME] = f[const.LEGACY_NAME]
       par_arr = f_ret["parameters"] = []
@@ -1482,7 +1344,8 @@ class Cparser(object):
       f_ret = ret[PROPERTIES][name] = OrderedDict()
       f = cl_data[const.FUNCS][name + "_get"]
       f_ret["get"] = OrderedDict()
-      f_ret["get"]["comment"] = f[const.COMMENT]
+      f_ret["get"][const.COMMENT] = f[const.COMMENT]
+      f_ret["get"][const.LEGACY_COMMENT] = f[const.LEGACY_COMMENT]
       if f[const.LEGACY_NAME]:
         ret[PROPERTIES][name]["get"][const.LEGACY_NAME] = f[const.LEGACY_NAME]
 
@@ -1520,7 +1383,8 @@ class Cparser(object):
       f_ret = ret[CONSTRUCTORS][name] = OrderedDict()
       par_arr = f_ret["parameters"] = []
       f = cl_data[const.FUNCS][name ]
-      f_ret["comment"] = f[const.COMMENT]
+      f_ret[const.COMMENT] = f[const.COMMENT]
+      f_ret[const.LEGACY_COMMENT] = f_set[const.LEGACY_COMMENT]
       for (n, m ,t1, d, c) in f[const.PARAMETERS]:
          par_arr.append((d, "%s %s"%(m, t1), n, c))
 
@@ -1532,7 +1396,8 @@ class Cparser(object):
       ret_tmp[name] = OrderedDict()
       f = cl_data[const.FUNCS][name]
 
-      ret_tmp[name]["comment"] = f[const.COMMENT]
+      ret_tmp[name][const.COMMENT] = f[const.COMMENT]
+      ret_tmp[name][const.LEGACY_COMMENT] = f[const.LEGACY_COMMENT]
 
       #add "return_type" field only if type is no void
       ret_type = f[const.RETURN_TYPE]
@@ -1625,14 +1490,29 @@ class Cparser(object):
            lines.append("destructor; /*@ Default destructor */\n")
            continue
 
+    # CONSTRUCTORS GENERATION
     if (len(ret[CONSTRUCTORS]) != 0):
       lines.append("constructors {\n")
       for k, prop in ret[CONSTRUCTORS].iteritems():
         lines.append("%s%s {\n"%(tab * tab_level, k))
         tab_level += 1
-        if "comment" in prop:
-           if not is_empty(prop["comment"]):
-             lines.append("%s/*@ %s */\n"%(tab * tab_level, prop["comment"]))
+
+
+
+        legacy_comment = prop[const.LEGACY_COMMENT]
+        if legacy_comment and not is_empty(legacy_comment["text"]):
+          lgc_cmnt = legacy_comment["text"]
+
+          #add prefix to each line
+          lgc_cmnt = lgc_cmnt.split("\n")
+          for i, line in enumerate(lgc_cmnt):
+             lgc_cmnt[i] = "%s%s"%(tab * (tab_level + 1), line) if len(line) else line
+          lgc_cmnt = "\n".join(lgc_cmnt).rstrip("\n")
+          lines.append("%s/*@ %s */\n"%(tab * tab_level, lgc_cmnt))
+          lines.append("\n")
+        else:
+          if not is_empty(prop[const.COMMENT]):
+            lines.append("%s/*@ %s */\n"%(tab * tab_level, prop[const.COMMENT]))
         if const.RETURN_TYPE in prop:
            lines.append("%sreturn %s;\n"%(tab * tab_level, prop[const.RETURN_TYPE]))
         if const.LEGACY_NAME in prop:
@@ -1657,6 +1537,7 @@ class Cparser(object):
         lines.append("%s};\n"%(tab * tab_level)) #close for property name
         lines.append("};\n") #close for constructors section
 
+    # PROPERTY GENERATION
     if (len(ret[PROPERTIES]) != 0):
        lines.append("properties {\n")
        for k, prop in ret[PROPERTIES].iteritems():
@@ -1667,8 +1548,23 @@ class Cparser(object):
               tab_level += 1
               lines.append("%s%s {\n"%(tab * tab_level, sg))
               tab_level += 1
-              if not is_empty(prop_tmp["comment"]):
-                 lines.append("%s/*@ %s */\n"%(tab * tab_level, prop_tmp["comment"]))
+
+              legacy_comment = prop_tmp[const.LEGACY_COMMENT]
+              if legacy_comment and not is_empty(legacy_comment["text"]):
+                 lgc_cmnt = legacy_comment["text"]
+
+                 #add prefix to each line
+                 lgc_cmnt = lgc_cmnt.split("\n")
+                 lines_count = len(lgc_cmnt)
+                 for i, line in enumerate(lgc_cmnt):
+                    lgc_cmnt[i] = "%s%s"%(tab * (tab_level + 1), line) if len(line) else line
+                 lgc_cmnt = "\n".join(lgc_cmnt).rstrip("\n")
+                 if (lines_count == 1):
+                    lgc_cmnt = " " + lgc_cmnt
+                 lines.append("%s/*@%s */\n"%(tab * tab_level, lgc_cmnt))
+              else:
+                if not is_empty(prop_tmp[const.COMMENT]):
+                  lines.append("%s/*@ %s */\n"%(tab * tab_level, prop_tmp[const.COMMENT]))
               if const.LEGACY_NAME in prop_tmp:
                 lines.append("%slegacy %s;\n"%(tab * tab_level, prop_tmp[const.LEGACY_NAME]))
               if const.RETURN_TYPE in prop_tmp:
@@ -1688,13 +1584,32 @@ class Cparser(object):
             tab_level += 1
             lines.append("%s%s {\n"%(tab * tab_level, "params"))
             tab_level += 1
-            for par in prop[const.PARAMETERS]:
+            #take params comments from LEGACY_COMMENT
+            legacy_comment = prop["set"][const.LEGACY_COMMENT] if "set" in prop else prop["get"][const.LEGACY_COMMENT]
+            params = legacy_comment["params"] if legacy_comment else None
+            params_lst = legacy_comment["params_lst"] if legacy_comment else None
+            for i, par in enumerate(prop[const.PARAMETERS]):
                #this par is a dictionary par[name] - > (type, comment)
                for name, tup in par.iteritems():
                    s = "%s%s %s;"%(tab * tab_level, tup[0], name)
                    comment = "\n"
-                   if not is_empty(tup[1]):
-                      comment = " /*@ %s */\n"%(tup[1])
+                   cm = tup[1]
+                   if params:
+                     if name in params:
+                        cm = params[name]
+                     else:
+                        cm = params_lst[len(params_lst) - len(prop[const.PARAMETERS]) + i][1]
+
+                   # add indentation into comment
+                   cm = cm.split("\n")
+                   for j, line in enumerate(cm):
+                      if j == 0:
+                         continue
+                      cm[j] = "%s%s"%(tab * (tab_level + 1), line) if len(line) else line
+                   cm = "\n".join(cm).rstrip("\n")
+
+                   if not is_empty(cm):
+                      comment = " /*@ %s */\n"%(cm)
                    lines.append(s + comment)
 
             tab_level -= 1
@@ -1704,14 +1619,30 @@ class Cparser(object):
          lines.append("%s};\n"%(tab * tab_level)) #close for property name
        lines.append("};\n") #close for property section
 
+    # METHODS GENERATION
     if (len(ret[METHODS]) != 0):
        lines.append("methods {\n")
        for k, prop in ret[METHODS].iteritems():
          lines.append("%s%s {\n"%(tab * tab_level, k))
          tab_level += 1
-         if "comment" in prop:
-           if not is_empty(prop["comment"]):
-             lines.append("%s/*@ %s */\n"%(tab * tab_level, prop["comment"]))
+
+         legacy_comment = prop[const.LEGACY_COMMENT]
+         if legacy_comment and not is_empty(legacy_comment["text"]):
+           lgc_cmnt = legacy_comment["text"]
+
+           #add prefix to each line
+           lgc_cmnt = lgc_cmnt.split("\n")
+           lines_count = len(lgc_cmnt)
+           for i, line in enumerate(lgc_cmnt):
+              lgc_cmnt[i] = "%s%s"%(tab * (tab_level + 1), line) if len(line) else line
+           lgc_cmnt = "\n".join(lgc_cmnt).rstrip("\n")
+           if (lines_count == 1):
+             lgc_cmnt = " " + lgc_cmnt
+           lines.append("%s/*@%s */\n"%(tab * tab_level, lgc_cmnt))
+           lines.append("\n")
+         else:
+           if not is_empty(prop[const.COMMENT]):
+             lines.append("%s/*@ %s */\n"%(tab * tab_level, prop[const.COMMENT]))
          if "first_is_const" in prop:
             lines.append("%s%s\n"%(tab * tab_level, prop["first_is_const"]))
          if const.RETURN_TYPE in prop:
@@ -1720,18 +1651,43 @@ class Cparser(object):
             lines.append("%slegacy %s;\n"%(tab * tab_level, prop[const.LEGACY_NAME]))
 
          if (len(prop[const.PARAMETERS]) != 0):
+           params = legacy_comment["params"] if legacy_comment else None
+           params_lst = legacy_comment["params_lst"] if legacy_comment else None
            lines.append("%s%s {\n"%(tab * tab_level, "params"))
            tab_level += 1
+           i = 0
+           #count number of paramenters in method
+           count = 0
+           for d, par_lst in prop[const.PARAMETERS].iteritems():
+              count += len(par_lst)
            for d, par_lst in prop[const.PARAMETERS].iteritems():
               for par in par_lst:
                 #this par is a dictionary par[name] - > (type, comment)
                 for name, tup in par.iteritems():
                    dd = "inout" if d == "in,out" else d
                    s = "%s%s %s %s;"%(tab * tab_level, dd, tup[0], name)
+
                    comment = "\n"
-                   if not is_empty(tup[1]):
-                      comment = " /*@ %s */\n"%(tup[1])
+
+                   cm = tup[1]
+                   if params:
+                     if name in params:
+                        cm = params[name]
+                     else:
+                        cm = params_lst[len(params_lst) - count + i][1]
+
+                   # add indentation into comment
+                   cm = cm.split("\n")
+                   for j, line in enumerate(cm):
+                      if j == 0:
+                         continue
+                      cm[j] = "%s%s"%(tab * (tab_level + 1), line) if len(line) else line
+                   cm = "\n".join(cm).rstrip("\n")
+
+                   if not is_empty(cm):
+                      comment = " /*@ %s */\n"%(cm)
                    lines.append(s + comment)
+                i += 1
 
            tab_level -= 1
            lines.append("%s};\n"%(tab * tab_level)) #close for parameters
@@ -1821,6 +1777,8 @@ def smart_split2(tmp, open_delimeter, close_delimeter):
   return tuple(l)
 
 def is_empty(_s):
+   if _s is None:
+      return True
    s = _s.strip();
    if len(s) == 0:
       return True

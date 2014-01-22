@@ -83,6 +83,7 @@ class _const:
     self.PRIMARY_TYPE = "primary_type" #used as xml-tag
     self.DIRECTION = "direction" #used as xml-tag
     self.COMMENT = "comment" #used as xml-tag
+    self.LEGACY_COMMENT = "legacy_comment" #used as xml-tag
 
 
 def isC(_path):
