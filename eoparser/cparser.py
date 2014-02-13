@@ -34,6 +34,7 @@ class Cparser(object):
     self.cl_incl = {}
     self.eapi_func_ret_type_hash = {}
     self.all_eo_funcs_hash = {}
+    self.sig_names_map_global = {}
 
     self.outdir = ""
     self.typedefs = {"Evas_Coord" : "int",
@@ -172,6 +173,7 @@ class Cparser(object):
     sig_names_list = re.findall(reg, af)
     for k, n in sig_names_list:
        sig_names_map[k] = n
+       self.sig_names_map_global[k] = n
 
     # looking for constructions like
     # #define SIG_CLICKED "clicked"
@@ -180,6 +182,7 @@ class Cparser(object):
     sig_names_list = re.findall(reg, af)
     for k, n in sig_names_list:
        sig_names_map[k] = n
+       self.sig_names_map_global[k] = n
 
     #looking for Cb_Descriptions array, parse it
     # and change SIG_ variables with it's defines...
@@ -201,7 +204,15 @@ class Cparser(object):
           c = c.strip();
 
           if v.find("\"") == -1 and v != "NULL":
-             v = sig_names_map[v]
+             if v in sig_names_map:
+               v = sig_names_map[v]
+             else:
+               print "Looks like this signal %s is global"%(v)
+               if v in self.sig_names_map_global:
+                  v = self.sig_names_map_global[v]
+               else:
+                  print "%s was not find: exiting"%(v)
+                  exit(1)
           v = v.strip("\"")
           c = c.strip("\"")
           if v != "NULL":
@@ -254,11 +265,16 @@ class Cparser(object):
 
   #FIXME: this regex must hande case when \" in inside quotes
   #looking for declarations of all events, This can fail, if bracket is used inside
+  #
+  # Now this fail, if ; is inside of comment.
     event_descriptions = {}
-    reg = "Eo_Event_Description[ ]*([\w]*)[ =]*EO_(HOT_)*EVENT_DESCRIPTION\(([^\)]*)\);"
+    #reg = "Eo_Event_Description[ ]*([\w]*)[ =]*EO_(HOT_)*EVENT_DESCRIPTION\(([^\)]*)\);"
+
+    reg = "Eo_Event_Description[ ]*([\w]*)[ =]*EO_(HOT_)*EVENT_DESCRIPTION\(([^;]*);"
     af = _in_data.replace("\n", "")
     ev_list = re.findall(reg, af)
     for key, hot, desc in ev_list:
+       desc = desc.strip(")").strip(" ")
        event, comment = smart_split2(desc, "\"", "\"")
        event = event.strip().strip("\"")
        comment = comment.strip().strip("\"")
@@ -1163,7 +1179,8 @@ class Cparser(object):
     ret[IMPLEMENTS] = []
     ret[SIGNALS] = []
 
-    self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, normalize_names([self.cl_data[cl_id][const.C_NAME]])[0] + ".eo")
+    #self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, normalize_names([self.cl_data[cl_id][const.C_NAME]])[0] + ".eo")
+    self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, self.cl_data[cl_id][const.C_NAME].lower() + ".eo")
 
     new_buf = ""
 

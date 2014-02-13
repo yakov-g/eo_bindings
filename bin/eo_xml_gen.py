@@ -75,7 +75,16 @@ def main():
   if typedefs:
     cp.typedefs_add(typedefs)
 
-  #fetching data from c-file
+  # some signals are used as globals, so i need them to exist
+  # before parsing rest of the files.
+  # Such signals exist in Widget and Layout
+  for f in c_files:
+    for s in ["elm_layout.c", "elm_widget.c"]:
+      if s in f:
+        print "%s"%s
+        cp.c_file_data_get2(f)
+        c_files.remove(f)
+
   for f in c_files:
   #  cp.c_file_data_get(f)
     cp.c_file_data_get2(f)
