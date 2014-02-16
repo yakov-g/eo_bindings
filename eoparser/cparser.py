@@ -611,10 +611,17 @@ class Cparser(object):
   def find_func_in_hash(self,funcs_list):
      for func in funcs_list:
       # try to find right by the key
+       func_backup = ""
+       if "ecore_poller_interval" in func:
+          func_backup = func
+          func = func.replace("ecore_poller_interval", "ecore_poller_poller_interval")
        if func in self.eapi_func_ret_type_hash:
          # if func totally maches put None
-         self.all_eo_funcs_hash[func] = (self.eapi_func_ret_type_hash[func], None)
-         del(self.eapi_func_ret_type_hash[func])
+         eo_func = api_func = func
+         if func_backup != "":
+            eo_func = func_backup
+         self.all_eo_funcs_hash[eo_func] = (self.eapi_func_ret_type_hash[api_func], None if eo_func == api_func else api_func)
+         del(self.eapi_func_ret_type_hash[api_func])
          continue
 
       # Probaly need to remove this check by tokens
@@ -642,7 +649,7 @@ class Cparser(object):
           self.all_eo_funcs_hash[func] = (("void", [], None), None)
        elif i == 1:
           print "FOUND : find %d for %s"%(i, tokens)
-          self.all_eo_funcs_hash[func] = ((self.eapi_func_ret_type_hash[ll[0]], ll[0]))
+          self.all_eo_funcs_hash[func] = (self.eapi_func_ret_type_hash[ll[0]], ll[0])
           del(self.eapi_func_ret_type_hash[ll[0]])
        elif i == 0:
           #print "NOT FOUND: for %s"%(tokens)
@@ -1497,7 +1504,7 @@ class Cparser(object):
 
     if (len(ret[const.LEGACY_NAME])):
       lines.append("legacy_prefix: %s;\n"%(ret[const.LEGACY_NAME]))
-    lines.append("inherits {%s};\n"%(", ".join(ret[INHERITS])))
+    lines.append("inherits {%s}\n"%(", ".join(ret[INHERITS])))
 
     if (len(ret[IMPLEMENTS]) != 0):
       for tup in ret[IMPLEMENTS]:
@@ -1550,10 +1557,10 @@ class Cparser(object):
                   lines.append(s + comment)
  
           tab_level -= 1
-          lines.append("%s};\n"%(tab * tab_level)) #close for parameters
+          lines.append("%s}\n"%(tab * tab_level)) #close for parameters
         tab_level -= 1 #dec for all parameters
-        lines.append("%s};\n"%(tab * tab_level)) #close for property name
-        lines.append("};\n") #close for constructors section
+        lines.append("%s}\n"%(tab * tab_level)) #close for property name
+        lines.append("}\n") #close for constructors section
 
     # PROPERTY GENERATION
     if (len(ret[PROPERTIES]) != 0):
@@ -1594,7 +1601,7 @@ class Cparser(object):
                   lines.append("%s%s\n"%(tab * tab_level, l))
 
               tab_level -= 1
-              lines.append("%s};\n"%(tab * tab_level)) #close set-get
+              lines.append("%s}\n"%(tab * tab_level)) #close set-get
               tab_level -= 1
 
          #empty params_section
@@ -1631,11 +1638,11 @@ class Cparser(object):
                    lines.append(s + comment)
 
             tab_level -= 1
-            lines.append("%s};\n"%(tab * tab_level)) #close for parameters
+            lines.append("%s}\n"%(tab * tab_level)) #close for parameters
             tab_level -= 1 #dec for all parameters
 
-         lines.append("%s};\n"%(tab * tab_level)) #close for property name
-       lines.append("};\n") #close for property section
+         lines.append("%s}\n"%(tab * tab_level)) #close for property name
+       lines.append("}\n") #close for property section
 
     # METHODS GENERATION
     if (len(ret[METHODS]) != 0):
@@ -1708,10 +1715,10 @@ class Cparser(object):
                 i += 1
 
            tab_level -= 1
-           lines.append("%s};\n"%(tab * tab_level)) #close for parameters
+           lines.append("%s}\n"%(tab * tab_level)) #close for parameters
          tab_level -= 1 #dec for all parameters
-         lines.append("%s};\n"%(tab * tab_level)) #close for property name
-       lines.append("};\n") #close for methods section
+         lines.append("%s}\n"%(tab * tab_level)) #close for property name
+       lines.append("}\n") #close for methods section
 
     if (len(ret[IMPLEMENTS]) != 0):
       lines.append("implements {\n")
@@ -1722,7 +1729,7 @@ class Cparser(object):
            lines.append("%s%s::%s;\n"%(tab * tab_level, tup[0], tup[1]))
          elif len(tup) == 3:
            lines.append("%s%s::%s::%s;\n"%(tab * tab_level, tup[0], tup[1], tup[2]))
-      lines.append("};\n") #close implements section
+      lines.append("}\n") #close implements section
 
     if (len(ret[EVENTS]) != 0):
       lines.append("%s {\n"%EVENTS)
@@ -1734,12 +1741,12 @@ class Cparser(object):
          lines.append(s + comment)
 
 
-      lines.append("};\n") #close signals section
+      lines.append("}\n") #close signals section
 
     for l in lines:
        new_buf += "%s%s"%(tab_level * tab, l)
 
-    new_buf += "\n};"
+    new_buf += "\n}"
     res = new_buf
 
     (h, t) = os.path.split(cl_data[const.XML_FILE])
