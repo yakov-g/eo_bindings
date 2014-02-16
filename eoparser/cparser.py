@@ -1560,7 +1560,7 @@ class Cparser(object):
           lines.append("%s}\n"%(tab * tab_level)) #close for parameters
         tab_level -= 1 #dec for all parameters
         lines.append("%s}\n"%(tab * tab_level)) #close for property name
-        lines.append("}\n") #close for constructors section
+      lines.append("}\n") #close for constructors section
 
     # PROPERTY GENERATION
     if (len(ret[PROPERTIES]) != 0):
