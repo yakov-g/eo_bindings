@@ -1169,7 +1169,7 @@ class Cparser(object):
     PROPERTIES = "properties"
     CONSTRUCTORS = "constructors"
     IMPLEMENTS = "implements"
-    SIGNALS = "signals"
+    EVENTS = "events"
     ret[CLASS_NAME] = ""
     ret[const.LEGACY_NAME] = ""
     ret[INHERITS] = []
@@ -1177,10 +1177,11 @@ class Cparser(object):
     ret[PROPERTIES] = OrderedDict()
     ret[METHODS] = OrderedDict()
     ret[IMPLEMENTS] = []
-    ret[SIGNALS] = []
+    ret[EVENTS] = []
 
     #self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, normalize_names([self.cl_data[cl_id][const.C_NAME]])[0] + ".eo")
     self.cl_data[cl_id][const.XML_FILE] = os.path.join(self.outdir, self.cl_data[cl_id][const.C_NAME].lower() + ".eo")
+    #print "1234rf: %s;%s"%(normalize_names([self.cl_data[cl_id][const.C_NAME]])[0] + ".eo", self.cl_data[cl_id][const.C_NAME].lower() + ".eo")
 
     new_buf = ""
 
@@ -1472,11 +1473,11 @@ class Cparser(object):
        ret[IMPLEMENTS].append(data)
 
     # add old styled signals
-    ret[SIGNALS] = cl_data[const.SIG_DESC]
+    ret[EVENTS] = cl_data[const.SIG_DESC]
     # add eo events
     eo_events = cl_data[const.EV_DESC]
     for l in eo_events:
-       ret[SIGNALS].append((l[2], l[3]))
+       ret[EVENTS].append((l[2], l[3]))
 
     (h, t) = os.path.split(cl_data[const.XML_FILE])
     if not os.path.isdir(h):
@@ -1723,9 +1724,9 @@ class Cparser(object):
            lines.append("%s%s::%s::%s;\n"%(tab * tab_level, tup[0], tup[1], tup[2]))
       lines.append("};\n") #close implements section
 
-    if (len(ret[SIGNALS]) != 0):
-      lines.append("signals {\n")
-      for tup in ret[SIGNALS]:
+    if (len(ret[EVENTS]) != 0):
+      lines.append("%s {\n"%EVENTS)
+      for tup in ret[EVENTS]:
          s = "%s%s;"%(tab * tab_level, tup[0])
          comment = "\n"
          if not is_empty(tup[1]):
