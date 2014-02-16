@@ -449,6 +449,7 @@ class Cparser(object):
        legacy_name = ""
        if len(ll):
           legacy_name = ll[0]
+          legacy_name = "edje_object" if legacy_name == "edje" else legacy_name
        else:
          cl_name_arr = ["Evas_Box", "Evas_Grid", "Evas_Image", "Evas_Line", "Evas_Polygon", "Evas_Rectangle",
                       "Evas_Smart", "Evas_Smart_Clipped", "Evas_Table", "Evas_Textblock", "Evas_Text", "Evas_Textgrid"]
@@ -610,11 +611,11 @@ class Cparser(object):
 
   def find_func_in_hash(self,funcs_list):
      for func in funcs_list:
-      # try to find right by the key
        func_backup = ""
        if "ecore_poller_interval" in func:
           func_backup = func
           func = func.replace("ecore_poller_interval", "ecore_poller_poller_interval")
+       # try to find right by the key
        if func in self.eapi_func_ret_type_hash:
          # if func totally maches put None
          eo_func = api_func = func
@@ -623,6 +624,11 @@ class Cparser(object):
          self.all_eo_funcs_hash[eo_func] = (self.eapi_func_ret_type_hash[api_func], None if eo_func == api_func else api_func)
          del(self.eapi_func_ret_type_hash[api_func])
          continue
+       else:
+         if func in ["evas_object_size_get", "evas_object_size_set"]:
+           self.all_eo_funcs_hash[func] = (("void" , [], None), None)
+           continue
+
 
       # Probaly need to remove this check by tokens
       #
